@@ -1,0 +1,56 @@
+name: mtc_app
+description: "MTC (Mali Trade Connect) - Plateforme e-commerce et de traçage de livraison."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Immutability / modeling
+  freezed_annotation: ^2.4.4
+
+  # Maps / live tracking (OpenStreetMap, no API key needed)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Utilities
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  shared_preferences: ^2.3.3
+
+  # Chat attachments: gallery images + voice messages
+  image_picker: ^1.1.2
+  record: ^6.0.0
+  audioplayers: ^6.1.0
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/products/textiles/
+    - assets/images/products/artisanat/
+    - assets/images/products/electronique/
+    - assets/images/products/alimentation/
+    - assets/images/products/materiaux/

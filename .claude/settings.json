@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nohup flutter run -d macos)",
+      "Bash(echo \"started pid $!\")",
+      "Bash(osascript -e 'tell application \"System Events\" to get name of every process whose background only is false')",
+      "Bash(osascript -e 'tell application \"System Events\" to tell process \"mtc_app\" to set position of window 1 to {100, 100}' -e 'tell application \"System Events\" to tell process \"mtc_app\" to set size of window 1 to {430, 900}')",
+      "Bash(osascript -e 'tell application \"mtc_app\" to activate')",
+      "Bash(screencapture -x -R100,100,430,900 /private/tmp/claude-501/-Users-solomon-MTC-project/b6336024-dc96-49ff-864b-376cde7e1e17/scratchpad/mtc_screenshot_1.png)",
+      "Bash(screencapture -x -R100,100,430,900 __TRACKED_VAR__/mtc_screenshot_2.png)",
+      "Bash(screencapture -x -R489,94,430,904 /private/tmp/claude-501/-Users-solomon-MTC-project/b6336024-dc96-49ff-864b-376cde7e1e17/scratchpad/mtc_screenshot_3.png)",
+      "Bash(osascript -e 'tell application \"System Events\" to tell process \"mtc_app\" to get {name, position, size} of every window')",
+      "Bash(pkill -f \"flutter run -d macos\")",
+      "Bash(pkill -f \"mtc_app.app\")",
+      "Bash(dart run *)",
+      "Bash(flutter analyze *)",
+      "Bash(osascript -e 'tell application \"System Events\" to click at {270, 70}')",
+      "Bash(screencapture -x -R60,60,420,880 __TRACKED_VAR__/mtc_screenshot_6.png)",
+      "Bash(pkill -f \"mtc_app.app/Contents/MacOS/mtc_app\")",
+      "Bash(flutter build *)",
+      "Bash(flutter pub *)",
+      "Bash(pod install *)",
+      "Bash(pkill -f \"flutter run\")"
+    ]
+  }
+}

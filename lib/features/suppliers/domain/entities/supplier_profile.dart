@@ -1,0 +1,26 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+import 'package:mtc_app/features/auth/domain/entities/user_role.dart'
+    show VerificationStatus;
+import 'package:mtc_app/features/catalog/domain/entities/product_category.dart'
+    show SupplierType;
+
+part 'supplier_profile.freezed.dart';
+
+/// Public-facing supplier entity — distinct from `AppUser`, which is "who is
+/// logged in". A client browsing the catalog only ever needs this, never
+/// the account/auth identity.
+@freezed
+class SupplierProfile with _$SupplierProfile {
+  const factory SupplierProfile({
+    required String id,
+    required String businessName,
+    required SupplierType supplierType,
+    required String city,
+    required double ratingAverage,
+    required int ratingCount,
+    required int productCount,
+    VerificationStatus? verificationStatus,
+    String? avatarUrl,
+  }) = _SupplierProfile;
+}
