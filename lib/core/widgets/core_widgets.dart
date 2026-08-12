@@ -10,4 +10,5 @@ export 'mtc_loading_view.dart';
 export 'mtc_primary_button.dart';
 export 'mtc_rating_stars.dart';
 export 'mtc_text_field.dart';
+export 'quantity_stepper.dart';
 export 'role_badge.dart';

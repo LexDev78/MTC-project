@@ -112,60 +112,11 @@ class CartLineItem extends ConsumerWidget {
                 visualDensity: VisualDensity.compact,
                 onPressed: () => controller.removeItem(item.id),
               ),
-              _QuantityStepper(
+              QuantityStepper(
                 quantity: item.quantity,
                 onChanged: (value) => controller.updateQuantity(item.id, value),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuantityStepper extends StatelessWidget {
-  const _QuantityStepper({required this.quantity, required this.onChanged});
-
-  final int quantity;
-  final void Function(int quantity) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    const buttonConstraints = BoxConstraints.tightFor(width: 26, height: 26);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.remove_rounded, size: 14),
-            iconSize: 14,
-            padding: EdgeInsets.zero,
-            constraints: buttonConstraints,
-            onPressed: () => onChanged(quantity - 1),
-          ),
-          SizedBox(
-            width: 20,
-            child: Text(
-              '$quantity',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_rounded, size: 14),
-            iconSize: 14,
-            padding: EdgeInsets.zero,
-            constraints: buttonConstraints,
-            onPressed: () => onChanged(quantity + 1),
           ),
         ],
       ),

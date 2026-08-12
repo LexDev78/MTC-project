@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'package:mtc_app/app/theme/app_shadows.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
+import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:mtc_app/features/comments/presentation/widgets/product_comments_section.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
@@ -49,15 +51,54 @@ Future<void> _contactSupplierAboutProduct(
   );
 }
 
-class ProductDetailScreen extends ConsumerWidget {
+class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.productId});
 
   final String productId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final productAsync = ref.watch(productDetailProvider(productId));
+  ConsumerState<ProductDetailScreen> createState() =>
+      _ProductDetailScreenState();
+}
+
+class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
+  /// Flight target for [_flyCartonsToCart] — the AppBar's cart icon, so the
+  /// "Ajouter au panier" animation has somewhere on screen to land on.
+  final GlobalKey _cartIconKey = GlobalKey();
+
+  /// Sends [quantity] small cartons flying from [sourceCenter] (the "Ajouter
+  /// au panier" button, at the moment it was tapped) to the AppBar's cart
+  /// icon. Purely decorative — the real cart mutation already happened by
+  /// the time this is called, so a missing target (e.g. mid hot-reload)
+  /// just silently skips the animation instead of failing anything.
+  void _flyCartonsToCart(Offset sourceCenter, int quantity) {
+    final targetBox =
+        _cartIconKey.currentContext?.findRenderObject() as RenderBox?;
+    if (targetBox == null || !targetBox.attached) return;
+    final targetCenter = targetBox.localToGlobal(
+      targetBox.size.center(Offset.zero),
+    );
+
+    final overlay = Overlay.of(context);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _FlyingCartons(
+        source: sourceCenter,
+        target: targetCenter,
+        // Capped so a bulk order doesn't throw a dozen icons across the
+        // screen — the real count still lands correctly on the badge.
+        count: quantity.clamp(1, 4),
+        onCompleted: () => entry.remove(),
+      ),
+    );
+    overlay.insert(entry);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final productAsync = ref.watch(productDetailProvider(widget.productId));
     final loadedProduct = productAsync.valueOrNull;
+    final cartCount = ref.watch(cartItemCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -74,6 +115,20 @@ class ProductDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 FavoriteToggleButton(productId: loadedProduct.id),
+                IconButton(
+                  key: _cartIconKey,
+                  icon: AnimatedCountBadge(
+                    count: cartCount,
+                    child: const Icon(Icons.shopping_cart_outlined),
+                  ),
+                  tooltip: 'Voir le panier',
+                  // `go`, not `push` — clientCart is a StatefulShellRoute
+                  // branch tab (see client_home_screen.dart's cart
+                  // shortcut), and pushing it as a standalone route on top
+                  // of the shell collides with the branch's own retained
+                  // page instance.
+                  onPressed: () => context.go(AppRoutes.clientCart),
+                ),
                 const SizedBox(width: AppSpacing.xs),
               ],
       ),
@@ -83,7 +138,7 @@ class ProductDetailScreen extends ConsumerWidget {
       ),
       bottomNavigationBar:
           loadedProduct != null && loadedProduct.stockQuantity > 0
-          ? _AddToCartBar(product: loadedProduct)
+          ? _AddToCartBar(product: loadedProduct, onAddToCart: _flyCartonsToCart)
           : null,
     );
   }
@@ -519,13 +574,33 @@ class _ThumbnailStrip extends StatelessWidget {
 /// "Ajouter au panier" that just adds it. Both read the same
 /// [_selectedQuantityProvider] the inline stepper next to the price writes
 /// to, so there's a single source of truth for "how many".
-class _AddToCartBar extends ConsumerWidget {
-  const _AddToCartBar({required this.product});
+class _AddToCartBar extends ConsumerStatefulWidget {
+  const _AddToCartBar({required this.product, required this.onAddToCart});
 
   final Product product;
 
+  /// Called with the "Ajouter au panier" button's on-screen center and the
+  /// quantity just added, so the parent screen can fly cartons from here to
+  /// its cart icon.
+  final void Function(Offset sourceCenter, int quantity) onAddToCart;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AddToCartBar> createState() => _AddToCartBarState();
+}
+
+class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
+  final GlobalKey _addToCartButtonKey = GlobalKey();
+
+  void _launchCartonFlight(int quantity) {
+    final box =
+        _addToCartButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return;
+    widget.onAddToCart(box.localToGlobal(box.size.center(Offset.zero)), quantity);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final product = widget.product;
     final scheme = Theme.of(context).colorScheme;
     final brightness = Theme.of(context).brightness;
     final quantity = ref.watch(_selectedQuantityProvider(product.id));
@@ -562,21 +637,124 @@ class _AddToCartBar extends ConsumerWidget {
             Expanded(
               flex: 2,
               child: MtcPrimaryButton(
+                key: _addToCartButtonKey,
                 label: 'Ajouter au panier',
                 icon: Icons.add_shopping_cart_rounded,
-                onPressed: () async {
-                  await ref
-                      .read(cartControllerProvider.notifier)
-                      .addProduct(product, quantity: quantity);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ajouté au panier')),
-                    );
-                  }
+                onPressed: () {
+                  // Fired alongside the real mutation (not awaited after
+                  // it) so the flight animation and the cart badge update
+                  // together instead of the button feeling like it's
+                  // waiting on the animation to finish. The flight itself
+                  // is the "added to cart" feedback now, so no snackbar.
+                  _launchCartonFlight(quantity);
+                  unawaited(
+                    ref
+                        .read(cartControllerProvider.notifier)
+                        .addProduct(product, quantity: quantity),
+                  );
                 },
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small cartons that toss themselves from [source] (the "Ajouter au
+/// panier" button) to [target] (the AppBar's cart icon) along an arced
+/// path, shrinking and fading as they arrive — a lightweight, purely
+/// visual echo of [LoadingScreen]'s falling crates, confirming "this went
+/// into the cart" without waiting on the real cart state to catch up.
+class _FlyingCartons extends StatefulWidget {
+  const _FlyingCartons({
+    required this.source,
+    required this.target,
+    required this.count,
+    required this.onCompleted,
+  });
+
+  final Offset source;
+  final Offset target;
+  final int count;
+  final VoidCallback onCompleted;
+
+  @override
+  State<_FlyingCartons> createState() => _FlyingCartonsState();
+}
+
+class _FlyingCartonsState extends State<_FlyingCartons>
+    with SingleTickerProviderStateMixin {
+  static const _cartonSize = 32.0;
+  static const _stagger = 0.1;
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+  )..forward();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) widget.onCompleted();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double _cartonProgress(int index, double t) {
+    final start = index * _stagger;
+    const span = 1 - _stagger * 3; // leaves room for up to 4 cartons
+    return ((t - start) / span).clamp(0.0, 1.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Stack(
+            children: [
+              for (var i = 0; i < widget.count; i++)
+                _carton(index: i, t: _controller.value),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _carton({required int index, required double t}) {
+    final progress = Curves.easeIn.transform(_cartonProgress(index, t));
+    final linear = Offset.lerp(widget.source, widget.target, progress)!;
+    // Arcs upward at the midpoint instead of cutting straight across.
+    final arc = -70.0 * math.sin(math.pi * progress);
+    final position = linear + Offset(0, arc);
+    final scale = 1 - progress * 0.6;
+    final opacity = progress < 0.85 ? 1.0 : (1 - progress) / 0.15;
+
+    return Positioned(
+      left: position.dx - _cartonSize / 2,
+      top: position.dy - _cartonSize / 2,
+      child: Opacity(
+        opacity: opacity.clamp(0.0, 1.0),
+        child: Transform.scale(
+          scale: scale,
+          child: Transform.rotate(
+            angle: progress * (index.isEven ? -1.4 : 1.4),
+            child: Icon(
+              Icons.inventory_2_rounded,
+              size: _cartonSize,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
         ),
       ),
     );

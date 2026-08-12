@@ -38,3 +38,12 @@ final favoriteProductsProvider = FutureProvider<List<Product>>((ref) async {
   final repository = ref.watch(productRepositoryProvider);
   return Future.wait(ids.map(repository.getById));
 });
+
+/// The quantity picked for a favorited product, used both by its row's own
+/// "Acheter"/"Ajouter au panier" buttons and by the favorites screen's bulk
+/// selection actions, so a bulk add honors each item's chosen quantity
+/// instead of defaulting to 1. Isolated per product and auto-disposed once
+/// its row leaves the screen.
+final favoriteQuantityProvider = StateProvider.autoDispose.family<int, String>(
+  (ref, productId) => 1,
+);

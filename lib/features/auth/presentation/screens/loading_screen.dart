@@ -29,10 +29,13 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
     with SingleTickerProviderStateMixin {
   static const _sceneWidth = 220.0;
   static const _cartSize = 96.0;
-  static const _boxSize = 32.0;
+  static const _boxSize = 28.0;
   static const _startTop = -56.0;
-  static const _boxLandingTops = [122.0, 104.0, 86.0, 68.0];
-  static const _boxLandingLefts = [70.0, 94.0, 118.0, 142.0];
+  // Boxes land two at a time, side by side, instead of stacking one on top
+  // of another — two short rows inside the basket instead of one tall
+  // column. Index 0/1 are the bottom row (fall first), 2/3 the top row.
+  static const _boxLandingTops = [110.0, 110.0, 86.0, 86.0];
+  static const _boxLandingLefts = [80.0, 112.0, 80.0, 112.0];
   static const _exitStart = 0.8;
 
   late final AnimationController _controller = AnimationController(
@@ -64,10 +67,20 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
     super.dispose();
   }
 
-  /// 0..1 fall progress for box [index] at overall timeline position [t] —
-  /// staggered so the crates drop into the cart one after another.
+  /// The timeline fraction at which box [index] starts falling. Boxes 0&1
+  /// land in the bottom row and 2&3 in the top row, but each box still
+  /// falls on its own slightly offset timing within its row's window —
+  /// falling in perfect lockstep read as too mechanical — so they don't
+  /// land at the exact same instant even though they end up side by side.
+  double _boxStart(int index) {
+    final row = index ~/ 2;
+    final withinRow = index % 2;
+    return 0.04 + row * 0.34 + withinRow * 0.08;
+  }
+
+  /// 0..1 fall progress for box [index] at overall timeline position [t].
   double _boxProgress(int index, double t) {
-    final start = 0.04 + index * 0.15;
+    final start = _boxStart(index);
     final end = start + 0.30;
     return ((t - start) / (end - start)).clamp(0.0, 1.0);
   }
@@ -78,7 +91,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
   double _cartSquash(double t) {
     var squash = 0.0;
     for (var i = 0; i < _boxLandingTops.length; i++) {
-      final landedAt = 0.04 + i * 0.15 + 0.30;
+      final landedAt = _boxStart(i) + 0.30;
       const window = 0.06;
       final distance = (t - landedAt).abs();
       if (distance < window) {
