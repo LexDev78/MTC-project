@@ -1,13 +1,16 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'fulfillment.freezed.dart';
+part 'fulfillment.g.dart';
 
 /// Global, order-level choice for *where* the client receives the whole
 /// order — distinct from the per-supplier [DeliveryMode] (features/orders/
 /// domain/entities/order_status.dart), which decides *who* delivers each
 /// supplier's items.
 enum FulfillmentMethod {
+  @JsonValue('pickup_point')
   pickupPoint,
+  @JsonValue('home_delivery')
   homeDelivery;
 
   String get label => switch (this) {
@@ -35,4 +38,7 @@ class PickupPoint with _$PickupPoint {
     required double latitude,
     required double longitude,
   }) = _PickupPoint;
+
+  factory PickupPoint.fromJson(Map<String, dynamic> json) =>
+      _$PickupPointFromJson(json);
 }

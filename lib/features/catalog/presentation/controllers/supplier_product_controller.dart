@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
+import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 
@@ -130,16 +132,28 @@ class SupplierProductController extends AsyncNotifier<void> {
     String? note,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref
-          .read(productRepositoryProvider)
-          .adjustStock(
-            id: productId,
-            quantityDelta: quantityDelta,
-            reason: reason,
-            note: note,
-          ),
-    );
+    state = await AsyncValue.guard(() async {
+      final productRepository = ref.read(productRepositoryProvider);
+      await productRepository.adjustStock(
+        id: productId,
+        quantityDelta: quantityDelta,
+        reason: reason,
+        note: note,
+      );
+
+      final updated = await productRepository.getById(productId);
+      final threshold = updated.lowStockThreshold;
+      if (threshold != null && updated.stockQuantity <= threshold) {
+        await ref
+            .read(notificationRepositoryProvider)
+            .add(
+              userId: updated.supplierId,
+              type: NotificationType.lowStock,
+              title: 'Stock faible',
+              body: '${updated.name} : ${updated.stockQuantity} en stock',
+            );
+      }
+    });
     return !state.hasError;
   }
 }

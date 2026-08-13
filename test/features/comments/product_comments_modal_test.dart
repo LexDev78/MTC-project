@@ -1,15 +1,22 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/comments/presentation/widgets/product_comments_modal.dart';
+
+import '../../support/supabase_test_harness.dart';
 
 Future<void> _openModal(WidgetTester tester) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
         currentUserProvider.overrideWith(
           (ref) => Stream.value(
             AppUser.client(
@@ -43,6 +50,10 @@ Future<void> _openModal(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(() async {
+    await resetAndSeed();
+  });
+
   testWidgets(
     'shows the seeded comment thread with reply, like and attachment '
     'controls',

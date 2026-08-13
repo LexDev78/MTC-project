@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
 import 'package:mtc_app/core/utils/id_generator.dart';
 
@@ -26,6 +27,14 @@ class InMemoryChatDatasource {
       },
       isBroadcast: true,
     ).map((_) => List<ChatConversation>.unmodifiable(_conversations));
+  }
+
+  ChatConversation getConversationById(String conversationId) {
+    return _conversations.firstWhere(
+      (c) => c.id == conversationId,
+      orElse: () =>
+          throw NotFoundException('Conversation introuvable : $conversationId'),
+    );
   }
 
   Stream<List<ChatMessage>> watchMessages() {
@@ -78,9 +87,12 @@ class InMemoryChatDatasource {
       _conversations[index] = conversation.copyWith(
         lastMessagePreview: preview,
         lastMessageAt: message.sentAt,
-        unreadCount: isFromClient
-            ? conversation.unreadCount
-            : conversation.unreadCount + 1,
+        unreadCountClient: isFromClient
+            ? conversation.unreadCountClient
+            : conversation.unreadCountClient + 1,
+        unreadCountSupplier: isFromClient
+            ? conversation.unreadCountSupplier + 1
+            : conversation.unreadCountSupplier,
       );
     }
     _changesController.add(null);
@@ -88,6 +100,7 @@ class InMemoryChatDatasource {
 
   String startOrGetConversation({
     required String clientId,
+    required String clientDisplayNameSnapshot,
     required String supplierId,
     required String supplierName,
   }) {
@@ -99,21 +112,33 @@ class InMemoryChatDatasource {
     final conversation = ChatConversation(
       id: IdGenerator.next(),
       clientId: clientId,
+      clientDisplayNameSnapshot: clientDisplayNameSnapshot,
       supplierId: supplierId,
       supplierName: supplierName,
       lastMessagePreview: '',
       lastMessageAt: DateTime.now(),
-      unreadCount: 0,
+      unreadCountClient: 0,
+      unreadCountSupplier: 0,
     );
     _conversations.add(conversation);
     _changesController.add(null);
     return conversation.id;
   }
 
-  void markConversationRead(String conversationId) {
+  void markConversationRead({
+    required String conversationId,
+    required ChatParticipant readBy,
+  }) {
     final index = _conversations.indexWhere((c) => c.id == conversationId);
     if (index == -1) return;
-    _conversations[index] = _conversations[index].copyWith(unreadCount: 0);
+    _conversations[index] = switch (readBy) {
+      ChatParticipant.client => _conversations[index].copyWith(
+        unreadCountClient: 0,
+      ),
+      ChatParticipant.supplier => _conversations[index].copyWith(
+        unreadCountSupplier: 0,
+      ),
+    };
 
     for (var i = 0; i < _messages.length; i++) {
       if (_messages[i].conversationId == conversationId &&
@@ -130,20 +155,24 @@ class InMemoryChatDatasource {
     final conv1 = ChatConversation(
       id: 'conv-awa-bogolan',
       clientId: DemoIds.clientAwa,
+      clientDisplayNameSnapshot: 'Awa Traoré',
       supplierId: DemoIds.supplierBogolanBamako,
       supplierName: 'Bogolan Bamako',
       lastMessagePreview: 'Oui, disponible en plusieurs coloris !',
       lastMessageAt: now.subtract(const Duration(hours: 2)),
-      unreadCount: 1,
+      unreadCountClient: 1,
+      unreadCountSupplier: 0,
     );
     final conv2 = ChatConversation(
       id: 'conv-moussa-mtc',
       clientId: DemoIds.clientMoussa,
+      clientDisplayNameSnapshot: 'Moussa Diarra',
       supplierId: DemoIds.supplierMtcOfficiel,
       supplierName: 'MTC Officiel',
       lastMessagePreview: 'Bienvenue sur Mali Trade Connect !',
       lastMessageAt: now.subtract(const Duration(days: 1)),
-      unreadCount: 0,
+      unreadCountClient: 0,
+      unreadCountSupplier: 0,
     );
 
     final messages = [

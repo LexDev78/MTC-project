@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 
 import '../../domain/entities/product_comment.dart';
 import '../providers/comment_providers.dart';
@@ -22,10 +23,12 @@ class CommentController extends AsyncNotifier<void> {
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      final product = await ref.read(productRepositoryProvider).getById(productId);
       await ref
           .read(productCommentRepositoryProvider)
           .addComment(
             productId: productId,
+            supplierId: product.supplierId,
             authorId: user.id,
             authorName: user.displayName,
             isSupplier: user.role != UserRole.client,
@@ -47,10 +50,12 @@ class CommentController extends AsyncNotifier<void> {
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      final product = await ref.read(productRepositoryProvider).getById(productId);
       await ref
           .read(productCommentRepositoryProvider)
           .addComment(
             productId: productId,
+            supplierId: product.supplierId,
             authorId: user.id,
             authorName: user.displayName,
             isSupplier: user.role != UserRole.client,
@@ -75,10 +80,12 @@ class CommentController extends AsyncNotifier<void> {
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      final product = await ref.read(productRepositoryProvider).getById(productId);
       await ref
           .read(productCommentRepositoryProvider)
           .addComment(
             productId: productId,
+            supplierId: product.supplierId,
             authorId: user.id,
             authorName: user.displayName,
             isSupplier: user.role != UserRole.client,

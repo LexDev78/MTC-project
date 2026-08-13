@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../data/datasources/in_memory_chat_datasource.dart';
 import '../../data/repositories/in_memory_chat_repository.dart';
@@ -21,6 +23,13 @@ final conversationsProvider = StreamProvider<List<ChatConversation>>((ref) {
   return ref.watch(chatRepositoryProvider).watchConversationsForUser(userId);
 });
 
+final supplierConversationsProvider =
+    StreamProvider.family<List<ChatConversation>, String>((ref, supplierId) {
+      return ref
+          .watch(chatRepositoryProvider)
+          .watchConversationsForSupplier(supplierId);
+    });
+
 final messagesProvider = StreamProvider.family<List<ChatMessage>, String>((
   ref,
   conversationId,
@@ -28,12 +37,24 @@ final messagesProvider = StreamProvider.family<List<ChatMessage>, String>((
   return ref.watch(chatRepositoryProvider).watchMessages(conversationId);
 });
 
+/// Looks up a single conversation by id, from whichever side's list
+/// (client or operating supplier) the current user belongs to — lets
+/// `ChatThreadScreen` stay a single screen shared by both roles.
 final conversationProvider = Provider.family<ChatConversation?, String>((
   ref,
   conversationId,
 ) {
-  final conversations =
-      ref.watch(conversationsProvider).valueOrNull ?? const [];
+  final user = ref.watch(currentUserProvider).valueOrNull;
+  final List<ChatConversation> conversations;
+  if (user is ClientUser) {
+    conversations = ref.watch(conversationsProvider).valueOrNull ?? const [];
+  } else {
+    final supplierId = ref.watch(operatingSupplierIdProvider);
+    conversations = supplierId == null
+        ? const []
+        : ref.watch(supplierConversationsProvider(supplierId)).valueOrNull ??
+              const [];
+  }
   for (final c in conversations) {
     if (c.id == conversationId) return c;
   }
@@ -43,5 +64,5 @@ final conversationProvider = Provider.family<ChatConversation?, String>((
 final totalUnreadCountProvider = Provider<int>((ref) {
   final conversations =
       ref.watch(conversationsProvider).valueOrNull ?? const [];
-  return conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
+  return conversations.fold<int>(0, (sum, c) => sum + c.unreadCountClient);
 });

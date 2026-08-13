@@ -17,6 +17,22 @@ class InMemoryChatRepository implements ChatRepository {
   }
 
   @override
+  Stream<List<ChatConversation>> watchConversationsForSupplier(
+    String supplierId,
+  ) {
+    return _datasource.watchConversations().map(
+      (conversations) =>
+          conversations.where((c) => c.supplierId == supplierId).toList()
+            ..sort((a, b) => b.lastMessageAt.compareTo(a.lastMessageAt)),
+    );
+  }
+
+  @override
+  Future<ChatConversation> getConversationById(String conversationId) async {
+    return _datasource.getConversationById(conversationId);
+  }
+
+  @override
   Stream<List<ChatMessage>> watchMessages(String conversationId) {
     return _datasource.watchMessages().map(
       (messages) =>
@@ -55,18 +71,26 @@ class InMemoryChatRepository implements ChatRepository {
   @override
   Future<String> startOrGetConversation({
     required String clientId,
+    required String clientDisplayNameSnapshot,
     required String supplierId,
     required String supplierName,
   }) async {
     return _datasource.startOrGetConversation(
       clientId: clientId,
+      clientDisplayNameSnapshot: clientDisplayNameSnapshot,
       supplierId: supplierId,
       supplierName: supplierName,
     );
   }
 
   @override
-  Future<void> markConversationRead(String conversationId) async {
-    _datasource.markConversationRead(conversationId);
+  Future<void> markConversationRead({
+    required String conversationId,
+    required ChatParticipant readBy,
+  }) async {
+    _datasource.markConversationRead(
+      conversationId: conversationId,
+      readBy: readBy,
+    );
   }
 }

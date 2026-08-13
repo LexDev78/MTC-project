@@ -11,4 +11,9 @@ abstract final class AppConstants {
   /// `DataProcessingConsent.policyVersion` so a later wording change is
   /// auditable (loi malienne n°2013-015 / APDP Mali).
   static const String currentDataProcessingPolicyVersion = 'v1';
+
+  /// Platform commission taken on a delivered order's `subtotalFcfa` — the
+  /// default a supplier's `SupplierFinanceSettings.commissionRatePercent`
+  /// starts at until a staff member overrides it.
+  static const double defaultCommissionRatePercent = 10.0;
 }

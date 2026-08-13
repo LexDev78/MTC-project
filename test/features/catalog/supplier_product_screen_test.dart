@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
+
+import '../../support/supabase_test_harness.dart';
 
 /// End-to-end widget coverage of the product management screens — unlike
 /// the repository/controller tests, this drives the actual `Form`s the way
@@ -16,7 +21,10 @@ Future<void> _loginAsFournisseur1(WidgetTester tester) async {
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
       child: const MtcApp(),
     ),
   );
@@ -38,6 +46,10 @@ Future<void> _loginAsFournisseur1(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(() async {
+    await resetAndSeed();
+  });
+
   testWidgets(
     'creating a product through the real form shows it in the list as a '
     'draft, editing it to active updates the badge, and the stock sheet '

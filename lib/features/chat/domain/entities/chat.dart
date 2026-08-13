@@ -1,21 +1,37 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'chat.freezed.dart';
+part 'chat.g.dart';
 
 /// What a [ChatMessage] carries beyond (or instead of) plain text.
 enum ChatAttachmentType { none, image, voice }
+
+/// Which side of a [ChatConversation] is reading/unread-tracked — a
+/// conversation has two independent unread counters (see
+/// `unreadCountClient`/`unreadCountSupplier`) since either party can have
+/// unread messages from the other at the same time.
+enum ChatParticipant { client, supplier }
 
 @freezed
 class ChatConversation with _$ChatConversation {
   const factory ChatConversation({
     required String id,
     required String clientId,
+
+    /// Denormalized like `Order.clientDisplayNameSnapshot` — lets the
+    /// supplier's conversation list/thread show who they're talking to
+    /// without a live join back to the client's account.
+    required String clientDisplayNameSnapshot,
     required String supplierId,
     required String supplierName,
     required String lastMessagePreview,
     required DateTime lastMessageAt,
-    required int unreadCount,
+    required int unreadCountClient,
+    required int unreadCountSupplier,
   }) = _ChatConversation;
+
+  factory ChatConversation.fromJson(Map<String, dynamic> json) =>
+      _$ChatConversationFromJson(json);
 }
 
 @freezed
@@ -49,4 +65,7 @@ class ChatMessage with _$ChatMessage {
     /// duration immediately without having to probe the audio file.
     int? voiceDurationSeconds,
   }) = _ChatMessage;
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) =>
+      _$ChatMessageFromJson(json);
 }

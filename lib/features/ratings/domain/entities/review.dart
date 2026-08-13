@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'review.freezed.dart';
+part 'review.g.dart';
 
 @freezed
 class Review with _$Review {
@@ -13,5 +14,13 @@ class Review with _$Review {
     required int stars,
     required String comment,
     required DateTime createdAt,
+
+    /// The supplier's public reply to this review, if they've written one —
+    /// re-calling `ReviewRepository.reply` edits it in place rather than
+    /// appending a second one.
+    String? supplierReply,
+    DateTime? supplierRepliedAt,
   }) = _Review;
+
+  factory Review.fromJson(Map<String, dynamic> json) => _$ReviewFromJson(json);
 }

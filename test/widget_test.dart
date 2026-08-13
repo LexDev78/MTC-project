@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,7 +9,13 @@ import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 
+import 'support/supabase_test_harness.dart';
+
 void main() {
+  setUp(() async {
+    await resetAndSeed();
+  });
+
   testWidgets('MtcApp boots to splash, then welcome, then login', (
     WidgetTester tester,
   ) async {
@@ -15,7 +24,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+        ],
         child: const MtcApp(),
       ),
     );

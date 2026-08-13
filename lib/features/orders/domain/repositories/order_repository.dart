@@ -16,6 +16,12 @@ abstract interface class OrderRepository {
   /// `SupplierOrderView`).
   Stream<List<Order>> watchOrdersForSupplier(String supplierId);
 
+  /// Every order, unfiltered — admin only, cross-supplier (see
+  /// `SupplierFinanceRepository.watchAllPayoutRequests` for the same
+  /// admin-only shape). Never used to derive a single supplier's own view;
+  /// that stays `watchOrdersForSupplier`.
+  Stream<List<Order>> watchAllOrders();
+
   Future<Order> placeOrder({
     required String clientId,
     required String clientDisplayNameSnapshot,

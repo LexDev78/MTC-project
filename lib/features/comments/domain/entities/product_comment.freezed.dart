@@ -15,10 +15,20 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+ProductComment _$ProductCommentFromJson(Map<String, dynamic> json) {
+  return _ProductComment.fromJson(json);
+}
+
 /// @nodoc
 mixin _$ProductComment {
   String get id => throw _privateConstructorUsedError;
   String get productId => throw _privateConstructorUsedError;
+
+  /// Resolved from `Product.supplierId` at creation time (denormalized,
+  /// same reasoning as every other snapshot in this app) — lets the
+  /// supplier's comment inbox filter across all of their products
+  /// without a live join back to the catalog.
+  String get supplierId => throw _privateConstructorUsedError;
   String get authorId => throw _privateConstructorUsedError;
   String get authorName => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
@@ -46,6 +56,9 @@ mixin _$ProductComment {
   /// of needing a separate per-user query.
   Set<String> get likedByUserIds => throw _privateConstructorUsedError;
 
+  /// Serializes this ProductComment to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
   /// Create a copy of ProductComment
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -63,6 +76,7 @@ abstract class $ProductCommentCopyWith<$Res> {
   $Res call({
     String id,
     String productId,
+    String supplierId,
     String authorId,
     String authorName,
     DateTime createdAt,
@@ -93,6 +107,7 @@ class _$ProductCommentCopyWithImpl<$Res, $Val extends ProductComment>
   $Res call({
     Object? id = null,
     Object? productId = null,
+    Object? supplierId = null,
     Object? authorId = null,
     Object? authorName = null,
     Object? createdAt = null,
@@ -113,6 +128,10 @@ class _$ProductCommentCopyWithImpl<$Res, $Val extends ProductComment>
             productId: null == productId
                 ? _value.productId
                 : productId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            supplierId: null == supplierId
+                ? _value.supplierId
+                : supplierId // ignore: cast_nullable_to_non_nullable
                       as String,
             authorId: null == authorId
                 ? _value.authorId
@@ -172,6 +191,7 @@ abstract class _$$ProductCommentImplCopyWith<$Res>
   $Res call({
     String id,
     String productId,
+    String supplierId,
     String authorId,
     String authorName,
     DateTime createdAt,
@@ -201,6 +221,7 @@ class __$$ProductCommentImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? productId = null,
+    Object? supplierId = null,
     Object? authorId = null,
     Object? authorName = null,
     Object? createdAt = null,
@@ -221,6 +242,10 @@ class __$$ProductCommentImplCopyWithImpl<$Res>
         productId: null == productId
             ? _value.productId
             : productId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        supplierId: null == supplierId
+            ? _value.supplierId
+            : supplierId // ignore: cast_nullable_to_non_nullable
                   as String,
         authorId: null == authorId
             ? _value.authorId
@@ -268,11 +293,12 @@ class __$$ProductCommentImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ProductCommentImpl implements _ProductComment {
   const _$ProductCommentImpl({
     required this.id,
     required this.productId,
+    required this.supplierId,
     required this.authorId,
     required this.authorName,
     required this.createdAt,
@@ -285,10 +311,20 @@ class _$ProductCommentImpl implements _ProductComment {
     final Set<String> likedByUserIds = const <String>{},
   }) : _likedByUserIds = likedByUserIds;
 
+  factory _$ProductCommentImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ProductCommentImplFromJson(json);
+
   @override
   final String id;
   @override
   final String productId;
+
+  /// Resolved from `Product.supplierId` at creation time (denormalized,
+  /// same reasoning as every other snapshot in this app) — lets the
+  /// supplier's comment inbox filter across all of their products
+  /// without a live join back to the catalog.
+  @override
+  final String supplierId;
   @override
   final String authorId;
   @override
@@ -339,7 +375,7 @@ class _$ProductCommentImpl implements _ProductComment {
 
   @override
   String toString() {
-    return 'ProductComment(id: $id, productId: $productId, authorId: $authorId, authorName: $authorName, createdAt: $createdAt, text: $text, isSupplier: $isSupplier, parentId: $parentId, attachmentType: $attachmentType, attachmentPath: $attachmentPath, voiceDurationSeconds: $voiceDurationSeconds, likedByUserIds: $likedByUserIds)';
+    return 'ProductComment(id: $id, productId: $productId, supplierId: $supplierId, authorId: $authorId, authorName: $authorName, createdAt: $createdAt, text: $text, isSupplier: $isSupplier, parentId: $parentId, attachmentType: $attachmentType, attachmentPath: $attachmentPath, voiceDurationSeconds: $voiceDurationSeconds, likedByUserIds: $likedByUserIds)';
   }
 
   @override
@@ -350,6 +386,8 @@ class _$ProductCommentImpl implements _ProductComment {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.productId, productId) ||
                 other.productId == productId) &&
+            (identical(other.supplierId, supplierId) ||
+                other.supplierId == supplierId) &&
             (identical(other.authorId, authorId) ||
                 other.authorId == authorId) &&
             (identical(other.authorName, authorName) ||
@@ -373,11 +411,13 @@ class _$ProductCommentImpl implements _ProductComment {
             ));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
     id,
     productId,
+    supplierId,
     authorId,
     authorName,
     createdAt,
@@ -400,12 +440,18 @@ class _$ProductCommentImpl implements _ProductComment {
         this,
         _$identity,
       );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ProductCommentImplToJson(this);
+  }
 }
 
 abstract class _ProductComment implements ProductComment {
   const factory _ProductComment({
     required final String id,
     required final String productId,
+    required final String supplierId,
     required final String authorId,
     required final String authorName,
     required final DateTime createdAt,
@@ -418,10 +464,20 @@ abstract class _ProductComment implements ProductComment {
     final Set<String> likedByUserIds,
   }) = _$ProductCommentImpl;
 
+  factory _ProductComment.fromJson(Map<String, dynamic> json) =
+      _$ProductCommentImpl.fromJson;
+
   @override
   String get id;
   @override
   String get productId;
+
+  /// Resolved from `Product.supplierId` at creation time (denormalized,
+  /// same reasoning as every other snapshot in this app) — lets the
+  /// supplier's comment inbox filter across all of their products
+  /// without a live join back to the catalog.
+  @override
+  String get supplierId;
   @override
   String get authorId;
   @override

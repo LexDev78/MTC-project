@@ -6,10 +6,14 @@ d'origine, complet et détaillé (contexte, principes d'architecture, séquence
 des 13 lots), est dans `/Users/solomon/.claude/plans/structured-inventing-dewdrop.md`
 — **le lire en premier** si le contexte ci-dessous ne suffit pas.
 
-**État au 2026-08-13** : Lots 1 à 7 terminés (analyzer propre, 114 tests
-verts). Lots 8 à 13 restants. Reprendre au Lot 8.
+**État au 2026-08-13** : **Les 13 lots sont terminés** (analyzer propre, 153
+tests verts). Le plan d'espace fournisseur est complet. Ce fichier reste
+comme référence/historique — voir "Fait (Lots 1-13)" ci-dessous pour le
+détail de chaque lot, et "Hors scope explicite" pour ce qui a été
+sciemment laissé de côté. S'il y a une suite (bugs, extensions), repartir
+de l'état documenté ici plutôt que de relire tout le plan d'origine.
 
-## Comment reprendre
+## Comment reprendre (si des lots restaient — gardé pour référence)
 
 1. Lire ce fichier en entier.
 2. `flutter analyze` et `flutter test` doivent être propres avant de commencer
@@ -76,6 +80,26 @@ Autre piège : `LoginScreen`/`WelcomeScreen` portent une animation perpétuelle
 (le chat qui suit le focus) — ne jamais faire `pumpAndSettle()` en restant
 dessus, utiliser des `pump(duration)` fixes.
 
+## Leçon importante du Lot 10 (à réappliquer)
+
+Encore un vrai bug trouvé par un test widget piloté (pas par `flutter
+analyze`, qui ne voit rien) : `AppComponentThemes.filledButton`/`.outlinedButton`
+fixent globalement `minimumSize: Size.fromHeight(56)` — une largeur
+**infinie** (pensé pour les CTA pleine largeur du type "Se connecter"). Un
+`FilledButton`/`OutlinedButton` posé nu dans un `Row` (qui donne une largeur
+non bornée à ses enfants non-flex pour les mesurer) fait alors planter le
+layout (`BoxConstraints forces an infinite width`, sur `RenderPhysicalShape`)
+— **mais seulement une fois monté dans l'app réelle avec son thème** ; un
+test qui pompe l'écran seul dans un `MaterialApp` nu (thème par défaut) ne le
+voit jamais, d'où l'intérêt de piloter l'écran depuis `MtcApp` complet et pas
+juste le widget isolé. Corrigé dans `supplier_review_management_screen.dart`
+en remplaçant le `Row` de boutons par un `OverflowBar` (ce que
+`AlertDialog.actions` utilise déjà en interne, donc déjà implicitement
+éprouvé dans ce projet). **Réflexe à appliquer à tout futur `FilledButton`/
+`OutlinedButton` qui n'est ni pleine largeur ni dans des `actions` d'`AlertDialog`/
+`BottomSheet` standard : passer par `OverflowBar`, ou lui donner un `style`
+local qui écrase `minimumSize`.**
+
 ## Comptes démo utiles pour les tests
 
 - `client1`/`client2` (Awa Traoré / Moussa Diarra), mdp `password123`.
@@ -105,7 +129,7 @@ bout, soit ajouter un compte démo, soit passer par
 `DemoIds.supplierMateriauxKoutiala` sans connexion, juste via le
 repository/controller).
 
-## Fait (Lots 1-7)
+## Fait (Lots 1-13 — plan complet)
 
 - **Lot 1** — `SupplierLegalType{company,individual}`, statut initial
   `unverified` (bug corrigé, était `pending`), création de `SupplierProfile`
@@ -129,71 +153,155 @@ repository/controller).
   `SupplierOrderView` (confidentialité), `isValidTransition`, annulation
   avec motif, bouton "Contacter le client" + routes de fil de discussion
   (préparent le Lot 8).
-
-## À faire (Lots 8-13, détail complet dans le plan original)
-
-### Lot 8 — Messagerie côté fournisseur (PROCHAIN)
-- `ChatConversation.unreadCount` → `unreadCountClient` + `unreadCountSupplier`
-  (actuellement le compteur n'incrémente QUE côté client — un fournisseur
-  n'aurait jamais de badge non-lu).
-- `ChatRepository.watchConversationsForSupplier(supplierId)` (nouveau,
-  symétrique de `watchConversationsForUser`).
-- `enum ChatParticipant{client,supplier}`, `markConversationRead` conscient
-  du côté qui lit.
-- Remplir le stub `supplier_conversation_list_screen.dart` (liste des
-  conversations, réutilise `ChatThreadScreen` tel quel — déjà agnostique du
-  rôle, déjà branché via les routes du Lot 7).
-- Adapter `chat_flow_test.dart` existant au renommage de champ.
-
-### Lot 9 — Boîte de réception des commentaires produits
-- `ProductComment.+ required supplierId` (résolu depuis `product.supplierId`) —
-  **ripple sur 5-6 fichiers** : `comment_controller.dart`,
-  `product_comments_modal.dart`, `product_comments_section.dart`,
-  `comment_composer.dart`, l'appelant dans `product_detail_screen.dart`.
-- `ProductCommentRepository.+ watchForSupplier(supplierId)`.
-- Écran boîte de réception, accessible comme sous-vue de l'onglet "Produits"
-  (pas de 7e onglet — décision déjà prise pour rester sur 6 branches).
-
-### Lot 10 — Réponse du fournisseur aux avis
-- `Review.+ supplierReply?/supplierRepliedAt?`.
-- `ReviewRepository.+ reply({reviewId, supplierId, reply})`.
-- Sous-vue de l'onglet "Profil". `supplier_profile_screen.dart` (vitrine
-  publique) affiche la réponse si présente.
-
-### Lot 11 — Profil vitrine étendu
-- Étendre `SupplierProfile` **en place** (pas de 3e entité séparée) :
-  `description, bannerUrl, fullAddress, addressLatitude/Longitude,
-  publicPhoneNumbers, deliveryZones, openingHoursLabel, isOpen`.
-- `SupplierRepository.+ updateStorefront(...)`, `+ setOpen(...)`.
-- Remplir le stub `supplier_account_screen.dart`.
-
-### Lot 12 — Finances (résumé calculé + retraits)
-- Nouvelle feature `supplier_finance/` : `PayoutRequest` (seul élément
-  **stocké**), `SupplierFinancialSummary`/`SupplierFinanceSettings`
-  (**calculés à la volée** depuis `OrderRepository`, jamais stockés en
-  double).
-- `compute_financial_summary.dart` (fonction pure) : `gross` = somme des
-  `subtotalFcfa` des groupes `delivered` (jamais `deliveryFeeFcfa`, déjà 0
-  en mode `selfDelivery`) ; `commission = gross * rate / 100` ; `net = gross
-  - commission`.
-- Pour le fournisseur principal (confirmé avec l'utilisateur : portail
-  complet miroir) : vue "ventes MTC directes" (commission = 0) + section
-  admin (`StaffRole.admin` uniquement, agent = opérationnel/admin = argent,
-  confirmé) "retraits à valider" + total des commissions plateforme —
-  nécessite `OrderRepository.+ watchAllOrders()` et
-  `SupplierFinanceRepository.+ watchAllPayoutRequests()` (cross-fournisseurs,
-  admin only).
-- Remplir le stub `supplier_finance_screen.dart`.
-
-### Lot 13 — Centre de notifications in-app
-- Scope réduit : liste in-app, pas de push réel.
-- Nouvelle feature `notifications/`.
-- Câblage rétroactif (petits hooks indépendants, lot le plus "étalé") dans :
-  `CheckoutController.placeOrder`, `ChatController.send*`,
-  `SupplierProductController.adjustStock` (si stock ≤ seuil),
-  `KycReviewController.approve/reject`, contrôleur de retrait staff (Lot 12).
-- Envisager de scinder en 13a (entité+repo+écran vide) et 13b (câblage des
-  hooks un par un).
+- **Lot 8** — Messagerie côté fournisseur : `ChatConversation.unreadCount`
+  → `unreadCountClient`/`unreadCountSupplier` (compteurs indépendants,
+  `sendMessage` incrémente celui du destinataire) ; `enum
+  ChatParticipant{client,supplier}` ; `ChatRepository.watchConversationsForSupplier`
+  + `markConversationRead({conversationId, readBy})` (ne remet à 0 que le
+  compteur du lecteur) ; `ChatController.markRead` dérive `readBy` du rôle
+  courant en interne. **Ajout non prévu dans le plan d'origine, nécessaire
+  pour que l'écran soit utilisable** : `ChatConversation.clientDisplayNameSnapshot`
+  (même convention que `Order.clientDisplayNameSnapshot`) — sans ça,
+  `ConversationTile`/`ChatThreadScreen` affichaient toujours
+  `supplierName`, donc un fournisseur aurait vu son propre nom sur
+  chaque conversation au lieu de celui du client. `ConversationTile`
+  et `chat_thread_screen.dart` choisissent maintenant le nom (et, pour
+  la tuile, la route) à afficher selon que l'utilisateur courant est
+  `ClientUser` ou non. `supplier_conversation_list_screen.dart` rempli.
+  Tests : `supplier_chat_flow_test.dart` (repository/controller),
+  `supplier_conversation_list_screen_test.dart` (widget, piloté comme
+  `supplier_order_screen_test.dart`), `chat_flow_test.dart` adapté au
+  renommage.
+- **Lot 9** — Boîte de réception des commentaires produits :
+  `ProductComment.+ required supplierId` (résolu depuis `product.supplierId`,
+  via `ProductRepository.getById` dans `CommentController` — **le ripple
+  prévu par le plan d'origine sur 5-6 fichiers UI n'a pas eu lieu** :
+  résoudre `supplierId` dans le controller plutôt que de le faire porter
+  par chaque widget appelant garde `product_comments_modal.dart`/
+  `product_comments_section.dart`/`comment_composer.dart`/
+  `product_detail_screen.dart` inchangés). `ProductCommentRepository.+
+  watchForSupplier(supplierId)`. Écran `supplier_comment_inbox_screen.dart`
+  rempli, accessible via une icône dans l'AppBar de l'onglet "Produits"
+  (pas de 7e onglet — décision déjà prise). Projection présentation
+  `supplierCommentInboxProvider` (`comments/presentation/providers/
+  supplier_comment_inbox_providers.dart`) qui regroupe chaque commentaire
+  racine avec ses réponses + le nom du produit (jointure `ProductRepository`
+  + `ProductCommentRepository` en présentation, comme `SupplierOrderView`) ;
+  taper sur une tuile réutilise `showProductCommentsModal` tel quel plutôt
+  que de dupliquer l'UI de réponse. Tests : `supplier_comment_inbox_test.dart`
+  (repository/controller/projection), `supplier_comment_inbox_screen_test.dart`
+  (widget, piloté comme au Lot 8).
+- **Lot 10** — Réponse du fournisseur aux avis : `Review.+
+  supplierReply?/supplierRepliedAt?` ; `ReviewRepository.+ reply({reviewId,
+  supplierId, reply})` (lève `ValidationException` si `supplierId` ne
+  correspond pas à l'avis — testé) ; ré-appeler `reply` édite la réponse en
+  place plutôt que d'en ajouter une seconde. `ReviewController.+
+  replyToReview` résout le fournisseur via `operatingSupplierIdProvider`.
+  `supplier_profile_screen.dart` (vitrine publique) affiche `supplierReply`
+  si présent. Écran `supplier_review_management_screen.dart` créé,
+  accessible via une icône dans l'AppBar de l'onglet "Profil" (même
+  placement que le Lot 9, pas de 7e onglet) — réutilise
+  `supplierReviewsProvider` déjà existant, pas de nouveau provider de liste
+  nécessaire. **Vrai bug de layout trouvé et corrigé par le test widget**
+  (voir "Leçon importante du Lot 10" ci-dessus) : `FilledButton` nu dans un
+  `Row` plantait à cause du thème global `minimumSize: Size.fromHeight(56)`
+  — remplacé par `OverflowBar`. Tests : `supplier_review_reply_test.dart`
+  (repository/controller), `supplier_review_management_screen_test.dart`
+  (widget).
+- **Lot 11** — Profil vitrine étendu : `SupplierProfile` étendu en place
+  (pas de 3e entité) avec `description?, bannerUrl?, fullAddress?,
+  addressLatitude?/Longitude?, publicPhoneNumbers ([]), deliveryZones ([]),
+  openingHoursLabel?, isOpen (true par défaut)`. `SupplierRepository.+
+  updateStorefront(...)` (remplace tout le bloc éditable d'un coup, comme
+  `updateProduct`, pas de patch partiel) `+ setOpen(...)`.
+  `SupplierAccountController` créé (nouveau — n'existait pas avant) :
+  `updateStorefront` **dérive `addressLatitude/Longitude` depuis la ville du
+  fournisseur via `MalianCity`** (même table que `ManageAddressesScreen`
+  pour une adresse client) plutôt que de les demander dans le formulaire —
+  pas de picker de carte dans l'app, donc pas de saisie manuelle de
+  coordonnées. `supplier_account_screen.dart` rempli (formulaire + toggle
+  "Boutique ouverte" instantané, séparé du reste du formulaire).
+  `supplier_profile_screen.dart` (vitrine publique) affiche bannière,
+  badge "Ouvert"/"Fermé", description, adresse/horaires/téléphones/zones de
+  livraison — **non explicitement demandé par le plan d'origine mais
+  nécessaire** : sans ça, le formulaire n'aurait servi à rien (rien ne
+  l'aurait jamais montré à un client), même raisonnement que le
+  `clientDisplayNameSnapshot` ajouté au Lot 8. **A cassé un test existant**
+  (`test/root/supplier_shell_test.dart`, "logging out from the Profil
+  tab") : le nouveau formulaire pousse le bouton "Déconnexion" hors-écran,
+  corrigé avec `scrollUntilVisible` avant le tap — signal qu'un changement
+  d'écran partagé peut avoir un effet de bord sur des tests d'autres lots,
+  à vérifier systématiquement via la suite complète. Tests :
+  `supplier_storefront_update_test.dart` (repository/controller),
+  `supplier_account_screen_test.dart` (widget).
+- **Lot 12** — Finances (résumé calculé + retraits) : nouvelle feature
+  `supplier_finance/` — `PayoutRequest` (seul élément stocké, réutilise
+  `MobileMoneyProvider` existant pour `method` plutôt qu'un nouvel enum),
+  `SupplierFinancialSummary`/`SupplierFinanceSettings` (calculés à la
+  volée). `compute_financial_summary.dart` (fonction pure, pattern
+  `delivery_pricing.dart`) filtre elle-même les groupes `delivered` — testé
+  directement sans `ProviderContainer`. `SupplierFinanceRepository`
+  (`watchPayoutRequests`, `watchAllPayoutRequests` admin, `requestPayout`,
+  `updatePayoutStatus` avec state machine `requested→processing/rejected`,
+  `processing→paid/rejected`, `getSettings`/`updateSettings`) +
+  `OrderRepository.+ watchAllOrders()`. Provider présentation
+  `financialSummaryProvider` réutilise `supplierOrdersProvider`
+  (`SupplierOrderView.myGroup`, la projection confidentialité du Lot 7)
+  plutôt que de refiltrer les commandes lui-même. **Simplification
+  documentée** : `platformCommissionSummaryProvider` (total plateforme,
+  vue admin) utilise `AppConstants.defaultCommissionRatePercent`
+  uniformément plutôt que le taux propre de chaque fournisseur — aucun
+  écran ne permet aujourd'hui de faire diverger un taux du défaut, donc
+  c'est correct en pratique, mais à corriger si `updateSettings` gagne un
+  jour une UI. `SupplierFinanceController.requestPayout` **attend
+  explicitement les données fraîches** (`.future` sur les providers
+  sous-jacents) plutôt que de lire `financialSummaryProvider` via `ref.read`
+  (qui peut être `null`/pas encore chargé si aucun écran ne l'a déjà
+  observé) — piège à éviter pour toute validation cross-provider similaire.
+  `supplier_finance_screen.dart` rempli (vue tiers avec bouton de demande de
+  retrait + historique ; vue principal "ventes MTC directes" + section
+  admin) ; nouvel écran `payout_review_queue_screen.dart` (staff admin
+  uniquement, pas d'équivalent tiers — même logique que la file KYC du Lot
+  3). **`OverflowBar` utilisé dès le départ** pour la rangée de boutons de
+  la tuile de révision (leçon du Lot 10 appliquée préventivement — aucun
+  bug de layout cette fois). Tests : `compute_financial_summary_test.dart`
+  (fonction pure), `payout_flow_test.dart` (repository/controller),
+  `supplier_finance_screen_test.dart` (widget, tiers + principal/admin).
+- **Lot 13** (dernier lot) — Centre de notifications in-app : nouvelle
+  feature `notifications/` — `AppNotification{id, userId, type, title,
+  body, createdAt, isRead}`, `NotificationRepository`
+  (`watchForUser`/`add`/`markRead`/`markAllRead`). `userId` est soit un
+  `AppUser.id` littéral (client, ou fournisseur tiers dont l'id coïncide
+  avec le `supplierId`), soit le `supplierId` MTC partagé pour le staff —
+  donc `operatingSupplierIdProvider` sert directement de clé de lecture
+  côté fournisseur, sans branchement supplémentaire. Écran
+  `notification_center_screen.dart` + cloche avec badge non-lus sur
+  l'AppBar du "Tableau de bord" (mirrorée `/supplier-tiers/notifications` +
+  `/supplier-principal/notifications`, même schéma que la review
+  management du Lot 10). **Câblage des 5 hooks prévus, un par un** :
+  `CheckoutController.placeOrder` → `newOrder` (un par groupe fournisseur
+  de la commande, pas juste un) ; `ChatController.send*` → `newMessage`
+  (nouveau `ChatRepository.getConversationById` ajouté pour résoudre le
+  destinataire — l'autre côté de `senderId` — sans dépendre d'un provider
+  déjà "chaud") ; `SupplierProductController.adjustStock` → `lowStock` (si
+  stock résultant ≤ seuil, après re-lecture du produit) ;
+  `KycReviewController.approve/reject` → `kycDecision` ;
+  `SupplierFinanceController.reviewPayout` → `payoutDecision`
+  (`SupplierFinanceRepository.updatePayoutStatus` modifié pour retourner
+  l'enregistrement mis à jour plutôt que `void`, pour connaître le
+  `supplierId` sans second appel). **Hook non prévu par le plan d'origine
+  ajouté** : `ReviewController.submit` → `newReview` — ce type existait déjà
+  dans l'enum `NotificationType` mais n'était câblé nulle part dans la
+  liste des hooks du plan, ce qui l'aurait laissé mort ; câblé par
+  cohérence avec les 5 autres. **Décision de scope volontaire** : l'entrée
+  du centre de notifications n'a été ajoutée que côté fournisseur (cloche
+  sur `SupplierHomeScreen`) — les 5 types du plan sont tous
+  fournisseur/staff-facing par nature ; un `newMessage` à destination d'un
+  client est bien stocké (`userId = clientId`) mais n'a pas d'UI cliente
+  dédiée dans ce lot (le badge de non-lu du chat, Lot 8, couvre déjà cet
+  usage côté client en pratique). Tests : `notification_flow_test.dart`
+  (repository/controller de base), `notification_hooks_test.dart` (un test
+  par hook, 6 au total), `notification_center_screen_test.dart` (widget).
 
 ## Hors scope explicite (rappel, voir le plan original pour le détail complet)
 

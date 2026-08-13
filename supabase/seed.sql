@@ -1,0 +1,14 @@
+-- MTC — données de démo (Lot 1).
+--
+-- Le contenu réel du seed vit dans `public.test_reset_and_seed()`
+-- (migration `0002_test_reset_fn.sql`) pour rester la source unique de
+-- vérité : ce fichier (exécuté automatiquement par `supabase db reset`)
+-- se contente de l'appeler, et le harnais de test (Lot 3,
+-- `test/support/supabase_test_harness.dart`) appellera la même fonction
+-- via RPC entre les tests pour repartir d'un état propre.
+--
+-- Voir `0002_test_reset_fn.sql` pour le détail du port de chaque
+-- `_seedXxx()` des 14 `InMemoryXxxDatasource` (comptes réels via
+-- auth.users, produits, commandes, chat, commentaires, KYC, avis,
+-- retraits...).
+select public.test_reset_and_seed();

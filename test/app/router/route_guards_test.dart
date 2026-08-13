@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,13 +9,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 Future<void> _pumpApp(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
       child: const MtcApp(),
     ),
   );
@@ -34,6 +42,10 @@ Future<void> _login(WidgetTester tester, String usernameOrPhone) async {
 }
 
 void main() {
+  setUp(() async {
+    await resetAndSeed();
+  });
+
   testWidgets(
     'fournisseur3 (unverified, no dossier yet) is forced straight into the '
     'KYC wizard instead of the dashboard',

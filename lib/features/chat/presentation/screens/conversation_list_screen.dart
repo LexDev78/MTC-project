@@ -30,8 +30,10 @@ class ConversationListScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             itemCount: conversations.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) =>
-                ConversationTile(conversation: conversations[index]),
+            itemBuilder: (context, index) => ConversationTile(
+              conversation: conversations[index],
+              unreadCount: conversations[index].unreadCountClient,
+            ),
           );
         },
       ),

@@ -51,4 +51,22 @@ abstract interface class SupplierRepository {
     required String supplierId,
     required int delta,
   });
+
+  /// Replaces every editable storefront field at once (like
+  /// `ProductRepository.updateProduct`) — the caller submits the whole
+  /// current set rather than a partial patch, so there's no ambiguity
+  /// between "field left unchanged" and "field cleared".
+  Future<void> updateStorefront({
+    required String supplierId,
+    required String? description,
+    required String? bannerUrl,
+    required String? fullAddress,
+    required double? addressLatitude,
+    required double? addressLongitude,
+    required List<String> publicPhoneNumbers,
+    required List<String> deliveryZones,
+    required String? openingHoursLabel,
+  });
+
+  Future<void> setOpen({required String supplierId, required bool isOpen});
 }

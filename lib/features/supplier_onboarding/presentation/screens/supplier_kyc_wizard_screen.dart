@@ -215,10 +215,10 @@ class _CompanyKycFormState extends ConsumerState<_CompanyKycForm> {
     return null;
   }
 
-  Future<void> _addDocument(SupplierDocumentType type, String path) async {
+  Future<void> _addDocument(SupplierDocumentType type, XFile file) async {
     await ref
         .read(supplierKycControllerProvider.notifier)
-        .addDocument(supplierId: widget.supplierId, type: type, filePath: path);
+        .addDocument(supplierId: widget.supplierId, type: type, file: file);
   }
 
   Future<void> _removeDocument(String documentId) async {
@@ -323,7 +323,7 @@ class _CompanyKycFormState extends ConsumerState<_CompanyKycForm> {
             type: _proofType,
             existing: proofDocument,
             isRequired: true,
-            onPicked: (path) => _addDocument(_proofType, path),
+            onPicked: (file) => _addDocument(_proofType, file),
             onRemove: proofDocument == null
                 ? null
                 : () => _removeDocument(proofDocument.id),
@@ -333,8 +333,8 @@ class _CompanyKycFormState extends ConsumerState<_CompanyKycForm> {
             type: SupplierDocumentType.managerIdCard,
             existing: managerIdDocument,
             isRequired: true,
-            onPicked: (path) =>
-                _addDocument(SupplierDocumentType.managerIdCard, path),
+            onPicked: (file) =>
+                _addDocument(SupplierDocumentType.managerIdCard, file),
             onRemove: managerIdDocument == null
                 ? null
                 : () => _removeDocument(managerIdDocument.id),
@@ -343,8 +343,8 @@ class _CompanyKycFormState extends ConsumerState<_CompanyKycForm> {
           DocumentUploadTile(
             type: SupplierDocumentType.articlesOfAssociation,
             existing: articlesDocument,
-            onPicked: (path) =>
-                _addDocument(SupplierDocumentType.articlesOfAssociation, path),
+            onPicked: (file) =>
+                _addDocument(SupplierDocumentType.articlesOfAssociation, file),
             onRemove: articlesDocument == null
                 ? null
                 : () => _removeDocument(articlesDocument.id),
@@ -353,8 +353,8 @@ class _CompanyKycFormState extends ConsumerState<_CompanyKycForm> {
           DocumentUploadTile(
             type: SupplierDocumentType.proofOfAddress,
             existing: addressDocument,
-            onPicked: (path) =>
-                _addDocument(SupplierDocumentType.proofOfAddress, path),
+            onPicked: (file) =>
+                _addDocument(SupplierDocumentType.proofOfAddress, file),
             onRemove: addressDocument == null
                 ? null
                 : () => _removeDocument(addressDocument.id),
@@ -387,11 +387,11 @@ class _IndividualKycForm extends ConsumerWidget {
   Future<void> _addDocument(
     WidgetRef ref,
     SupplierDocumentType type,
-    String path,
+    XFile file,
   ) async {
     await ref
         .read(supplierKycControllerProvider.notifier)
-        .addDocument(supplierId: supplierId, type: type, filePath: path);
+        .addDocument(supplierId: supplierId, type: type, file: file);
   }
 
   Future<void> _removeDocument(WidgetRef ref, String documentId) async {
@@ -430,8 +430,8 @@ class _IndividualKycForm extends ConsumerWidget {
           type: SupplierDocumentType.nationalIdFront,
           existing: frontDocument,
           isRequired: true,
-          onPicked: (path) =>
-              _addDocument(ref, SupplierDocumentType.nationalIdFront, path),
+          onPicked: (file) =>
+              _addDocument(ref, SupplierDocumentType.nationalIdFront, file),
           onRemove: frontDocument == null
               ? null
               : () => _removeDocument(ref, frontDocument.id),
@@ -441,8 +441,8 @@ class _IndividualKycForm extends ConsumerWidget {
           type: SupplierDocumentType.nationalIdBack,
           existing: backDocument,
           isRequired: true,
-          onPicked: (path) =>
-              _addDocument(ref, SupplierDocumentType.nationalIdBack, path),
+          onPicked: (file) =>
+              _addDocument(ref, SupplierDocumentType.nationalIdBack, file),
           onRemove: backDocument == null
               ? null
               : () => _removeDocument(ref, backDocument.id),
@@ -453,8 +453,8 @@ class _IndividualKycForm extends ConsumerWidget {
           existing: selfieDocument,
           isRequired: true,
           source: ImageSource.camera,
-          onPicked: (path) =>
-              _addDocument(ref, SupplierDocumentType.selfieWithId, path),
+          onPicked: (file) =>
+              _addDocument(ref, SupplierDocumentType.selfieWithId, file),
           onRemove: selfieDocument == null
               ? null
               : () => _removeDocument(ref, selfieDocument.id),

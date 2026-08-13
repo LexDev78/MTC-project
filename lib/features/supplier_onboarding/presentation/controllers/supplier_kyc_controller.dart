@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:mtc_app/core/constants/app_constants.dart';
+import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 
 import '../../domain/entities/supplier_kyc.dart';
@@ -51,17 +54,27 @@ class SupplierKycController extends AsyncNotifier<void> {
     return !state.hasError;
   }
 
+  /// Uploads [file] to the private `kyc-documents` bucket (own folder,
+  /// enforced by Storage RLS) before recording it — [file] is still a raw
+  /// local device path picked by `DocumentUploadTile`, never persisted as
+  /// such.
   Future<bool> addDocument({
     required String supplierId,
     required SupplierDocumentType type,
-    required String filePath,
+    required XFile file,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref
+    state = await AsyncValue.guard(() async {
+      final path = await uploadPickedImage(
+        client: ref.read(supabaseClientProvider),
+        bucket: 'kyc-documents',
+        folder: supplierId,
+        file: file,
+      );
+      await ref
           .read(supplierKycRepositoryProvider)
-          .addDocument(supplierId: supplierId, type: type, filePath: filePath),
-    );
+          .addDocument(supplierId: supplierId, type: type, filePath: path);
+    });
     return !state.hasError;
   }
 

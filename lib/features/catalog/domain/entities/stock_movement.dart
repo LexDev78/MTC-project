@@ -1,11 +1,13 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'stock_movement.freezed.dart';
+part 'stock_movement.g.dart';
 
 enum StockMovementReason {
   /// A supplier-initiated correction from the product form or the stock
   /// adjustment sheet (restock, inventory correction, damage, etc. — the
   /// free-text [StockMovement.note] carries the specific reason).
+  @JsonValue('manual_adjustment')
   manualAdjustment,
 
   /// Decremented automatically when an order is placed
@@ -37,4 +39,7 @@ class StockMovement with _$StockMovement {
     required DateTime occurredAt,
     String? note,
   }) = _StockMovement;
+
+  factory StockMovement.fromJson(Map<String, dynamic> json) =>
+      _$StockMovementFromJson(json);
 }

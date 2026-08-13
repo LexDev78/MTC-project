@@ -1,29 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
+import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/chat.dart';
 
-class ConversationTile extends StatelessWidget {
-  const ConversationTile({super.key, required this.conversation});
+class ConversationTile extends ConsumerWidget {
+  const ConversationTile({
+    super.key,
+    required this.conversation,
+    required this.unreadCount,
+  });
 
   final ChatConversation conversation;
 
+  /// Explicit rather than read off [conversation] directly so the same
+  /// tile serves both sides — a client's list shows `unreadCountClient`,
+  /// a supplier's list shows `unreadCountSupplier`.
+  final int unreadCount;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final hasUnread = conversation.unreadCount > 0;
+    final hasUnread = unreadCount > 0;
+    final isClient = ref.watch(currentUserProvider).valueOrNull is ClientUser;
+    final title = isClient
+        ? conversation.supplierName
+        : conversation.clientDisplayNameSnapshot;
 
     return ListTile(
-      onTap: () => context.push(AppRoutes.chatThread(conversation.id)),
+      onTap: () => context.push(
+        isClient
+            ? AppRoutes.chatThread(conversation.id)
+            : '${ref.read(supplierRoutePrefixProvider)}/messages/${conversation.id}',
+      ),
       leading: CircleAvatar(
         backgroundColor: scheme.primaryContainer,
-        child: Icon(Icons.storefront_rounded, color: scheme.onPrimaryContainer),
+        child: Icon(
+          isClient ? Icons.storefront_rounded : Icons.person_rounded,
+          color: scheme.onPrimaryContainer,
+        ),
       ),
-      title: Text(conversation.supplierName),
+      title: Text(title),
       subtitle: Text(
         conversation.lastMessagePreview.isEmpty
             ? 'Nouvelle conversation'
@@ -45,7 +69,7 @@ class ConversationTile extends StatelessWidget {
               radius: 9,
               backgroundColor: scheme.primary,
               child: Text(
-                '${conversation.unreadCount}',
+                '$unreadCount',
                 style: TextStyle(fontSize: 10, color: scheme.onPrimary),
               ),
             ),

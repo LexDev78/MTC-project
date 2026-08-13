@@ -4,8 +4,9 @@ import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
-import 'package:mtc_app/features/catalog/domain/entities/stock_movement.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
+import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
 
 import '../../domain/entities/fulfillment.dart';
@@ -178,16 +179,23 @@ class CheckoutController extends AsyncNotifier<Order?> {
                 : PaymentStatus.pendingOnDelivery,
             mobileMoneyProvider: mobileMoneyProvider,
           );
-      for (final input in inputs) {
-        for (final item in input.items) {
-          await productRepository.adjustStock(
-            id: item.productId,
-            quantityDelta: -item.quantity,
-            reason: StockMovementReason.sale,
-          );
-        }
-      }
+      // Stock is already decremented atomically inside `place_order()`
+      // itself (see `supabase/migrations/0003_orders_rpc.sql`) — a client
+      // session has no write access to `products`/`stock_movements`
+      // (RLS requires the operating supplier), so this must not be
+      // repeated here.
       await ref.read(cartRepositoryProvider).clear(userId);
+
+      final notificationRepository = ref.read(notificationRepositoryProvider);
+      for (final group in order.supplierGroups) {
+        await notificationRepository.add(
+          userId: group.supplierId,
+          type: NotificationType.newOrder,
+          title: 'Nouvelle commande',
+          body: '${user.displayName} — ${group.items.length} article(s)',
+        );
+      }
+
       return order;
     });
 

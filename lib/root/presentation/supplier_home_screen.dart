@@ -8,7 +8,9 @@ import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/supplier_onboarding/presentation/providers/supplier_kyc_providers.dart';
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 /// "Tableau de bord" tab — the first branch of `SupplierShell`, shared by
 /// both supplier roles. Content is role-specific (verification state for a
@@ -20,9 +22,13 @@ class SupplierHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider).valueOrNull;
+    final supplierId = ref.watch(operatingSupplierIdProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tableau de bord')),
+      appBar: AppBar(
+        title: const Text('Tableau de bord'),
+        actions: [if (supplierId != null) _NotificationBellButton(supplierId: supplierId)],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: switch (user) {
@@ -125,6 +131,29 @@ class _VerificationBadge extends StatelessWidget {
         icon: Icons.help_outline_rounded,
       ),
     };
+  }
+}
+
+class _NotificationBellButton extends ConsumerWidget {
+  const _NotificationBellButton({required this.supplierId});
+
+  final String supplierId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(unreadNotificationCountProvider(supplierId));
+
+    return IconButton(
+      tooltip: 'Notifications',
+      onPressed: () => context.push(
+        '${ref.read(supplierRoutePrefixProvider)}/notifications',
+      ),
+      icon: Badge(
+        isLabelVisible: unread > 0,
+        label: Text('$unread'),
+        child: const Icon(Icons.notifications_outlined),
+      ),
+    );
   }
 }
 

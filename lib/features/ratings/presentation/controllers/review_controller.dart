@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
+import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 
 import '../providers/review_providers.dart';
@@ -46,7 +49,32 @@ class ReviewController extends AsyncNotifier<void> {
             ratingAverage: updated.average,
             ratingCount: updated.count,
           );
+      await ref
+          .read(notificationRepositoryProvider)
+          .add(
+            userId: supplierId,
+            type: NotificationType.newReview,
+            title: 'Nouvel avis',
+            body: '$stars★ — $comment',
+          );
     });
+
+    return !state.hasError;
+  }
+
+  Future<bool> replyToReview({
+    required String reviewId,
+    required String reply,
+  }) async {
+    final supplierId = ref.read(operatingSupplierIdProvider);
+    if (supplierId == null) return false;
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref
+          .read(reviewRepositoryProvider)
+          .reply(reviewId: reviewId, supplierId: supplierId, reply: reply),
+    );
 
     return !state.hasError;
   }

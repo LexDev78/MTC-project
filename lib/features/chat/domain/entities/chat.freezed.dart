@@ -15,15 +15,28 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+ChatConversation _$ChatConversationFromJson(Map<String, dynamic> json) {
+  return _ChatConversation.fromJson(json);
+}
+
 /// @nodoc
 mixin _$ChatConversation {
   String get id => throw _privateConstructorUsedError;
   String get clientId => throw _privateConstructorUsedError;
+
+  /// Denormalized like `Order.clientDisplayNameSnapshot` — lets the
+  /// supplier's conversation list/thread show who they're talking to
+  /// without a live join back to the client's account.
+  String get clientDisplayNameSnapshot => throw _privateConstructorUsedError;
   String get supplierId => throw _privateConstructorUsedError;
   String get supplierName => throw _privateConstructorUsedError;
   String get lastMessagePreview => throw _privateConstructorUsedError;
   DateTime get lastMessageAt => throw _privateConstructorUsedError;
-  int get unreadCount => throw _privateConstructorUsedError;
+  int get unreadCountClient => throw _privateConstructorUsedError;
+  int get unreadCountSupplier => throw _privateConstructorUsedError;
+
+  /// Serializes this ChatConversation to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of ChatConversation
   /// with the given fields replaced by the non-null parameter values.
@@ -42,11 +55,13 @@ abstract class $ChatConversationCopyWith<$Res> {
   $Res call({
     String id,
     String clientId,
+    String clientDisplayNameSnapshot,
     String supplierId,
     String supplierName,
     String lastMessagePreview,
     DateTime lastMessageAt,
-    int unreadCount,
+    int unreadCountClient,
+    int unreadCountSupplier,
   });
 }
 
@@ -67,11 +82,13 @@ class _$ChatConversationCopyWithImpl<$Res, $Val extends ChatConversation>
   $Res call({
     Object? id = null,
     Object? clientId = null,
+    Object? clientDisplayNameSnapshot = null,
     Object? supplierId = null,
     Object? supplierName = null,
     Object? lastMessagePreview = null,
     Object? lastMessageAt = null,
-    Object? unreadCount = null,
+    Object? unreadCountClient = null,
+    Object? unreadCountSupplier = null,
   }) {
     return _then(
       _value.copyWith(
@@ -82,6 +99,10 @@ class _$ChatConversationCopyWithImpl<$Res, $Val extends ChatConversation>
             clientId: null == clientId
                 ? _value.clientId
                 : clientId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            clientDisplayNameSnapshot: null == clientDisplayNameSnapshot
+                ? _value.clientDisplayNameSnapshot
+                : clientDisplayNameSnapshot // ignore: cast_nullable_to_non_nullable
                       as String,
             supplierId: null == supplierId
                 ? _value.supplierId
@@ -99,9 +120,13 @@ class _$ChatConversationCopyWithImpl<$Res, $Val extends ChatConversation>
                 ? _value.lastMessageAt
                 : lastMessageAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
-            unreadCount: null == unreadCount
-                ? _value.unreadCount
-                : unreadCount // ignore: cast_nullable_to_non_nullable
+            unreadCountClient: null == unreadCountClient
+                ? _value.unreadCountClient
+                : unreadCountClient // ignore: cast_nullable_to_non_nullable
+                      as int,
+            unreadCountSupplier: null == unreadCountSupplier
+                ? _value.unreadCountSupplier
+                : unreadCountSupplier // ignore: cast_nullable_to_non_nullable
                       as int,
           )
           as $Val,
@@ -121,11 +146,13 @@ abstract class _$$ChatConversationImplCopyWith<$Res>
   $Res call({
     String id,
     String clientId,
+    String clientDisplayNameSnapshot,
     String supplierId,
     String supplierName,
     String lastMessagePreview,
     DateTime lastMessageAt,
-    int unreadCount,
+    int unreadCountClient,
+    int unreadCountSupplier,
   });
 }
 
@@ -145,11 +172,13 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? clientId = null,
+    Object? clientDisplayNameSnapshot = null,
     Object? supplierId = null,
     Object? supplierName = null,
     Object? lastMessagePreview = null,
     Object? lastMessageAt = null,
-    Object? unreadCount = null,
+    Object? unreadCountClient = null,
+    Object? unreadCountSupplier = null,
   }) {
     return _then(
       _$ChatConversationImpl(
@@ -160,6 +189,10 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
         clientId: null == clientId
             ? _value.clientId
             : clientId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        clientDisplayNameSnapshot: null == clientDisplayNameSnapshot
+            ? _value.clientDisplayNameSnapshot
+            : clientDisplayNameSnapshot // ignore: cast_nullable_to_non_nullable
                   as String,
         supplierId: null == supplierId
             ? _value.supplierId
@@ -177,9 +210,13 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
             ? _value.lastMessageAt
             : lastMessageAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
-        unreadCount: null == unreadCount
-            ? _value.unreadCount
-            : unreadCount // ignore: cast_nullable_to_non_nullable
+        unreadCountClient: null == unreadCountClient
+            ? _value.unreadCountClient
+            : unreadCountClient // ignore: cast_nullable_to_non_nullable
+                  as int,
+        unreadCountSupplier: null == unreadCountSupplier
+            ? _value.unreadCountSupplier
+            : unreadCountSupplier // ignore: cast_nullable_to_non_nullable
                   as int,
       ),
     );
@@ -187,22 +224,33 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ChatConversationImpl implements _ChatConversation {
   const _$ChatConversationImpl({
     required this.id,
     required this.clientId,
+    required this.clientDisplayNameSnapshot,
     required this.supplierId,
     required this.supplierName,
     required this.lastMessagePreview,
     required this.lastMessageAt,
-    required this.unreadCount,
+    required this.unreadCountClient,
+    required this.unreadCountSupplier,
   });
+
+  factory _$ChatConversationImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ChatConversationImplFromJson(json);
 
   @override
   final String id;
   @override
   final String clientId;
+
+  /// Denormalized like `Order.clientDisplayNameSnapshot` — lets the
+  /// supplier's conversation list/thread show who they're talking to
+  /// without a live join back to the client's account.
+  @override
+  final String clientDisplayNameSnapshot;
   @override
   final String supplierId;
   @override
@@ -212,11 +260,13 @@ class _$ChatConversationImpl implements _ChatConversation {
   @override
   final DateTime lastMessageAt;
   @override
-  final int unreadCount;
+  final int unreadCountClient;
+  @override
+  final int unreadCountSupplier;
 
   @override
   String toString() {
-    return 'ChatConversation(id: $id, clientId: $clientId, supplierId: $supplierId, supplierName: $supplierName, lastMessagePreview: $lastMessagePreview, lastMessageAt: $lastMessageAt, unreadCount: $unreadCount)';
+    return 'ChatConversation(id: $id, clientId: $clientId, clientDisplayNameSnapshot: $clientDisplayNameSnapshot, supplierId: $supplierId, supplierName: $supplierName, lastMessagePreview: $lastMessagePreview, lastMessageAt: $lastMessageAt, unreadCountClient: $unreadCountClient, unreadCountSupplier: $unreadCountSupplier)';
   }
 
   @override
@@ -227,6 +277,11 @@ class _$ChatConversationImpl implements _ChatConversation {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.clientId, clientId) ||
                 other.clientId == clientId) &&
+            (identical(
+                  other.clientDisplayNameSnapshot,
+                  clientDisplayNameSnapshot,
+                ) ||
+                other.clientDisplayNameSnapshot == clientDisplayNameSnapshot) &&
             (identical(other.supplierId, supplierId) ||
                 other.supplierId == supplierId) &&
             (identical(other.supplierName, supplierName) ||
@@ -235,20 +290,25 @@ class _$ChatConversationImpl implements _ChatConversation {
                 other.lastMessagePreview == lastMessagePreview) &&
             (identical(other.lastMessageAt, lastMessageAt) ||
                 other.lastMessageAt == lastMessageAt) &&
-            (identical(other.unreadCount, unreadCount) ||
-                other.unreadCount == unreadCount));
+            (identical(other.unreadCountClient, unreadCountClient) ||
+                other.unreadCountClient == unreadCountClient) &&
+            (identical(other.unreadCountSupplier, unreadCountSupplier) ||
+                other.unreadCountSupplier == unreadCountSupplier));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
     id,
     clientId,
+    clientDisplayNameSnapshot,
     supplierId,
     supplierName,
     lastMessagePreview,
     lastMessageAt,
-    unreadCount,
+    unreadCountClient,
+    unreadCountSupplier,
   );
 
   /// Create a copy of ChatConversation
@@ -261,23 +321,39 @@ class _$ChatConversationImpl implements _ChatConversation {
         this,
         _$identity,
       );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ChatConversationImplToJson(this);
+  }
 }
 
 abstract class _ChatConversation implements ChatConversation {
   const factory _ChatConversation({
     required final String id,
     required final String clientId,
+    required final String clientDisplayNameSnapshot,
     required final String supplierId,
     required final String supplierName,
     required final String lastMessagePreview,
     required final DateTime lastMessageAt,
-    required final int unreadCount,
+    required final int unreadCountClient,
+    required final int unreadCountSupplier,
   }) = _$ChatConversationImpl;
+
+  factory _ChatConversation.fromJson(Map<String, dynamic> json) =
+      _$ChatConversationImpl.fromJson;
 
   @override
   String get id;
   @override
   String get clientId;
+
+  /// Denormalized like `Order.clientDisplayNameSnapshot` — lets the
+  /// supplier's conversation list/thread show who they're talking to
+  /// without a live join back to the client's account.
+  @override
+  String get clientDisplayNameSnapshot;
   @override
   String get supplierId;
   @override
@@ -287,7 +363,9 @@ abstract class _ChatConversation implements ChatConversation {
   @override
   DateTime get lastMessageAt;
   @override
-  int get unreadCount;
+  int get unreadCountClient;
+  @override
+  int get unreadCountSupplier;
 
   /// Create a copy of ChatConversation
   /// with the given fields replaced by the non-null parameter values.
@@ -295,6 +373,10 @@ abstract class _ChatConversation implements ChatConversation {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ChatConversationImplCopyWith<_$ChatConversationImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) {
+  return _ChatMessage.fromJson(json);
 }
 
 /// @nodoc
@@ -326,6 +408,9 @@ mixin _$ChatMessage {
   /// Set only for [ChatAttachmentType.voice] — lets the bubble show a
   /// duration immediately without having to probe the audio file.
   int? get voiceDurationSeconds => throw _privateConstructorUsedError;
+
+  /// Serializes this ChatMessage to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of ChatMessage
   /// with the given fields replaced by the non-null parameter values.
@@ -561,7 +646,7 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ChatMessageImpl implements _ChatMessage {
   const _$ChatMessageImpl({
     required this.id,
@@ -578,6 +663,9 @@ class _$ChatMessageImpl implements _ChatMessage {
     this.attachmentPath,
     this.voiceDurationSeconds,
   });
+
+  factory _$ChatMessageImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ChatMessageImplFromJson(json);
 
   @override
   final String id;
@@ -658,6 +746,7 @@ class _$ChatMessageImpl implements _ChatMessage {
                 other.voiceDurationSeconds == voiceDurationSeconds));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -683,6 +772,11 @@ class _$ChatMessageImpl implements _ChatMessage {
   @pragma('vm:prefer-inline')
   _$$ChatMessageImplCopyWith<_$ChatMessageImpl> get copyWith =>
       __$$ChatMessageImplCopyWithImpl<_$ChatMessageImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ChatMessageImplToJson(this);
+  }
 }
 
 abstract class _ChatMessage implements ChatMessage {
@@ -701,6 +795,9 @@ abstract class _ChatMessage implements ChatMessage {
     final String? attachmentPath,
     final int? voiceDurationSeconds,
   }) = _$ChatMessageImpl;
+
+  factory _ChatMessage.fromJson(Map<String, dynamic> json) =
+      _$ChatMessageImpl.fromJson;
 
   @override
   String get id;

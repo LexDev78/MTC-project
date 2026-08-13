@@ -1,7 +1,10 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 enum OrderStatus {
   pending,
   confirmed,
   preparing,
+  @JsonValue('in_transit')
   inTransit,
   delivered,
   cancelled;
@@ -18,7 +21,12 @@ enum OrderStatus {
 
 /// Who delivers a given supplier's part of the order — the supplier
 /// themselves, or MTC on their behalf for a fee.
-enum DeliveryMode { selfDelivery, mtcDelivery }
+enum DeliveryMode {
+  @JsonValue('self_delivery')
+  selfDelivery,
+  @JsonValue('mtc_delivery')
+  mtcDelivery,
+}
 
 /// Who cancelled a supplier group — only ever [supplier] today (the client
 /// has no cancellation flow yet, and MTC-initiated cancellation isn't

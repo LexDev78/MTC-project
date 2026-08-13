@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
@@ -68,14 +69,20 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(messagesProvider(widget.conversationId));
     final conversation = ref.watch(conversationProvider(widget.conversationId));
-    final currentUserId = ref.watch(currentUserProvider).valueOrNull?.id;
+    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    final currentUserId = currentUser?.id;
+    final isClient = currentUser is ClientUser;
 
     ref.listen(messagesProvider(widget.conversationId), (previous, next) {
       if (next.hasValue) _scrollToBottom();
     });
 
+    final title = isClient
+        ? conversation?.supplierName
+        : conversation?.clientDisplayNameSnapshot;
+
     return Scaffold(
-      appBar: AppBar(title: Text(conversation?.supplierName ?? 'Conversation')),
+      appBar: AppBar(title: Text(title ?? 'Conversation')),
       body: Column(
         children: [
           Expanded(

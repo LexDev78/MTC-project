@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'product_comment.freezed.dart';
+part 'product_comment.g.dart';
 
 /// What a [ProductComment] carries beyond (or instead of) plain text —
 /// mirrors `ChatAttachmentType` (features/chat), same local-file-only caveat.
@@ -16,6 +17,12 @@ class ProductComment with _$ProductComment {
   const factory ProductComment({
     required String id,
     required String productId,
+
+    /// Resolved from `Product.supplierId` at creation time (denormalized,
+    /// same reasoning as every other snapshot in this app) — lets the
+    /// supplier's comment inbox filter across all of their products
+    /// without a live join back to the catalog.
+    required String supplierId,
     required String authorId,
     required String authorName,
     required DateTime createdAt,
@@ -42,6 +49,9 @@ class ProductComment with _$ProductComment {
     /// of needing a separate per-user query.
     @Default(<String>{}) Set<String> likedByUserIds,
   }) = _ProductComment;
+
+  factory ProductComment.fromJson(Map<String, dynamic> json) =>
+      _$ProductCommentFromJson(json);
 }
 
 extension ProductCommentX on ProductComment {

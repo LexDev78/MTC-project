@@ -1,3 +1,4 @@
+import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/utils/id_generator.dart';
 
 import '../../domain/entities/review.dart';
@@ -47,5 +48,25 @@ class InMemoryReviewRepository implements ReviewRepository {
     required String supplierGroupId,
   }) async {
     return !_datasource.hasReview(orderId, supplierGroupId);
+  }
+
+  @override
+  Future<void> reply({
+    required String reviewId,
+    required String supplierId,
+    required String reply,
+  }) async {
+    final review = _datasource.getById(reviewId);
+    if (review == null) {
+      throw const NotFoundException('Avis introuvable');
+    }
+    if (review.supplierId != supplierId) {
+      throw const ValidationException(
+        'Cet avis ne concerne pas votre boutique',
+      );
+    }
+    _datasource.update(
+      review.copyWith(supplierReply: reply, supplierRepliedAt: DateTime.now()),
+    );
   }
 }

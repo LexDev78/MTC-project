@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,14 +16,20 @@ import 'package:mtc_app/features/orders/presentation/providers/checkout_provider
 import 'package:mtc_app/features/orders/presentation/providers/order_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 void main() {
   late ProviderContainer container;
 
   setUp(() async {
+    await resetAndSeed();
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     container = ProviderContainer(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
     );
     addTearDown(container.dispose);
   });
@@ -70,8 +79,10 @@ void main() {
           .read(orderRepositoryProvider)
           .watchOrdersForUser(DemoIds.clientMoussa)
           .first;
-      // 2 pre-seeded + the newly placed one.
-      expect(orders.length, 3);
+      // 3 pre-seeded (order-moussa-delivered, order-moussa-intransit,
+      // seed-order-1 — the last one exists only to give `seed-review-1` a
+      // real order row to reference via FK) + the newly placed one.
+      expect(orders.length, 4);
     },
   );
 }

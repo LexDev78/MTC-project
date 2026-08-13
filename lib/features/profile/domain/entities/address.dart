@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'address.freezed.dart';
+part 'address.g.dart';
 
 /// Latitude/longitude kept as plain doubles (not `LatLng`) so the domain
 /// layer has no dependency on the `latlong2` mapping package — the
@@ -16,4 +17,7 @@ class Address with _$Address {
     required double latitude,
     required double longitude,
   }) = _Address;
+
+  factory Address.fromJson(Map<String, dynamic> json) =>
+      _$AddressFromJson(json);
 }

@@ -17,9 +17,13 @@ import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_f
 import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_list_screen.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart';
+import 'package:mtc_app/features/comments/presentation/screens/supplier_comment_inbox_screen.dart';
+import 'package:mtc_app/features/ratings/presentation/screens/supplier_review_management_screen.dart';
+import 'package:mtc_app/features/supplier_finance/presentation/screens/payout_review_queue_screen.dart';
 import 'package:mtc_app/features/chat/presentation/screens/conversation_list_screen.dart';
 import 'package:mtc_app/features/chat/presentation/screens/supplier_conversation_list_screen.dart';
 import 'package:mtc_app/features/favorites/presentation/screens/favorites_screen.dart';
+import 'package:mtc_app/features/notifications/presentation/screens/notification_center_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/checkout_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/order_detail_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/order_list_screen.dart';
@@ -242,6 +246,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           KycReviewDetailScreen(kyc: state.extra! as SupplierKyc),
         ),
       ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalPayoutQueue,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const PayoutReviewQueueScreen()),
+      ),
       // Product create/edit — `extra` carries the `Product` being edited,
       // `null` for create mode. Pushed on top of whichever shell the
       // signed-in role is in, mirrored once per zone like the shells
@@ -259,6 +268,43 @@ final routerProvider = Provider<GoRouter>((ref) {
           state,
           SupplierProductFormScreen(product: state.extra as Product?),
         ),
+      ),
+      // Cross-product comment inbox, reached from an AppBar action on the
+      // "Produits" tab rather than its own branch — mirrored once per zone
+      // like the product form.
+      GoRoute(
+        path: AppRoutes.supplierTiersCommentInbox,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierCommentInboxScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalCommentInbox,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierCommentInboxScreen()),
+      ),
+      // Review management, reached from an AppBar action on the "Profil"
+      // tab — mirrored once per zone like the comment inbox.
+      GoRoute(
+        path: AppRoutes.supplierTiersReviewManagement,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierReviewManagementScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalReviewManagement,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierReviewManagementScreen()),
+      ),
+      // Notification center, reached from a bell icon on the "Tableau de
+      // bord" tab — mirrored once per zone like the review management above.
+      GoRoute(
+        path: AppRoutes.supplierTiersNotifications,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const NotificationCenterScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalNotifications,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const NotificationCenterScreen()),
       ),
       // Order detail, scoped to the operating supplier's own group — see
       // `SupplierOrderView`. Mirrored once per zone like the product form.

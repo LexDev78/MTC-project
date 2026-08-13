@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,14 +15,20 @@ import 'package:mtc_app/features/supplier_onboarding/presentation/controllers/ky
 import 'package:mtc_app/features/supplier_onboarding/presentation/providers/supplier_kyc_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 void main() {
   late ProviderContainer container;
 
   setUp(() async {
+    await resetAndSeed();
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     container = ProviderContainer(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
     );
     addTearDown(container.dispose);
   });
@@ -29,6 +38,15 @@ void main() {
     'account and public profile verified together',
     () async {
       const supplierId = DemoIds.supplierArtisanatSikasso;
+      // `supplier_kyc` has no anon-readable grant at all (private KYC
+      // dossiers) — RLS requires an authenticated staff session even for
+      // this first read, same as the real staff console always has one by
+      // the time this screen is reachable (see BACKEND_MIGRATION_PROGRESS.md,
+      // Lot 3/6).
+      await container
+          .read(authRepositoryProvider)
+          .login(usernameOrPhone: 'admin1', password: 'password123');
+
       final kycBefore = await container
           .read(supplierKycRepositoryProvider)
           .getForSupplier(supplierId);
@@ -67,6 +85,15 @@ void main() {
     'profile together, and the supplier can resubmit afterwards',
     () async {
       const supplierId = DemoIds.supplierArtisanatSikasso;
+      // `supplier_kyc` has no anon-readable grant at all (private KYC
+      // dossiers) — RLS requires an authenticated staff session even for
+      // this first read, same as the real staff console always has one by
+      // the time this screen is reachable (see BACKEND_MIGRATION_PROGRESS.md,
+      // Lot 3/6).
+      await container
+          .read(authRepositoryProvider)
+          .login(usernameOrPhone: 'agent1', password: 'password123');
+
       final kyc = await container
           .read(supplierKycRepositoryProvider)
           .getForSupplier(supplierId);

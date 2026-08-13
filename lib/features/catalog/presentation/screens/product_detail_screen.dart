@@ -9,6 +9,7 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_shadows.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/widgets/resolved_image.dart';
 import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/chat/presentation/controllers/chat_controller.dart';
@@ -598,7 +599,7 @@ class _ThumbnailStrip extends StatelessWidget {
                   width: selected ? 2 : 1,
                 ),
               ),
-              child: Image.asset(images[index], fit: BoxFit.cover),
+              child: ResolvedImage(path: images[index], bucket: 'product-images'),
             ),
           );
         },

@@ -52,7 +52,10 @@ class SupplierOrderController extends AsyncNotifier<void> {
   /// order, reusing `ChatRepository.startOrGetConversation` exactly as the
   /// client side does — returns the conversation id to navigate to, `null`
   /// on failure.
-  Future<String?> contactClient({required String clientId}) async {
+  Future<String?> contactClient({
+    required String clientId,
+    required String clientDisplayNameSnapshot,
+  }) async {
     final supplierId = ref.read(operatingSupplierIdProvider);
     if (supplierId == null) return null;
 
@@ -66,6 +69,7 @@ class SupplierOrderController extends AsyncNotifier<void> {
           .read(chatRepositoryProvider)
           .startOrGetConversation(
             clientId: clientId,
+            clientDisplayNameSnapshot: clientDisplayNameSnapshot,
             supplierId: supplierId,
             supplierName: supplierProfile.businessName,
           );

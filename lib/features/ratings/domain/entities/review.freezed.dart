@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+Review _$ReviewFromJson(Map<String, dynamic> json) {
+  return _Review.fromJson(json);
+}
+
 /// @nodoc
 mixin _$Review {
   String get id => throw _privateConstructorUsedError;
@@ -25,6 +29,15 @@ mixin _$Review {
   int get stars => throw _privateConstructorUsedError;
   String get comment => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
+
+  /// The supplier's public reply to this review, if they've written one —
+  /// re-calling `ReviewRepository.reply` edits it in place rather than
+  /// appending a second one.
+  String? get supplierReply => throw _privateConstructorUsedError;
+  DateTime? get supplierRepliedAt => throw _privateConstructorUsedError;
+
+  /// Serializes this Review to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Review
   /// with the given fields replaced by the non-null parameter values.
@@ -46,6 +59,8 @@ abstract class $ReviewCopyWith<$Res> {
     int stars,
     String comment,
     DateTime createdAt,
+    String? supplierReply,
+    DateTime? supplierRepliedAt,
   });
 }
 
@@ -72,6 +87,8 @@ class _$ReviewCopyWithImpl<$Res, $Val extends Review>
     Object? stars = null,
     Object? comment = null,
     Object? createdAt = null,
+    Object? supplierReply = freezed,
+    Object? supplierRepliedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -107,6 +124,14 @@ class _$ReviewCopyWithImpl<$Res, $Val extends Review>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
+            supplierReply: freezed == supplierReply
+                ? _value.supplierReply
+                : supplierReply // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            supplierRepliedAt: freezed == supplierRepliedAt
+                ? _value.supplierRepliedAt
+                : supplierRepliedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -130,6 +155,8 @@ abstract class _$$ReviewImplCopyWith<$Res> implements $ReviewCopyWith<$Res> {
     int stars,
     String comment,
     DateTime createdAt,
+    String? supplierReply,
+    DateTime? supplierRepliedAt,
   });
 }
 
@@ -155,6 +182,8 @@ class __$$ReviewImplCopyWithImpl<$Res>
     Object? stars = null,
     Object? comment = null,
     Object? createdAt = null,
+    Object? supplierReply = freezed,
+    Object? supplierRepliedAt = freezed,
   }) {
     return _then(
       _$ReviewImpl(
@@ -190,13 +219,21 @@ class __$$ReviewImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
+        supplierReply: freezed == supplierReply
+            ? _value.supplierReply
+            : supplierReply // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        supplierRepliedAt: freezed == supplierRepliedAt
+            ? _value.supplierRepliedAt
+            : supplierRepliedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ReviewImpl implements _Review {
   const _$ReviewImpl({
     required this.id,
@@ -207,7 +244,12 @@ class _$ReviewImpl implements _Review {
     required this.stars,
     required this.comment,
     required this.createdAt,
+    this.supplierReply,
+    this.supplierRepliedAt,
   });
+
+  factory _$ReviewImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ReviewImplFromJson(json);
 
   @override
   final String id;
@@ -226,9 +268,17 @@ class _$ReviewImpl implements _Review {
   @override
   final DateTime createdAt;
 
+  /// The supplier's public reply to this review, if they've written one —
+  /// re-calling `ReviewRepository.reply` edits it in place rather than
+  /// appending a second one.
+  @override
+  final String? supplierReply;
+  @override
+  final DateTime? supplierRepliedAt;
+
   @override
   String toString() {
-    return 'Review(id: $id, orderId: $orderId, supplierGroupId: $supplierGroupId, clientId: $clientId, supplierId: $supplierId, stars: $stars, comment: $comment, createdAt: $createdAt)';
+    return 'Review(id: $id, orderId: $orderId, supplierGroupId: $supplierGroupId, clientId: $clientId, supplierId: $supplierId, stars: $stars, comment: $comment, createdAt: $createdAt, supplierReply: $supplierReply, supplierRepliedAt: $supplierRepliedAt)';
   }
 
   @override
@@ -247,9 +297,14 @@ class _$ReviewImpl implements _Review {
             (identical(other.stars, stars) || other.stars == stars) &&
             (identical(other.comment, comment) || other.comment == comment) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.supplierReply, supplierReply) ||
+                other.supplierReply == supplierReply) &&
+            (identical(other.supplierRepliedAt, supplierRepliedAt) ||
+                other.supplierRepliedAt == supplierRepliedAt));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -261,6 +316,8 @@ class _$ReviewImpl implements _Review {
     stars,
     comment,
     createdAt,
+    supplierReply,
+    supplierRepliedAt,
   );
 
   /// Create a copy of Review
@@ -270,6 +327,11 @@ class _$ReviewImpl implements _Review {
   @pragma('vm:prefer-inline')
   _$$ReviewImplCopyWith<_$ReviewImpl> get copyWith =>
       __$$ReviewImplCopyWithImpl<_$ReviewImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ReviewImplToJson(this);
+  }
 }
 
 abstract class _Review implements Review {
@@ -282,7 +344,11 @@ abstract class _Review implements Review {
     required final int stars,
     required final String comment,
     required final DateTime createdAt,
+    final String? supplierReply,
+    final DateTime? supplierRepliedAt,
   }) = _$ReviewImpl;
+
+  factory _Review.fromJson(Map<String, dynamic> json) = _$ReviewImpl.fromJson;
 
   @override
   String get id;
@@ -300,6 +366,14 @@ abstract class _Review implements Review {
   String get comment;
   @override
   DateTime get createdAt;
+
+  /// The supplier's public reply to this review, if they've written one —
+  /// re-calling `ReviewRepository.reply` edits it in place rather than
+  /// appending a second one.
+  @override
+  String? get supplierReply;
+  @override
+  DateTime? get supplierRepliedAt;
 
   /// Create a copy of Review
   /// with the given fields replaced by the non-null parameter values.

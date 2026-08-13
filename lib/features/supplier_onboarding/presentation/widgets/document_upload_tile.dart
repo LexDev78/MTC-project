@@ -4,10 +4,11 @@ import 'package:image_picker/image_picker.dart';
 import '../../domain/entities/supplier_kyc.dart';
 
 /// One document slot in the KYC wizard — picks an image (camera or
-/// gallery, per [source]) and hands the resulting file path to [onPicked].
-/// Self-contained the same way `ChatComposer`'s image picking is: the
-/// picking logic lives next to the button that triggers it, not in a
-/// controller.
+/// gallery, per [source]) and hands the picked file to [onPicked], which
+/// uploads it (see `SupplierKycController.addDocument`) before recording
+/// it — never the raw local path directly. Self-contained the same way
+/// `ChatComposer`'s image picking is: the picking logic lives next to the
+/// button that triggers it, not in a controller.
 class DocumentUploadTile extends StatelessWidget {
   const DocumentUploadTile({
     super.key,
@@ -21,7 +22,7 @@ class DocumentUploadTile extends StatelessWidget {
 
   final SupplierDocumentType type;
   final SupplierDocument? existing;
-  final ValueChanged<String> onPicked;
+  final ValueChanged<XFile> onPicked;
   final VoidCallback? onRemove;
   final bool isRequired;
   final ImageSource source;
@@ -32,7 +33,7 @@ class DocumentUploadTile extends StatelessWidget {
         source: source,
         imageQuality: 85,
       );
-      if (file != null) onPicked(file.path);
+      if (file != null) onPicked(file);
     } catch (_) {
       if (!context.mounted) return;
       final sourceLabel = source == ImageSource.camera

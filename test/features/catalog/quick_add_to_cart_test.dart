@@ -1,13 +1,19 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart';
+
+import '../../support/supabase_test_harness.dart';
 
 final _product = Product(
   id: 'product-test-001',
@@ -30,6 +36,10 @@ final _product = Product(
 );
 
 void main() {
+  setUp(() async {
+    await resetAndSeed();
+  });
+
   testWidgets(
     'tapping the cart icon on a product card adds it to the cart without '
     'navigating away',
@@ -47,6 +57,7 @@ void main() {
               ),
             ),
           ),
+          supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
         ],
       );
       addTearDown(container.dispose);

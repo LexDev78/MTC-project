@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+SupplierProfile _$SupplierProfileFromJson(Map<String, dynamic> json) {
+  return _SupplierProfile.fromJson(json);
+}
+
 /// @nodoc
 mixin _$SupplierProfile {
   String get id => throw _privateConstructorUsedError;
@@ -29,7 +33,27 @@ mixin _$SupplierProfile {
   String? get avatarUrl =>
       throw _privateConstructorUsedError; // Null for `SupplierType.principal` (MTC itself has no legal form to
   // register) — only ever set for `SupplierType.tiers`.
-  SupplierLegalType? get legalType => throw _privateConstructorUsedError;
+  SupplierLegalType? get legalType =>
+      throw _privateConstructorUsedError; // Extended storefront fields (Lot 11) — edited from
+  // `SupplierAccountController.updateStorefront`, shown on the public
+  // `SupplierProfileScreen`.
+  String? get description => throw _privateConstructorUsedError;
+  String? get bannerUrl => throw _privateConstructorUsedError;
+  String? get fullAddress => throw _privateConstructorUsedError;
+
+  /// Derived from `city` via `MalianCity` (same lookup
+  /// `ManageAddressesScreen` uses for a client address) rather than typed
+  /// in by hand — no map picker in this app, and every seeded city
+  /// already has known coordinates. Usable with `GeoDistance`.
+  double? get addressLatitude => throw _privateConstructorUsedError;
+  double? get addressLongitude => throw _privateConstructorUsedError;
+  List<String> get publicPhoneNumbers => throw _privateConstructorUsedError;
+  List<String> get deliveryZones => throw _privateConstructorUsedError;
+  String? get openingHoursLabel => throw _privateConstructorUsedError;
+  bool get isOpen => throw _privateConstructorUsedError;
+
+  /// Serializes this SupplierProfile to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of SupplierProfile
   /// with the given fields replaced by the non-null parameter values.
@@ -56,6 +80,15 @@ abstract class $SupplierProfileCopyWith<$Res> {
     VerificationStatus? verificationStatus,
     String? avatarUrl,
     SupplierLegalType? legalType,
+    String? description,
+    String? bannerUrl,
+    String? fullAddress,
+    double? addressLatitude,
+    double? addressLongitude,
+    List<String> publicPhoneNumbers,
+    List<String> deliveryZones,
+    String? openingHoursLabel,
+    bool isOpen,
   });
 }
 
@@ -84,6 +117,15 @@ class _$SupplierProfileCopyWithImpl<$Res, $Val extends SupplierProfile>
     Object? verificationStatus = freezed,
     Object? avatarUrl = freezed,
     Object? legalType = freezed,
+    Object? description = freezed,
+    Object? bannerUrl = freezed,
+    Object? fullAddress = freezed,
+    Object? addressLatitude = freezed,
+    Object? addressLongitude = freezed,
+    Object? publicPhoneNumbers = null,
+    Object? deliveryZones = null,
+    Object? openingHoursLabel = freezed,
+    Object? isOpen = null,
   }) {
     return _then(
       _value.copyWith(
@@ -127,6 +169,42 @@ class _$SupplierProfileCopyWithImpl<$Res, $Val extends SupplierProfile>
                 ? _value.legalType
                 : legalType // ignore: cast_nullable_to_non_nullable
                       as SupplierLegalType?,
+            description: freezed == description
+                ? _value.description
+                : description // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            bannerUrl: freezed == bannerUrl
+                ? _value.bannerUrl
+                : bannerUrl // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            fullAddress: freezed == fullAddress
+                ? _value.fullAddress
+                : fullAddress // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            addressLatitude: freezed == addressLatitude
+                ? _value.addressLatitude
+                : addressLatitude // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            addressLongitude: freezed == addressLongitude
+                ? _value.addressLongitude
+                : addressLongitude // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            publicPhoneNumbers: null == publicPhoneNumbers
+                ? _value.publicPhoneNumbers
+                : publicPhoneNumbers // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
+            deliveryZones: null == deliveryZones
+                ? _value.deliveryZones
+                : deliveryZones // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
+            openingHoursLabel: freezed == openingHoursLabel
+                ? _value.openingHoursLabel
+                : openingHoursLabel // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            isOpen: null == isOpen
+                ? _value.isOpen
+                : isOpen // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -153,6 +231,15 @@ abstract class _$$SupplierProfileImplCopyWith<$Res>
     VerificationStatus? verificationStatus,
     String? avatarUrl,
     SupplierLegalType? legalType,
+    String? description,
+    String? bannerUrl,
+    String? fullAddress,
+    double? addressLatitude,
+    double? addressLongitude,
+    List<String> publicPhoneNumbers,
+    List<String> deliveryZones,
+    String? openingHoursLabel,
+    bool isOpen,
   });
 }
 
@@ -180,6 +267,15 @@ class __$$SupplierProfileImplCopyWithImpl<$Res>
     Object? verificationStatus = freezed,
     Object? avatarUrl = freezed,
     Object? legalType = freezed,
+    Object? description = freezed,
+    Object? bannerUrl = freezed,
+    Object? fullAddress = freezed,
+    Object? addressLatitude = freezed,
+    Object? addressLongitude = freezed,
+    Object? publicPhoneNumbers = null,
+    Object? deliveryZones = null,
+    Object? openingHoursLabel = freezed,
+    Object? isOpen = null,
   }) {
     return _then(
       _$SupplierProfileImpl(
@@ -223,13 +319,49 @@ class __$$SupplierProfileImplCopyWithImpl<$Res>
             ? _value.legalType
             : legalType // ignore: cast_nullable_to_non_nullable
                   as SupplierLegalType?,
+        description: freezed == description
+            ? _value.description
+            : description // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        bannerUrl: freezed == bannerUrl
+            ? _value.bannerUrl
+            : bannerUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        fullAddress: freezed == fullAddress
+            ? _value.fullAddress
+            : fullAddress // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        addressLatitude: freezed == addressLatitude
+            ? _value.addressLatitude
+            : addressLatitude // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        addressLongitude: freezed == addressLongitude
+            ? _value.addressLongitude
+            : addressLongitude // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        publicPhoneNumbers: null == publicPhoneNumbers
+            ? _value._publicPhoneNumbers
+            : publicPhoneNumbers // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        deliveryZones: null == deliveryZones
+            ? _value._deliveryZones
+            : deliveryZones // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        openingHoursLabel: freezed == openingHoursLabel
+            ? _value.openingHoursLabel
+            : openingHoursLabel // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        isOpen: null == isOpen
+            ? _value.isOpen
+            : isOpen // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$SupplierProfileImpl implements _SupplierProfile {
   const _$SupplierProfileImpl({
     required this.id,
@@ -242,7 +374,20 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     this.verificationStatus,
     this.avatarUrl,
     this.legalType,
-  });
+    this.description,
+    this.bannerUrl,
+    this.fullAddress,
+    this.addressLatitude,
+    this.addressLongitude,
+    final List<String> publicPhoneNumbers = const <String>[],
+    final List<String> deliveryZones = const <String>[],
+    this.openingHoursLabel,
+    this.isOpen = true,
+  }) : _publicPhoneNumbers = publicPhoneNumbers,
+       _deliveryZones = deliveryZones;
+
+  factory _$SupplierProfileImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SupplierProfileImplFromJson(json);
 
   @override
   final String id;
@@ -266,10 +411,52 @@ class _$SupplierProfileImpl implements _SupplierProfile {
   // register) — only ever set for `SupplierType.tiers`.
   @override
   final SupplierLegalType? legalType;
+  // Extended storefront fields (Lot 11) — edited from
+  // `SupplierAccountController.updateStorefront`, shown on the public
+  // `SupplierProfileScreen`.
+  @override
+  final String? description;
+  @override
+  final String? bannerUrl;
+  @override
+  final String? fullAddress;
+
+  /// Derived from `city` via `MalianCity` (same lookup
+  /// `ManageAddressesScreen` uses for a client address) rather than typed
+  /// in by hand — no map picker in this app, and every seeded city
+  /// already has known coordinates. Usable with `GeoDistance`.
+  @override
+  final double? addressLatitude;
+  @override
+  final double? addressLongitude;
+  final List<String> _publicPhoneNumbers;
+  @override
+  @JsonKey()
+  List<String> get publicPhoneNumbers {
+    if (_publicPhoneNumbers is EqualUnmodifiableListView)
+      return _publicPhoneNumbers;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_publicPhoneNumbers);
+  }
+
+  final List<String> _deliveryZones;
+  @override
+  @JsonKey()
+  List<String> get deliveryZones {
+    if (_deliveryZones is EqualUnmodifiableListView) return _deliveryZones;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_deliveryZones);
+  }
+
+  @override
+  final String? openingHoursLabel;
+  @override
+  @JsonKey()
+  final bool isOpen;
 
   @override
   String toString() {
-    return 'SupplierProfile(id: $id, businessName: $businessName, supplierType: $supplierType, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, productCount: $productCount, verificationStatus: $verificationStatus, avatarUrl: $avatarUrl, legalType: $legalType)';
+    return 'SupplierProfile(id: $id, businessName: $businessName, supplierType: $supplierType, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, productCount: $productCount, verificationStatus: $verificationStatus, avatarUrl: $avatarUrl, legalType: $legalType, description: $description, bannerUrl: $bannerUrl, fullAddress: $fullAddress, addressLatitude: $addressLatitude, addressLongitude: $addressLongitude, publicPhoneNumbers: $publicPhoneNumbers, deliveryZones: $deliveryZones, openingHoursLabel: $openingHoursLabel, isOpen: $isOpen)';
   }
 
   @override
@@ -294,11 +481,33 @@ class _$SupplierProfileImpl implements _SupplierProfile {
             (identical(other.avatarUrl, avatarUrl) ||
                 other.avatarUrl == avatarUrl) &&
             (identical(other.legalType, legalType) ||
-                other.legalType == legalType));
+                other.legalType == legalType) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            (identical(other.bannerUrl, bannerUrl) ||
+                other.bannerUrl == bannerUrl) &&
+            (identical(other.fullAddress, fullAddress) ||
+                other.fullAddress == fullAddress) &&
+            (identical(other.addressLatitude, addressLatitude) ||
+                other.addressLatitude == addressLatitude) &&
+            (identical(other.addressLongitude, addressLongitude) ||
+                other.addressLongitude == addressLongitude) &&
+            const DeepCollectionEquality().equals(
+              other._publicPhoneNumbers,
+              _publicPhoneNumbers,
+            ) &&
+            const DeepCollectionEquality().equals(
+              other._deliveryZones,
+              _deliveryZones,
+            ) &&
+            (identical(other.openingHoursLabel, openingHoursLabel) ||
+                other.openingHoursLabel == openingHoursLabel) &&
+            (identical(other.isOpen, isOpen) || other.isOpen == isOpen));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     runtimeType,
     id,
     businessName,
@@ -310,7 +519,16 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     verificationStatus,
     avatarUrl,
     legalType,
-  );
+    description,
+    bannerUrl,
+    fullAddress,
+    addressLatitude,
+    addressLongitude,
+    const DeepCollectionEquality().hash(_publicPhoneNumbers),
+    const DeepCollectionEquality().hash(_deliveryZones),
+    openingHoursLabel,
+    isOpen,
+  ]);
 
   /// Create a copy of SupplierProfile
   /// with the given fields replaced by the non-null parameter values.
@@ -322,6 +540,11 @@ class _$SupplierProfileImpl implements _SupplierProfile {
         this,
         _$identity,
       );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$SupplierProfileImplToJson(this);
+  }
 }
 
 abstract class _SupplierProfile implements SupplierProfile {
@@ -336,7 +559,19 @@ abstract class _SupplierProfile implements SupplierProfile {
     final VerificationStatus? verificationStatus,
     final String? avatarUrl,
     final SupplierLegalType? legalType,
+    final String? description,
+    final String? bannerUrl,
+    final String? fullAddress,
+    final double? addressLatitude,
+    final double? addressLongitude,
+    final List<String> publicPhoneNumbers,
+    final List<String> deliveryZones,
+    final String? openingHoursLabel,
+    final bool isOpen,
   }) = _$SupplierProfileImpl;
+
+  factory _SupplierProfile.fromJson(Map<String, dynamic> json) =
+      _$SupplierProfileImpl.fromJson;
 
   @override
   String get id;
@@ -358,7 +593,32 @@ abstract class _SupplierProfile implements SupplierProfile {
   String? get avatarUrl; // Null for `SupplierType.principal` (MTC itself has no legal form to
   // register) — only ever set for `SupplierType.tiers`.
   @override
-  SupplierLegalType? get legalType;
+  SupplierLegalType? get legalType; // Extended storefront fields (Lot 11) — edited from
+  // `SupplierAccountController.updateStorefront`, shown on the public
+  // `SupplierProfileScreen`.
+  @override
+  String? get description;
+  @override
+  String? get bannerUrl;
+  @override
+  String? get fullAddress;
+
+  /// Derived from `city` via `MalianCity` (same lookup
+  /// `ManageAddressesScreen` uses for a client address) rather than typed
+  /// in by hand — no map picker in this app, and every seeded city
+  /// already has known coordinates. Usable with `GeoDistance`.
+  @override
+  double? get addressLatitude;
+  @override
+  double? get addressLongitude;
+  @override
+  List<String> get publicPhoneNumbers;
+  @override
+  List<String> get deliveryZones;
+  @override
+  String? get openingHoursLabel;
+  @override
+  bool get isOpen;
 
   /// Create a copy of SupplierProfile
   /// with the given fields replaced by the non-null parameter values.

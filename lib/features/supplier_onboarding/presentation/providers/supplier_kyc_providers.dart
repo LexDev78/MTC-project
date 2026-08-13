@@ -1,18 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/datasources/in_memory_supplier_kyc_datasource.dart';
-import '../../data/repositories/in_memory_supplier_kyc_repository.dart';
+import 'package:mtc_app/core/di/providers.dart';
+
+import '../../data/datasources/supabase_supplier_kyc_datasource.dart';
+import '../../data/repositories/supabase_supplier_kyc_repository.dart';
 import '../../domain/entities/supplier_kyc.dart';
 import '../../domain/repositories/supplier_kyc_repository.dart';
 
-final supplierKycDatasourceProvider = Provider<InMemorySupplierKycDatasource>((
+final supplierKycDatasourceProvider = Provider<SupabaseSupplierKycDatasource>((
   ref,
 ) {
-  return InMemorySupplierKycDatasource();
+  return SupabaseSupplierKycDatasource(ref.watch(supabaseClientProvider));
 });
 
 final supplierKycRepositoryProvider = Provider<SupplierKycRepository>((ref) {
-  return InMemorySupplierKycRepository(ref.watch(supplierKycDatasourceProvider));
+  return SupabaseSupplierKycRepository(ref.watch(supplierKycDatasourceProvider));
 });
 
 /// The signed-in supplier's own dossier — `null` until their first draft

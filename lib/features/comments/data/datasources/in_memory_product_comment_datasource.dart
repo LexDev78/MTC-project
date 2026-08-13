@@ -25,6 +25,18 @@ class InMemoryProductCommentDatasource {
     });
   }
 
+  Stream<List<ProductComment>> watchForSupplier(String supplierId) {
+    return Stream<void>.multi((controller) {
+      controller.add(null);
+      final subscription = _changesController.stream.listen(controller.add);
+      controller.onCancel = subscription.cancel;
+    }, isBroadcast: true).map((_) {
+      return List<ProductComment>.unmodifiable(
+        _comments.where((c) => c.supplierId == supplierId),
+      );
+    });
+  }
+
   void addComment(ProductComment comment) {
     _comments.add(comment);
     _changesController.add(null);
@@ -52,6 +64,7 @@ class InMemoryProductCommentDatasource {
       ProductComment(
         id: 'comment-001',
         productId: 'product-001',
+        supplierId: DemoIds.supplierBogolanBamako,
         authorId: DemoIds.clientMoussa,
         authorName: 'Moussa Diarra',
         createdAt: now.subtract(const Duration(days: 2)),
@@ -61,6 +74,7 @@ class InMemoryProductCommentDatasource {
       ProductComment(
         id: 'comment-002',
         productId: 'product-001',
+        supplierId: DemoIds.supplierBogolanBamako,
         authorId: DemoIds.supplierBogolanBamako,
         authorName: 'Bogolan Bamako',
         createdAt: now.subtract(const Duration(days: 1, hours: 20)),
@@ -72,6 +86,7 @@ class InMemoryProductCommentDatasource {
       ProductComment(
         id: 'comment-003',
         productId: 'product-001',
+        supplierId: DemoIds.supplierBogolanBamako,
         authorId: DemoIds.clientAwa,
         authorName: 'Awa Traoré',
         createdAt: now.subtract(const Duration(hours: 5)),

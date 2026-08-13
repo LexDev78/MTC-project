@@ -1,5 +1,11 @@
+@Tags(['integration'])
+library;
+
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
@@ -11,17 +17,41 @@ import 'package:mtc_app/features/supplier_onboarding/domain/entities/supplier_ky
 import 'package:mtc_app/features/supplier_onboarding/presentation/controllers/supplier_kyc_controller.dart';
 import 'package:mtc_app/features/supplier_onboarding/presentation/providers/supplier_kyc_providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
+/// `addDocument` now uploads the picked file to real Storage — needs an
+/// `XFile` backed by an actual file on disk, not just a device path string.
+Future<XFile> _fakeDocumentFile(String name) async {
+  final file = File('${Directory.systemTemp.path}/$name');
+  await file.writeAsBytes([0xff, 0xd8, 0xff, 0xd9]);
+  return XFile(file.path);
+}
+
 void main() {
   late ProviderContainer container;
 
   setUp(() async {
+    await resetAndSeed();
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     container = ProviderContainer(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
     );
     addTearDown(container.dispose);
   });
+
+  // `supplier_kyc` has no anon-readable grant (private KYC dossiers) — any
+  // test touching it, even read-only, needs a real session.
+  Future<void> login(String usernameOrPhone) async {
+    await container
+        .read(authRepositoryProvider)
+        .login(usernameOrPhone: usernameOrPhone, password: 'password123');
+    await container.read(currentUserProvider.future);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
 
   test(
     'a fresh individual (fournisseur libre) account has no dossier until it '
@@ -60,17 +90,17 @@ void main() {
       await controller.addDocument(
         supplierId: user.id,
         type: SupplierDocumentType.nationalIdFront,
-        filePath: '/tmp/front.jpg',
+        file: await _fakeDocumentFile('front.jpg'),
       );
       await controller.addDocument(
         supplierId: user.id,
         type: SupplierDocumentType.nationalIdBack,
-        filePath: '/tmp/back.jpg',
+        file: await _fakeDocumentFile('back.jpg'),
       );
       await controller.addDocument(
         supplierId: user.id,
         type: SupplierDocumentType.selfieWithId,
-        filePath: '/tmp/selfie.jpg',
+        file: await _fakeDocumentFile('selfie.jpg'),
       );
 
       // Still missing consent.
@@ -93,6 +123,7 @@ void main() {
     'the seeded pending supplier (Artisanat Sikasso) already has a '
     'submitted dossier sitting in the staff review queue',
     () async {
+      await login('admin1');
       final queue = await container
           .read(supplierKycRepositoryProvider)
           .watchQueue()
@@ -110,6 +141,7 @@ void main() {
     'its dossier',
     () async {
       const supplierId = DemoIds.supplierFruitsNiono;
+      await login('fournisseur4');
       final repository = container.read(supplierKycRepositoryProvider);
       final rejected = await repository.getForSupplier(supplierId);
       expect(rejected.status, KycReviewStatus.rejected);
@@ -119,7 +151,7 @@ void main() {
       await controller.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.rccmCertificate,
-        filePath: '/tmp/rccm-corrected.jpg',
+        file: await _fakeDocumentFile('rccm-corrected.jpg'),
       );
       final success = await controller.submit(supplierId: supplierId);
 

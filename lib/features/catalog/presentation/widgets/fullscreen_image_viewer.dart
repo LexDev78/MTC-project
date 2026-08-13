@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/widgets/resolved_image.dart';
 
 /// Opens a full-screen, swipeable, pinch-to-zoom viewer over [images],
 /// starting at [initialIndex] — lets the client inspect a product's photos
@@ -58,7 +59,11 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
               minScale: 1,
               maxScale: 4,
               child: Center(
-                child: Image.asset(widget.images[index], fit: BoxFit.contain),
+                child: ResolvedImage(
+                  path: widget.images[index],
+                  bucket: 'product-images',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),

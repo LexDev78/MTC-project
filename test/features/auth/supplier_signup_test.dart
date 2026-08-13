@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,14 +14,20 @@ import 'package:mtc_app/features/catalog/domain/entities/product_category.dart'
     show SupplierType;
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 void main() {
   late ProviderContainer container;
 
   setUp(() async {
+    await resetAndSeed();
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     container = ProviderContainer(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -44,7 +53,14 @@ void main() {
 
       expect(success, isTrue);
 
-      final user = await container.read(currentUserProvider.future);
+      // `currentUserProvider.future` only resolves once more after this
+      // point if the underlying real `onAuthStateChange` event hasn't
+      // already landed — reading it again right away can still return the
+      // signed-out value it resolved to in `setUp`. A short real delay
+      // lets that event propagate before reading the settled state.
+      await container.read(currentUserProvider.future);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final user = container.read(currentUserProvider).valueOrNull;
       expect(user, isA<SupplierTiersUser>());
       final supplier = user! as SupplierTiersUser;
       expect(supplier.verificationStatus, VerificationStatus.unverified);
@@ -78,7 +94,9 @@ void main() {
             legalType: SupplierLegalType.company,
           );
 
-      final user = await container.read(currentUserProvider.future);
+      await container.read(currentUserProvider.future);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final user = container.read(currentUserProvider).valueOrNull;
       final supplier = user! as SupplierTiersUser;
       expect(supplier.legalType, SupplierLegalType.company);
 

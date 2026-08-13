@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+CartItem _$CartItemFromJson(Map<String, dynamic> json) {
+  return _CartItem.fromJson(json);
+}
+
 /// @nodoc
 mixin _$CartItem {
   String get id => throw _privateConstructorUsedError;
@@ -25,6 +29,9 @@ mixin _$CartItem {
   int get unitPriceFcfaSnapshot => throw _privateConstructorUsedError;
   int get quantity => throw _privateConstructorUsedError;
   DateTime get addedAt => throw _privateConstructorUsedError;
+
+  /// Serializes this CartItem to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of CartItem
   /// with the given fields replaced by the non-null parameter values.
@@ -198,7 +205,7 @@ class __$$CartItemImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$CartItemImpl implements _CartItem {
   const _$CartItemImpl({
     required this.id,
@@ -210,6 +217,9 @@ class _$CartItemImpl implements _CartItem {
     required this.quantity,
     required this.addedAt,
   });
+
+  factory _$CartItemImpl.fromJson(Map<String, dynamic> json) =>
+      _$$CartItemImplFromJson(json);
 
   @override
   final String id;
@@ -253,6 +263,7 @@ class _$CartItemImpl implements _CartItem {
             (identical(other.addedAt, addedAt) || other.addedAt == addedAt));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -273,6 +284,11 @@ class _$CartItemImpl implements _CartItem {
   @pragma('vm:prefer-inline')
   _$$CartItemImplCopyWith<_$CartItemImpl> get copyWith =>
       __$$CartItemImplCopyWithImpl<_$CartItemImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$CartItemImplToJson(this);
+  }
 }
 
 abstract class _CartItem implements CartItem {
@@ -286,6 +302,9 @@ abstract class _CartItem implements CartItem {
     required final int quantity,
     required final DateTime addedAt,
   }) = _$CartItemImpl;
+
+  factory _CartItem.fromJson(Map<String, dynamic> json) =
+      _$CartItemImpl.fromJson;
 
   @override
   String get id;

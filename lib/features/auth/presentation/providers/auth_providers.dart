@@ -2,22 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
 
-import '../../data/datasources/in_memory_auth_datasource.dart';
-import '../../data/repositories/in_memory_auth_repository.dart';
+import '../../data/datasources/supabase_auth_datasource.dart';
+import '../../data/repositories/supabase_auth_repository.dart';
 import '../../domain/entities/app_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 
-/// Kept alive for the app's lifetime — holds every seeded/created account
-/// and the active mock session, so it must not be recreated on every
-/// screen rebuild.
-final authDatasourceProvider = Provider<InMemoryAuthDatasource>((ref) {
-  return InMemoryAuthDatasource();
+final authDatasourceProvider = Provider<SupabaseAuthDatasource>((ref) {
+  return SupabaseAuthDatasource(ref.watch(supabaseClientProvider));
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final datasource = ref.watch(authDatasourceProvider);
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return InMemoryAuthRepository(datasource, prefs);
+  return SupabaseAuthRepository(datasource);
 });
 
 /// The signed-in user, or `null` when signed out. `AsyncLoading` while the

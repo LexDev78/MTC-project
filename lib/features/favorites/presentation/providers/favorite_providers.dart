@@ -1,19 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 
-import '../../data/datasources/in_memory_favorite_datasource.dart';
-import '../../data/repositories/in_memory_favorite_repository.dart';
+import '../../data/datasources/supabase_favorite_datasource.dart';
+import '../../data/repositories/supabase_favorite_repository.dart';
 import '../../domain/repositories/favorite_repository.dart';
 
-final favoriteDatasourceProvider = Provider<InMemoryFavoriteDatasource>((ref) {
-  return InMemoryFavoriteDatasource();
+final favoriteDatasourceProvider = Provider<SupabaseFavoriteDatasource>((ref) {
+  return SupabaseFavoriteDatasource(ref.watch(supabaseClientProvider));
 });
 
 final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) {
-  return InMemoryFavoriteRepository(ref.watch(favoriteDatasourceProvider));
+  return SupabaseFavoriteRepository(ref.watch(favoriteDatasourceProvider));
 });
 
 /// The current user's favorited product IDs. Empty when signed out.

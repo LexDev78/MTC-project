@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,21 +9,26 @@ import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
-import 'package:mtc_app/features/catalog/domain/entities/stock_movement.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:mtc_app/features/orders/presentation/controllers/checkout_controller.dart';
 import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
 import 'package:mtc_app/features/orders/presentation/providers/order_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 void main() {
   late ProviderContainer container;
 
   setUp(() async {
+    await resetAndSeed();
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     container = ProviderContainer(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -58,12 +66,13 @@ void main() {
       expect(riceAfter.stockQuantity, 198); // 200 - 2
       expect(phoneAfter.stockQuantity, 29); // 30 - 1
 
-      final riceMovements = await productRepository
-          .watchStockMovements('product-015')
-          .first;
+      // `stock_movements` is the owning supplier's private ledger — client2
+      // didn't sell the rice, so RLS wouldn't let them read it back via the
+      // normal repository; the admin backdoor is for this assertion only.
+      final riceMovements = await fetchStockMovementsAsAdmin('product-015');
       expect(riceMovements, hasLength(1));
-      expect(riceMovements.single.quantityDelta, -2);
-      expect(riceMovements.single.reason, StockMovementReason.sale);
+      expect(riceMovements.single['quantity_delta'], -2);
+      expect(riceMovements.single['reason'], 'sale');
     },
   );
 
@@ -73,12 +82,12 @@ void main() {
     () async {
       final productRepository = container.read(productRepositoryProvider);
       // Bring the smartphone's stock below the cart's requested quantity
-      // (1) so this checkout is expected to fail on that line.
-      await productRepository.adjustStock(
-        id: 'product-011',
-        quantityDelta: -30,
-        reason: StockMovementReason.correction,
-      );
+      // (1) so this checkout is expected to fail on that line. Client2
+      // doesn't own this product (Electro Bamako does, and has no login
+      // account in the seed data at all), so this must go through the
+      // admin backdoor rather than `productRepository.adjustStock` —
+      // real RLS would otherwise (rightly) reject it.
+      await adjustStockAsAdmin(productId: 'product-011', quantityDelta: -30);
       final phoneBefore = await productRepository.getById('product-011');
       expect(phoneBefore.stockQuantity, 0);
 

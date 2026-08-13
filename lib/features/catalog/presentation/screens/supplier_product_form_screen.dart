@@ -1,12 +1,14 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/widgets/resolved_image.dart';
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
@@ -107,13 +109,22 @@ class _SupplierProductFormScreenState
         source: ImageSource.gallery,
         imageQuality: 85,
       );
-      if (file != null) setState(() => _imageUrls.add(file.path));
+      if (file == null) return;
+      final supplierId = ref.read(operatingSupplierIdProvider);
+      final path = await uploadPickedImage(
+        client: ref.read(supabaseClientProvider),
+        bucket: 'product-images',
+        folder: supplierId!,
+        file: file,
+      );
+      if (mounted) setState(() => _imageUrls.add(path));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            "Impossible d'accéder à la galerie. Vérifiez l'autorisation dans les réglages du téléphone.",
+            "Impossible d'ajouter cette photo. Vérifiez votre connexion et "
+            "l'autorisation d'accès à la galerie dans les réglages du téléphone.",
           ),
         ),
       );
@@ -459,17 +470,10 @@ class _ImagePickerRow extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    child: Image.file(
-                      File(path),
+                    child: SizedBox(
                       width: 84,
                       height: 84,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 84,
-                        height: 84,
-                        color: scheme.surfaceContainerHigh,
-                        child: const Icon(Icons.broken_image_outlined),
-                      ),
+                      child: ResolvedImage(path: path, bucket: 'product-images'),
                     ),
                   ),
                   Positioned(

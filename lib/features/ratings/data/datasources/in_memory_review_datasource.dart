@@ -32,6 +32,20 @@ class InMemoryReviewDatasource {
     );
   }
 
+  Review? getById(String reviewId) {
+    for (final review in _reviews) {
+      if (review.id == reviewId) return review;
+    }
+    return null;
+  }
+
+  void update(Review review) {
+    final index = _reviews.indexWhere((r) => r.id == review.id);
+    if (index == -1) return;
+    _reviews[index] = review;
+    _changesController.add(null);
+  }
+
   List<Review> _seed() {
     final now = DateTime.now();
     return [

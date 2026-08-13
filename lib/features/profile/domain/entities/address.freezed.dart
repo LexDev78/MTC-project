@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+Address _$AddressFromJson(Map<String, dynamic> json) {
+  return _Address.fromJson(json);
+}
+
 /// @nodoc
 mixin _$Address {
   String get id => throw _privateConstructorUsedError;
@@ -24,6 +28,9 @@ mixin _$Address {
   String get details => throw _privateConstructorUsedError;
   double get latitude => throw _privateConstructorUsedError;
   double get longitude => throw _privateConstructorUsedError;
+
+  /// Serializes this Address to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Address
   /// with the given fields replaced by the non-null parameter values.
@@ -183,7 +190,7 @@ class __$$AddressImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$AddressImpl implements _Address {
   const _$AddressImpl({
     required this.id,
@@ -194,6 +201,9 @@ class _$AddressImpl implements _Address {
     required this.latitude,
     required this.longitude,
   });
+
+  factory _$AddressImpl.fromJson(Map<String, dynamic> json) =>
+      _$$AddressImplFromJson(json);
 
   @override
   final String id;
@@ -231,6 +241,7 @@ class _$AddressImpl implements _Address {
                 other.longitude == longitude));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -250,6 +261,11 @@ class _$AddressImpl implements _Address {
   @pragma('vm:prefer-inline')
   _$$AddressImplCopyWith<_$AddressImpl> get copyWith =>
       __$$AddressImplCopyWithImpl<_$AddressImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$AddressImplToJson(this);
+  }
 }
 
 abstract class _Address implements Address {
@@ -262,6 +278,8 @@ abstract class _Address implements Address {
     required final double latitude,
     required final double longitude,
   }) = _$AddressImpl;
+
+  factory _Address.fromJson(Map<String, dynamic> json) = _$AddressImpl.fromJson;
 
   @override
   String get id;

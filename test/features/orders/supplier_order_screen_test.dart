@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,11 +9,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 /// Widget-level coverage of the order list -> detail -> contact-client
 /// flow, using the real screens/router rather than just the repository —
 /// this is what caught a real layout overflow bug in the product screens
 /// (Lot 5); worth the same scrutiny here.
 void main() {
+  setUp(() async {
+    await resetAndSeed();
+  });
+
   testWidgets(
     'fournisseur1 can open their order from the Commandes tab, see the '
     "client's info without any other supplier's data, and reach a chat "
@@ -21,7 +30,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+          ],
           child: const MtcApp(),
         ),
       );

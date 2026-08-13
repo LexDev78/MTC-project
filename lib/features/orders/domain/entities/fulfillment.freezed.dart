@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+PickupPoint _$PickupPointFromJson(Map<String, dynamic> json) {
+  return _PickupPoint.fromJson(json);
+}
+
 /// @nodoc
 mixin _$PickupPoint {
   String get id => throw _privateConstructorUsedError;
@@ -23,6 +27,9 @@ mixin _$PickupPoint {
   String get address => throw _privateConstructorUsedError;
   double get latitude => throw _privateConstructorUsedError;
   double get longitude => throw _privateConstructorUsedError;
+
+  /// Serializes this PickupPoint to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of PickupPoint
   /// with the given fields replaced by the non-null parameter values.
@@ -174,7 +181,7 @@ class __$$PickupPointImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$PickupPointImpl implements _PickupPoint {
   const _$PickupPointImpl({
     required this.id,
@@ -184,6 +191,9 @@ class _$PickupPointImpl implements _PickupPoint {
     required this.latitude,
     required this.longitude,
   });
+
+  factory _$PickupPointImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PickupPointImplFromJson(json);
 
   @override
   final String id;
@@ -218,6 +228,7 @@ class _$PickupPointImpl implements _PickupPoint {
                 other.longitude == longitude));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, id, name, city, address, latitude, longitude);
@@ -229,6 +240,11 @@ class _$PickupPointImpl implements _PickupPoint {
   @pragma('vm:prefer-inline')
   _$$PickupPointImplCopyWith<_$PickupPointImpl> get copyWith =>
       __$$PickupPointImplCopyWithImpl<_$PickupPointImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PickupPointImplToJson(this);
+  }
 }
 
 abstract class _PickupPoint implements PickupPoint {
@@ -240,6 +256,9 @@ abstract class _PickupPoint implements PickupPoint {
     required final double latitude,
     required final double longitude,
   }) = _$PickupPointImpl;
+
+  factory _PickupPoint.fromJson(Map<String, dynamic> json) =
+      _$PickupPointImpl.fromJson;
 
   @override
   String get id;

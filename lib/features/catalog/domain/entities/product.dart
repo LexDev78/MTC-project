@@ -4,6 +4,7 @@ import 'product_category.dart';
 import 'product_status.dart';
 
 part 'product.freezed.dart';
+part 'product.g.dart';
 
 @freezed
 class Product with _$Product {
@@ -67,4 +68,7 @@ class Product with _$Product {
     /// scheduled/rule-based promotion engine.
     int? compareAtPriceFcfa,
   }) = _Product;
+
+  factory Product.fromJson(Map<String, dynamic> json) =>
+      _$ProductFromJson(json);
 }

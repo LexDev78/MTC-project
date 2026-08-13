@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/widgets/resolved_image.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
@@ -49,6 +50,19 @@ class _SupplierProfileBody extends ConsumerWidget {
 
     return CustomScrollView(
       slivers: [
+        if (supplier.bannerUrl != null)
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 140,
+              width: double.infinity,
+              child: ResolvedImage(
+                path: supplier.bannerUrl!,
+                bucket: 'supplier-branding',
+                errorBuilder: (context, error, stackTrace) =>
+                    Container(color: scheme.surfaceContainerHigh),
+              ),
+            ),
+          ),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -106,8 +120,26 @@ class _SupplierProfileBody extends ConsumerWidget {
                         color: scheme.tertiary,
                         icon: Icons.stars_rounded,
                       ),
+                    RoleBadge(
+                      label: supplier.isOpen ? 'Ouvert' : 'Fermé',
+                      color: supplier.isOpen ? scheme.primary : scheme.error,
+                      icon: supplier.isOpen
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.schedule_rounded,
+                    ),
                   ],
                 ),
+                if (supplier.description != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(supplier.description!),
+                ],
+                if (supplier.fullAddress != null ||
+                    supplier.openingHoursLabel != null ||
+                    supplier.publicPhoneNumbers.isNotEmpty ||
+                    supplier.deliveryZones.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _StorefrontInfo(supplier: supplier),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 OutlinedButton.icon(
                   onPressed: () async {
@@ -165,6 +197,64 @@ class _SupplierProfileBody extends ConsumerWidget {
   }
 }
 
+/// Address/hours/phones/delivery-zones block — only rendered when at least
+/// one of those is set (see the caller's guard), so an unfinished
+/// storefront profile doesn't show a wall of empty rows.
+class _StorefrontInfo extends StatelessWidget {
+  const _StorefrontInfo({required this.supplier});
+
+  final SupplierProfile supplier;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textStyle = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
+
+    Widget row(IconData icon, String text) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: scheme.onSurfaceVariant),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(child: Text(text, style: textStyle)),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (supplier.fullAddress != null)
+          row(Icons.location_on_outlined, supplier.fullAddress!),
+        if (supplier.openingHoursLabel != null)
+          row(Icons.schedule_rounded, supplier.openingHoursLabel!),
+        if (supplier.publicPhoneNumbers.isNotEmpty)
+          row(Icons.phone_outlined, supplier.publicPhoneNumbers.join(', ')),
+        if (supplier.deliveryZones.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final zone in supplier.deliveryZones)
+                RoleBadge(
+                  label: zone,
+                  color: scheme.secondary,
+                  icon: Icons.local_shipping_outlined,
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _SupplierReviews extends ConsumerWidget {
   const _SupplierReviews({required this.supplierId});
 
@@ -206,6 +296,35 @@ class _SupplierReviews extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(review.comment),
+                            if (review.supplierReply != null) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.sm),
+                                decoration: BoxDecoration(
+                                  color: scheme.surfaceContainerLow,
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusSm,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Réponse du fournisseur',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: scheme.primary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(review.supplierReply!),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

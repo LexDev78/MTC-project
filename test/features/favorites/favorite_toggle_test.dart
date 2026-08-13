@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,13 +10,18 @@ import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_line_item.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 Future<void> _loginAsClient1(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
       child: const MtcApp(),
     ),
   );
@@ -35,6 +43,10 @@ Future<void> _loginAsClient1(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(() async {
+    await resetAndSeed();
+  });
+
   testWidgets('toggling a favorite from the catalog updates the Favoris tab', (
     tester,
   ) async {

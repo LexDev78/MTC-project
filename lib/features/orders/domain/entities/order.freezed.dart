@@ -15,12 +15,19 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+OrderItem _$OrderItemFromJson(Map<String, dynamic> json) {
+  return _OrderItem.fromJson(json);
+}
+
 /// @nodoc
 mixin _$OrderItem {
   String get productId => throw _privateConstructorUsedError;
   String get productNameSnapshot => throw _privateConstructorUsedError;
   int get unitPriceFcfaSnapshot => throw _privateConstructorUsedError;
   int get quantity => throw _privateConstructorUsedError;
+
+  /// Serializes this OrderItem to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of OrderItem
   /// with the given fields replaced by the non-null parameter values.
@@ -146,7 +153,7 @@ class __$$OrderItemImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$OrderItemImpl implements _OrderItem {
   const _$OrderItemImpl({
     required this.productId,
@@ -154,6 +161,9 @@ class _$OrderItemImpl implements _OrderItem {
     required this.unitPriceFcfaSnapshot,
     required this.quantity,
   });
+
+  factory _$OrderItemImpl.fromJson(Map<String, dynamic> json) =>
+      _$$OrderItemImplFromJson(json);
 
   @override
   final String productId;
@@ -184,6 +194,7 @@ class _$OrderItemImpl implements _OrderItem {
                 other.quantity == quantity));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -200,6 +211,11 @@ class _$OrderItemImpl implements _OrderItem {
   @pragma('vm:prefer-inline')
   _$$OrderItemImplCopyWith<_$OrderItemImpl> get copyWith =>
       __$$OrderItemImplCopyWithImpl<_$OrderItemImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$OrderItemImplToJson(this);
+  }
 }
 
 abstract class _OrderItem implements OrderItem {
@@ -209,6 +225,9 @@ abstract class _OrderItem implements OrderItem {
     required final int unitPriceFcfaSnapshot,
     required final int quantity,
   }) = _$OrderItemImpl;
+
+  factory _OrderItem.fromJson(Map<String, dynamic> json) =
+      _$OrderItemImpl.fromJson;
 
   @override
   String get productId;
@@ -227,6 +246,10 @@ abstract class _OrderItem implements OrderItem {
       throw _privateConstructorUsedError;
 }
 
+OrderSupplierGroup _$OrderSupplierGroupFromJson(Map<String, dynamic> json) {
+  return _OrderSupplierGroup.fromJson(json);
+}
+
 /// @nodoc
 mixin _$OrderSupplierGroup {
   String get id => throw _privateConstructorUsedError;
@@ -242,6 +265,9 @@ mixin _$OrderSupplierGroup {
   /// a refusal isn't a silent dead end.
   String? get cancellationReason => throw _privateConstructorUsedError;
   CancelledBy? get cancelledBy => throw _privateConstructorUsedError;
+
+  /// Serializes this OrderSupplierGroup to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of OrderSupplierGroup
   /// with the given fields replaced by the non-null parameter values.
@@ -441,7 +467,7 @@ class __$$OrderSupplierGroupImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$OrderSupplierGroupImpl implements _OrderSupplierGroup {
   const _$OrderSupplierGroupImpl({
     required this.id,
@@ -455,6 +481,9 @@ class _$OrderSupplierGroupImpl implements _OrderSupplierGroup {
     this.cancellationReason,
     this.cancelledBy,
   }) : _items = items;
+
+  factory _$OrderSupplierGroupImpl.fromJson(Map<String, dynamic> json) =>
+      _$$OrderSupplierGroupImplFromJson(json);
 
   @override
   final String id;
@@ -515,6 +544,7 @@ class _$OrderSupplierGroupImpl implements _OrderSupplierGroup {
                 other.cancelledBy == cancelledBy));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -540,6 +570,11 @@ class _$OrderSupplierGroupImpl implements _OrderSupplierGroup {
         this,
         _$identity,
       );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$OrderSupplierGroupImplToJson(this);
+  }
 }
 
 abstract class _OrderSupplierGroup implements OrderSupplierGroup {
@@ -555,6 +590,9 @@ abstract class _OrderSupplierGroup implements OrderSupplierGroup {
     final String? cancellationReason,
     final CancelledBy? cancelledBy,
   }) = _$OrderSupplierGroupImpl;
+
+  factory _OrderSupplierGroup.fromJson(Map<String, dynamic> json) =
+      _$OrderSupplierGroupImpl.fromJson;
 
   @override
   String get id;
@@ -586,6 +624,10 @@ abstract class _OrderSupplierGroup implements OrderSupplierGroup {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$OrderSupplierGroupImplCopyWith<_$OrderSupplierGroupImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+Order _$OrderFromJson(Map<String, dynamic> json) {
+  return _Order.fromJson(json);
 }
 
 /// @nodoc
@@ -639,6 +681,9 @@ mixin _$Order {
   PaymentStatus get paymentStatus => throw _privateConstructorUsedError;
   MobileMoneyProvider? get mobileMoneyProvider =>
       throw _privateConstructorUsedError;
+
+  /// Serializes this Order to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Order
   /// with the given fields replaced by the non-null parameter values.
@@ -1040,7 +1085,7 @@ class __$$OrderImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$OrderImpl implements _Order {
   const _$OrderImpl({
     required this.id,
@@ -1071,6 +1116,9 @@ class _$OrderImpl implements _Order {
     this.paymentStatus = PaymentStatus.pendingOnDelivery,
     this.mobileMoneyProvider,
   }) : _supplierGroups = supplierGroups;
+
+  factory _$OrderImpl.fromJson(Map<String, dynamic> json) =>
+      _$$OrderImplFromJson(json);
 
   @override
   final String id;
@@ -1233,6 +1281,7 @@ class _$OrderImpl implements _Order {
                 other.mobileMoneyProvider == mobileMoneyProvider));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hashAll([
     runtimeType,
@@ -1272,6 +1321,11 @@ class _$OrderImpl implements _Order {
   @pragma('vm:prefer-inline')
   _$$OrderImplCopyWith<_$OrderImpl> get copyWith =>
       __$$OrderImplCopyWithImpl<_$OrderImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$OrderImplToJson(this);
+  }
 }
 
 abstract class _Order implements Order {
@@ -1304,6 +1358,8 @@ abstract class _Order implements Order {
     final PaymentStatus paymentStatus,
     final MobileMoneyProvider? mobileMoneyProvider,
   }) = _$OrderImpl;
+
+  factory _Order.fromJson(Map<String, dynamic> json) = _$OrderImpl.fromJson;
 
   @override
   String get id;

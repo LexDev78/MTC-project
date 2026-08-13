@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
+import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 
 import '../../domain/entities/chat.dart';
 import '../providers/chat_providers.dart';
@@ -8,6 +11,30 @@ import '../providers/chat_providers.dart';
 class ChatController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
+
+  /// Notifies whichever side didn't just send the message — resolves the
+  /// conversation fresh via `ChatRepository.getConversationById` rather
+  /// than trusting a presentation-layer provider to already be warm.
+  Future<void> _notifyRecipient({
+    required String conversationId,
+    required String senderId,
+    required String preview,
+  }) async {
+    final conversation = await ref
+        .read(chatRepositoryProvider)
+        .getConversationById(conversationId);
+    final recipientId = senderId == conversation.clientId
+        ? conversation.supplierId
+        : conversation.clientId;
+    await ref
+        .read(notificationRepositoryProvider)
+        .add(
+          userId: recipientId,
+          type: NotificationType.newMessage,
+          title: 'Nouveau message',
+          body: preview,
+        );
+  }
 
   Future<void> sendMessage({
     required String conversationId,
@@ -30,6 +57,11 @@ class ChatController extends AsyncNotifier<void> {
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
         );
+    await _notifyRecipient(
+      conversationId: conversationId,
+      senderId: userId,
+      preview: text.trim(),
+    );
   }
 
   Future<void> sendImage({
@@ -55,6 +87,11 @@ class ChatController extends AsyncNotifier<void> {
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
         );
+    await _notifyRecipient(
+      conversationId: conversationId,
+      senderId: userId,
+      preview: '📷 Photo',
+    );
   }
 
   /// Sends a voice note — carries the same pending-product snapshot as a
@@ -86,6 +123,11 @@ class ChatController extends AsyncNotifier<void> {
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
         );
+    await _notifyRecipient(
+      conversationId: conversationId,
+      senderId: userId,
+      preview: '🎤 Message vocal',
+    );
   }
 
   /// Starts (or resumes) a conversation with a supplier. Returns the
@@ -94,19 +136,30 @@ class ChatController extends AsyncNotifier<void> {
     required String supplierId,
     required String supplierName,
   }) async {
-    final userId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (userId == null) return null;
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user is! ClientUser) return null;
     return ref
         .read(chatRepositoryProvider)
         .startOrGetConversation(
-          clientId: userId,
+          clientId: user.id,
+          clientDisplayNameSnapshot: user.displayName,
           supplierId: supplierId,
           supplierName: supplierName,
         );
   }
 
+  /// Marks the conversation read on behalf of the current user's own side
+  /// — a client reading clears `unreadCountClient`, a supplier reading
+  /// clears `unreadCountSupplier`; the caller never has to know which.
   Future<void> markRead(String conversationId) async {
-    await ref.read(chatRepositoryProvider).markConversationRead(conversationId);
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) return;
+    final readBy = user is ClientUser
+        ? ChatParticipant.client
+        : ChatParticipant.supplier;
+    await ref
+        .read(chatRepositoryProvider)
+        .markConversationRead(conversationId: conversationId, readBy: readBy);
   }
 }
 

@@ -1,3 +1,5 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 enum ProductSortOption {
   relevance,
   priceAsc,
@@ -15,10 +17,12 @@ enum ProductSortOption {
 }
 
 enum ProductCategory {
+  @JsonValue('textiles_bogolan')
   textilesBogolan,
   artisanat,
   electronique,
   alimentation,
+  @JsonValue('materiaux_construction')
   materiauxConstruction,
   autre;
 
@@ -43,6 +47,7 @@ enum SupplierType { tiers, principal }
 enum ProductRegion {
   chine,
   europe,
+  @JsonValue('afrique_hors_mali')
   afriqueHorsMali,
   mali,
   autre;

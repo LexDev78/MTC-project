@@ -82,4 +82,37 @@ class InMemorySupplierRepository implements SupplierRepository {
   }) async {
     _datasource.adjustProductCount(supplierId, delta);
   }
+
+  @override
+  Future<void> updateStorefront({
+    required String supplierId,
+    required String? description,
+    required String? bannerUrl,
+    required String? fullAddress,
+    required double? addressLatitude,
+    required double? addressLongitude,
+    required List<String> publicPhoneNumbers,
+    required List<String> deliveryZones,
+    required String? openingHoursLabel,
+  }) async {
+    _datasource.updateStorefront(
+      supplierId: supplierId,
+      description: description,
+      bannerUrl: bannerUrl,
+      fullAddress: fullAddress,
+      addressLatitude: addressLatitude,
+      addressLongitude: addressLongitude,
+      publicPhoneNumbers: publicPhoneNumbers,
+      deliveryZones: deliveryZones,
+      openingHoursLabel: openingHoursLabel,
+    );
+  }
+
+  @override
+  Future<void> setOpen({
+    required String supplierId,
+    required bool isOpen,
+  }) async {
+    _datasource.setOpen(supplierId, isOpen);
+  }
 }

@@ -15,12 +15,19 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+SupplierDocument _$SupplierDocumentFromJson(Map<String, dynamic> json) {
+  return _SupplierDocument.fromJson(json);
+}
+
 /// @nodoc
 mixin _$SupplierDocument {
   String get id => throw _privateConstructorUsedError;
   SupplierDocumentType get type => throw _privateConstructorUsedError;
   String get filePath => throw _privateConstructorUsedError;
   DateTime get uploadedAt => throw _privateConstructorUsedError;
+
+  /// Serializes this SupplierDocument to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of SupplierDocument
   /// with the given fields replaced by the non-null parameter values.
@@ -148,7 +155,7 @@ class __$$SupplierDocumentImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$SupplierDocumentImpl implements _SupplierDocument {
   const _$SupplierDocumentImpl({
     required this.id,
@@ -156,6 +163,9 @@ class _$SupplierDocumentImpl implements _SupplierDocument {
     required this.filePath,
     required this.uploadedAt,
   });
+
+  factory _$SupplierDocumentImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SupplierDocumentImplFromJson(json);
 
   @override
   final String id;
@@ -184,6 +194,7 @@ class _$SupplierDocumentImpl implements _SupplierDocument {
                 other.uploadedAt == uploadedAt));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, type, filePath, uploadedAt);
 
@@ -197,6 +208,11 @@ class _$SupplierDocumentImpl implements _SupplierDocument {
         this,
         _$identity,
       );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$SupplierDocumentImplToJson(this);
+  }
 }
 
 abstract class _SupplierDocument implements SupplierDocument {
@@ -206,6 +222,9 @@ abstract class _SupplierDocument implements SupplierDocument {
     required final String filePath,
     required final DateTime uploadedAt,
   }) = _$SupplierDocumentImpl;
+
+  factory _SupplierDocument.fromJson(Map<String, dynamic> json) =
+      _$SupplierDocumentImpl.fromJson;
 
   @override
   String get id;

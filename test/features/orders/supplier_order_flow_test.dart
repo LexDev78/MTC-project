@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,14 +16,20 @@ import 'package:mtc_app/features/orders/presentation/providers/checkout_provider
 import 'package:mtc_app/features/orders/presentation/providers/supplier_order_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 void main() {
   late ProviderContainer container;
 
   setUp(() async {
+    await resetAndSeed();
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     container = ProviderContainer(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
     );
     addTearDown(container.dispose);
   });
@@ -50,6 +59,17 @@ void main() {
           .valueOrNull!
           .id;
 
+      // `supplierOrdersProvider` derives "my group" from the ACTUAL
+      // authenticated session (`operating_supplier_id()`, enforced by RLS),
+      // not from the id argument — viewing each supplier's order view for
+      // real means actually being logged in as that supplier.
+      await container.read(authRepositoryProvider).logout();
+      await container
+          .read(authRepositoryProvider)
+          .login(usernameOrPhone: 'fournisseur6', password: 'password123');
+      await container.read(currentUserProvider.future);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
       final riceSupplierViews = await container.read(
         supplierOrdersProvider(DemoIds.supplierAlimentationSegou).future,
       );
@@ -59,6 +79,13 @@ void main() {
       expect(riceView.myGroup.items, hasLength(1));
       expect(riceView.myGroup.items.single.productNameSnapshot, 'Riz local 25kg');
       expect(riceView.clientDisplayNameSnapshot, 'Moussa Diarra');
+
+      await container.read(authRepositoryProvider).logout();
+      await container
+          .read(authRepositoryProvider)
+          .login(usernameOrPhone: 'fournisseur5', password: 'password123');
+      await container.read(currentUserProvider.future);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
 
       final phoneSupplierViews = await container.read(
         supplierOrdersProvider(DemoIds.supplierElectroBamako).future,
@@ -85,6 +112,15 @@ void main() {
     'as cancelled in that supplier\'s own view',
     () async {
       const supplierId = DemoIds.supplierMateriauxKoutiala;
+      // `update_order_group_status()` checks the group belongs to the
+      // ACTUAL authenticated session's operating supplier — no session was
+      // logged in at all before, so the RPC rejected it as unauthorized.
+      await container
+          .read(authRepositoryProvider)
+          .login(usernameOrPhone: 'fournisseur7', password: 'password123');
+      await container.read(currentUserProvider.future);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
       final controller = container.read(
         supplierOrderControllerProvider.notifier,
       );
@@ -121,7 +157,10 @@ void main() {
 
       final conversationId = await container
           .read(supplierOrderControllerProvider.notifier)
-          .contactClient(clientId: DemoIds.clientAwa);
+          .contactClient(
+            clientId: DemoIds.clientAwa,
+            clientDisplayNameSnapshot: 'Awa Traoré',
+          );
 
       expect(conversationId, isNotNull);
 

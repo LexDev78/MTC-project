@@ -5,6 +5,7 @@ import 'order_status.dart';
 import 'payment.dart';
 
 part 'order.freezed.dart';
+part 'order.g.dart';
 
 @freezed
 class OrderItem with _$OrderItem {
@@ -14,6 +15,9 @@ class OrderItem with _$OrderItem {
     required int unitPriceFcfaSnapshot,
     required int quantity,
   }) = _OrderItem;
+
+  factory OrderItem.fromJson(Map<String, dynamic> json) =>
+      _$OrderItemFromJson(json);
 }
 
 /// One supplier's slice of an order — a single checkout can span multiple
@@ -35,6 +39,9 @@ class OrderSupplierGroup with _$OrderSupplierGroup {
     String? cancellationReason,
     CancelledBy? cancelledBy,
   }) = _OrderSupplierGroup;
+
+  factory OrderSupplierGroup.fromJson(Map<String, dynamic> json) =>
+      _$OrderSupplierGroupFromJson(json);
 }
 
 @freezed
@@ -87,6 +94,8 @@ class Order with _$Order {
     @Default(PaymentStatus.pendingOnDelivery) PaymentStatus paymentStatus,
     MobileMoneyProvider? mobileMoneyProvider,
   }) = _Order;
+
+  factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
 }
 
 /// Input for [OrderRepository.placeOrder] — one supplier's checkout group,

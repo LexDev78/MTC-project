@@ -55,6 +55,43 @@ class InMemorySupplierDatasource {
     _changesController.add(null);
   }
 
+  void updateStorefront({
+    required String supplierId,
+    required String? description,
+    required String? bannerUrl,
+    required String? fullAddress,
+    required double? addressLatitude,
+    required double? addressLongitude,
+    required List<String> publicPhoneNumbers,
+    required List<String> deliveryZones,
+    required String? openingHoursLabel,
+  }) {
+    final index = _suppliers.indexWhere((s) => s.id == supplierId);
+    if (index == -1) {
+      throw NotFoundException('Fournisseur introuvable : $supplierId');
+    }
+    _suppliers[index] = _suppliers[index].copyWith(
+      description: description,
+      bannerUrl: bannerUrl,
+      fullAddress: fullAddress,
+      addressLatitude: addressLatitude,
+      addressLongitude: addressLongitude,
+      publicPhoneNumbers: publicPhoneNumbers,
+      deliveryZones: deliveryZones,
+      openingHoursLabel: openingHoursLabel,
+    );
+    _changesController.add(null);
+  }
+
+  void setOpen(String supplierId, bool isOpen) {
+    final index = _suppliers.indexWhere((s) => s.id == supplierId);
+    if (index == -1) {
+      throw NotFoundException('Fournisseur introuvable : $supplierId');
+    }
+    _suppliers[index] = _suppliers[index].copyWith(isOpen: isOpen);
+    _changesController.add(null);
+  }
+
   SupplierProfile add(SupplierProfile profile) {
     if (_suppliers.any((s) => s.id == profile.id)) {
       throw ValidationException('Fournisseur déjà existant : ${profile.id}');

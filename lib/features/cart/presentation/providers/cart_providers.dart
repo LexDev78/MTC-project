@@ -1,18 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 
-import '../../data/datasources/in_memory_cart_datasource.dart';
-import '../../data/repositories/in_memory_cart_repository.dart';
+import '../../data/datasources/supabase_cart_datasource.dart';
+import '../../data/repositories/supabase_cart_repository.dart';
 import '../../domain/entities/cart_item.dart';
 import '../../domain/repositories/cart_repository.dart';
 
-final cartDatasourceProvider = Provider<InMemoryCartDatasource>((ref) {
-  return InMemoryCartDatasource();
+final cartDatasourceProvider = Provider<SupabaseCartDatasource>((ref) {
+  return SupabaseCartDatasource(ref.watch(supabaseClientProvider));
 });
 
 final cartRepositoryProvider = Provider<CartRepository>((ref) {
-  return InMemoryCartRepository(ref.watch(cartDatasourceProvider));
+  return SupabaseCartRepository(ref.watch(cartDatasourceProvider));
 });
 
 final cartItemsProvider = StreamProvider<List<CartItem>>((ref) {

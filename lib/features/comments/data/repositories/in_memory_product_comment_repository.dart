@@ -15,8 +15,14 @@ class InMemoryProductCommentRepository implements ProductCommentRepository {
   }
 
   @override
+  Stream<List<ProductComment>> watchForSupplier(String supplierId) {
+    return _datasource.watchForSupplier(supplierId);
+  }
+
+  @override
   Future<void> addComment({
     required String productId,
+    required String supplierId,
     required String authorId,
     required String authorName,
     required bool isSupplier,
@@ -30,6 +36,7 @@ class InMemoryProductCommentRepository implements ProductCommentRepository {
       ProductComment(
         id: IdGenerator.next(),
         productId: productId,
+        supplierId: supplierId,
         authorId: authorId,
         authorName: authorName,
         createdAt: DateTime.now(),

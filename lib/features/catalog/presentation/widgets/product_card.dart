@@ -6,6 +6,7 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_shadows.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/widgets/resolved_image.dart';
 import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 
@@ -228,9 +229,9 @@ class ProductImage extends StatelessWidget {
       return _fallback(scheme);
     }
 
-    return Image.asset(
-      imageUrl!,
-      fit: BoxFit.cover,
+    return ResolvedImage(
+      path: imageUrl!,
+      bucket: 'product-images',
       errorBuilder: (context, error, stackTrace) => _fallback(scheme),
     );
   }

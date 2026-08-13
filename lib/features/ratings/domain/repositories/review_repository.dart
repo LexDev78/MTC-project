@@ -16,4 +16,13 @@ abstract interface class ReviewRepository {
     required String orderId,
     required String supplierGroupId,
   });
+
+  /// Records the supplier's public reply to [reviewId] — throws
+  /// `ValidationException` if [supplierId] isn't the supplier that review
+  /// was left for (a supplier can't reply to another's review).
+  Future<void> reply({
+    required String reviewId,
+    required String supplierId,
+    required String reply,
+  });
 }

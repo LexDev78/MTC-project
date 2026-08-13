@@ -24,3 +24,12 @@ final productCommentsProvider =
           .watch(productCommentRepositoryProvider)
           .watchForProduct(productId);
     });
+
+/// Every comment across every one of [supplierId]'s products — feeds the
+/// supplier's comment inbox (see `SupplierCommentInboxScreen`).
+final supplierProductCommentsProvider =
+    StreamProvider.family<List<ProductComment>, String>((ref, supplierId) {
+      return ref
+          .watch(productCommentRepositoryProvider)
+          .watchForSupplier(supplierId);
+    });

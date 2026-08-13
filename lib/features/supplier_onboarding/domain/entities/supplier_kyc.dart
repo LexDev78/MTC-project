@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'supplier_kyc.freezed.dart';
+part 'supplier_kyc.g.dart';
 
 /// Lifecycle of a supplier's verification dossier. A single dossier is
 /// mutated in place through these states (no versioned history of past
@@ -14,6 +15,7 @@ enum KycReviewStatus {
   submitted,
 
   /// A staff member has opened it and is actively reviewing it.
+  @JsonValue('under_review')
   underReview,
   approved,
   rejected;
@@ -32,24 +34,33 @@ enum KycReviewStatus {
 /// `kyc_requirements.dart`.
 enum SupplierDocumentType {
   /// Extrait du Registre du Commerce et du Crédit Mobilier (régime OHADA).
+  @JsonValue('rccm_certificate')
   rccmCertificate,
 
   /// Alternative to [rccmCertificate] for very small operators: the
   /// simplified OHADA "Entreprenant" status declaration.
+  @JsonValue('entreprenant_declaration')
   entreprenantDeclaration,
 
   /// Statuts notariés — optional (an Entreprenant has no legal personality,
   /// so no statutes to notarize).
+  @JsonValue('articles_of_association')
   articlesOfAssociation,
 
   /// Numéro d'Identification Fiscale.
+  @JsonValue('tax_id')
   taxId,
 
   /// The legal representative/manager's national ID (carte NINA).
+  @JsonValue('manager_id_card')
   managerIdCard,
+  @JsonValue('proof_of_address')
   proofOfAddress,
+  @JsonValue('national_id_front')
   nationalIdFront,
+  @JsonValue('national_id_back')
   nationalIdBack,
+  @JsonValue('selfie_with_id')
   selfieWithId;
 
   String get label => switch (this) {
@@ -77,6 +88,9 @@ class SupplierDocument with _$SupplierDocument {
     required String filePath,
     required DateTime uploadedAt,
   }) = _SupplierDocument;
+
+  factory SupplierDocument.fromJson(Map<String, dynamic> json) =>
+      _$SupplierDocumentFromJson(json);
 }
 
 /// Records that the supplier explicitly accepted personal-data processing,

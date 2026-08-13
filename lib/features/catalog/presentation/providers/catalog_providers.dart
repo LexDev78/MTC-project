@@ -1,17 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/datasources/in_memory_product_datasource.dart';
-import '../../data/repositories/in_memory_product_repository.dart';
+import 'package:mtc_app/core/di/providers.dart';
+
+import '../../data/datasources/supabase_product_datasource.dart';
+import '../../data/repositories/supabase_product_repository.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
 import '../../domain/repositories/product_repository.dart';
 
-final productDatasourceProvider = Provider<InMemoryProductDatasource>((ref) {
-  return InMemoryProductDatasource();
+final productDatasourceProvider = Provider<SupabaseProductDatasource>((ref) {
+  return SupabaseProductDatasource(ref.watch(supabaseClientProvider));
 });
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
-  return InMemoryProductRepository(ref.watch(productDatasourceProvider));
+  return SupabaseProductRepository(ref.watch(productDatasourceProvider));
 });
 
 /// Search text, isolated per [SupplierType] tab so typing in one catalog

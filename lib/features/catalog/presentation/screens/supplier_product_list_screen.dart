@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/currency_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/widgets/resolved_image.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/product.dart';
@@ -30,7 +29,18 @@ class SupplierProductListScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Produits')),
+      appBar: AppBar(
+        title: const Text('Produits'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.forum_outlined),
+            tooltip: 'Commentaires produits',
+            onPressed: () => context.push(
+              '${ref.read(supplierRoutePrefixProvider)}/products/comments',
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -264,20 +274,13 @@ class _SupplierProductThumbnail extends StatelessWidget {
       );
     }
 
-    final path = product.imageUrls.first;
-    // Supplier-added photos are picked from the device (a local file path);
-    // seeded demo products instead point at bundled assets — unlike the
-    // client-facing `ProductImage`, this tile has to render both.
-    final isAsset = path.startsWith('assets/');
-    return isAsset
-        ? Image.asset(path, fit: BoxFit.cover)
-        : Image.file(
-            File(path),
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: scheme.primaryContainer.withValues(alpha: 0.4),
-              child: Icon(Icons.inventory_2_outlined, color: scheme.primary),
-            ),
-          );
+    return ResolvedImage(
+      path: product.imageUrls.first,
+      bucket: 'product-images',
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: scheme.primaryContainer.withValues(alpha: 0.4),
+        child: Icon(Icons.inventory_2_outlined, color: scheme.primary),
+      ),
+    );
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
+import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 
 import '../providers/supplier_kyc_providers.dart';
@@ -56,6 +58,14 @@ class KycReviewController extends AsyncNotifier<void> {
       await ref
           .read(productRepositoryProvider)
           .updateSupplierVerification(supplierId: supplierId, isVerified: true);
+      await ref
+          .read(notificationRepositoryProvider)
+          .add(
+            userId: supplierId,
+            type: NotificationType.kycDecision,
+            title: 'Dossier approuvé',
+            body: 'Votre vérification a été validée.',
+          );
     });
     return !state.hasError;
   }
@@ -86,6 +96,14 @@ class KycReviewController extends AsyncNotifier<void> {
       await ref
           .read(productRepositoryProvider)
           .updateSupplierVerification(supplierId: supplierId, isVerified: false);
+      await ref
+          .read(notificationRepositoryProvider)
+          .add(
+            userId: supplierId,
+            type: NotificationType.kycDecision,
+            title: 'Dossier refusé',
+            body: reason,
+          );
     });
     return !state.hasError;
   }

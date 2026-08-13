@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+StockMovement _$StockMovementFromJson(Map<String, dynamic> json) {
+  return _StockMovement.fromJson(json);
+}
+
 /// @nodoc
 mixin _$StockMovement {
   String get id => throw _privateConstructorUsedError;
@@ -23,6 +27,9 @@ mixin _$StockMovement {
   StockMovementReason get reason => throw _privateConstructorUsedError;
   DateTime get occurredAt => throw _privateConstructorUsedError;
   String? get note => throw _privateConstructorUsedError;
+
+  /// Serializes this StockMovement to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of StockMovement
   /// with the given fields replaced by the non-null parameter values.
@@ -174,7 +181,7 @@ class __$$StockMovementImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$StockMovementImpl implements _StockMovement {
   const _$StockMovementImpl({
     required this.id,
@@ -184,6 +191,9 @@ class _$StockMovementImpl implements _StockMovement {
     required this.occurredAt,
     this.note,
   });
+
+  factory _$StockMovementImpl.fromJson(Map<String, dynamic> json) =>
+      _$$StockMovementImplFromJson(json);
 
   @override
   final String id;
@@ -219,6 +229,7 @@ class _$StockMovementImpl implements _StockMovement {
             (identical(other.note, note) || other.note == note));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -237,6 +248,11 @@ class _$StockMovementImpl implements _StockMovement {
   @pragma('vm:prefer-inline')
   _$$StockMovementImplCopyWith<_$StockMovementImpl> get copyWith =>
       __$$StockMovementImplCopyWithImpl<_$StockMovementImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$StockMovementImplToJson(this);
+  }
 }
 
 abstract class _StockMovement implements StockMovement {
@@ -248,6 +264,9 @@ abstract class _StockMovement implements StockMovement {
     required final DateTime occurredAt,
     final String? note,
   }) = _$StockMovementImpl;
+
+  factory _StockMovement.fromJson(Map<String, dynamic> json) =
+      _$StockMovementImpl.fromJson;
 
   @override
   String get id;

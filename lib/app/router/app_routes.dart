@@ -38,6 +38,12 @@ abstract final class AppRoutes {
   static const String supplierTiersAccount = '/supplier-tiers/account';
   static const String supplierOnboarding = '/supplier-tiers/onboarding';
   static const String supplierTiersProductForm = '/supplier-tiers/products/form';
+  static const String supplierTiersCommentInbox =
+      '/supplier-tiers/products/comments';
+  static const String supplierTiersReviewManagement =
+      '/supplier-tiers/account/reviews';
+  static const String supplierTiersNotifications =
+      '/supplier-tiers/notifications';
   static const String supplierTiersOrderDetailPath =
       '/supplier-tiers/orders/:orderId';
   static const String supplierTiersChatThreadPath =
@@ -57,6 +63,12 @@ abstract final class AppRoutes {
       '/supplier-principal/account';
   static const String supplierPrincipalProductForm =
       '/supplier-principal/products/form';
+  static const String supplierPrincipalCommentInbox =
+      '/supplier-principal/products/comments';
+  static const String supplierPrincipalReviewManagement =
+      '/supplier-principal/account/reviews';
+  static const String supplierPrincipalNotifications =
+      '/supplier-principal/notifications';
   static const String supplierPrincipalOrderDetailPath =
       '/supplier-principal/orders/:orderId';
   static const String supplierPrincipalChatThreadPath =
@@ -66,6 +78,11 @@ abstract final class AppRoutes {
   static const String supplierPrincipalKycQueue = '/supplier-principal/kyc';
   static const String supplierPrincipalKycDetailPath =
       '/supplier-principal/kyc/:kycId';
+
+  // Staff-only, admin-only payout review (fournisseur principal) — no
+  // tiers equivalent, same shape as the KYC queue above.
+  static const String supplierPrincipalPayoutQueue =
+      '/supplier-principal/finances/payouts';
 
   static String productDetail(String productId) => '/client/product/$productId';
   static String orderDetail(String orderId) => '/client/orders/$orderId';

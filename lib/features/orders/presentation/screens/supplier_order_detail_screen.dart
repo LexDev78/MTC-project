@@ -104,7 +104,10 @@ class _OrderDetailBody extends ConsumerWidget {
   Future<void> _contactClient(BuildContext context, WidgetRef ref) async {
     final conversationId = await ref
         .read(supplierOrderControllerProvider.notifier)
-        .contactClient(clientId: view.clientId);
+        .contactClient(
+          clientId: view.clientId,
+          clientDisplayNameSnapshot: view.clientDisplayNameSnapshot,
+        );
     if (!context.mounted) return;
     if (conversationId == null) {
       final error = ref.read(supplierOrderControllerProvider).error;

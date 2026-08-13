@@ -42,6 +42,13 @@ class InMemoryOrderRepository implements OrderRepository {
   }
 
   @override
+  Stream<List<Order>> watchAllOrders() {
+    return _datasource.watchAll().map(
+      (orders) => [...orders]..sort((a, b) => b.placedAt.compareTo(a.placedAt)),
+    );
+  }
+
+  @override
   Future<Order> placeOrder({
     required String clientId,
     required String clientDisplayNameSnapshot,
