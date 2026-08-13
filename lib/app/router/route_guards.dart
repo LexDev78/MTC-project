@@ -29,9 +29,17 @@ String? authRedirect(Ref ref, GoRouterState state) {
     return isAuthRoute ? null : AppRoutes.login;
   }
 
+  // A supplier tiers with no KYC dossier submitted yet has nothing to
+  // manage — its "home" is the onboarding wizard, not the dashboard.
+  // `rejected` still goes to the dashboard (it surfaces the rejection
+  // reason with a way back into the wizard); `pending`/`verified` do too.
+  final needsOnboarding = user is SupplierTiersUser && user.needsOnboarding;
+
   final roleHome = switch (user.role) {
     UserRole.client => AppRoutes.clientHome,
-    UserRole.supplierTiers => AppRoutes.supplierTiersDashboard,
+    UserRole.supplierTiers => needsOnboarding
+        ? AppRoutes.supplierOnboarding
+        : AppRoutes.supplierTiersDashboard,
     UserRole.supplierPrincipal => AppRoutes.supplierPrincipalDashboard,
   };
 
@@ -55,6 +63,20 @@ String? authRedirect(Ref ref, GoRouterState state) {
   final inAnySupplierOrClientArea =
       isClientArea || isTiersArea || isPrincipalArea;
   if (inAnySupplierOrClientArea && !inOwnArea) return roleHome;
+
+  if (user is SupplierTiersUser) {
+    final onOnboarding = path == AppRoutes.supplierOnboarding;
+    if (needsOnboarding && !onOnboarding) return AppRoutes.supplierOnboarding;
+    // Nothing left to do in the wizard once a dossier has at least been
+    // submitted once — `pending`/`verified` can't navigate back to it.
+    // `rejected` is deliberately excluded here so it stays reachable.
+    final doneWithOnboarding =
+        user.verificationStatus == VerificationStatus.pending ||
+        user.verificationStatus == VerificationStatus.verified;
+    if (doneWithOnboarding && onOnboarding) {
+      return AppRoutes.supplierTiersDashboard;
+    }
+  }
 
   return null;
 }

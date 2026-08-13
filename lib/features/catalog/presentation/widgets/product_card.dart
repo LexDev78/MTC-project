@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_shadows.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
+import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
@@ -20,7 +23,7 @@ extension ProductCategoryIcon on ProductCategory {
   };
 }
 
-class ProductCard extends StatelessWidget {
+class ProductCard extends ConsumerWidget {
   const ProductCard({super.key, required this.product, this.overlay});
 
   final Product product;
@@ -32,10 +35,19 @@ class ProductCard extends StatelessWidget {
   final Widget? overlay;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final brightness = Theme.of(context).brightness;
+    final titleStyle = textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+    // Fixed to exactly 2 lines' worth of height regardless of how long the
+    // name actually is — otherwise a one-line title leaves the text block
+    // shorter than a two-line one, and since the photo above sits in an
+    // Expanded absorbing the leftover space, that made images different
+    // heights from card to card in the same row/grid.
+    final titleHeight = (titleStyle?.fontSize ?? 14) * (titleStyle?.height ?? 1.3) * 2;
 
     return Container(
       decoration: BoxDecoration(
@@ -65,6 +77,12 @@ class ProductCard extends StatelessWidget {
                     ),
                     if (overlay != null)
                       Positioned(top: 0, right: 0, child: overlay!),
+                    if (product.stockQuantity > 0)
+                      Positioned(
+                        bottom: AppSpacing.xs,
+                        right: AppSpacing.xs,
+                        child: _QuickAddToCartButton(product: product),
+                      ),
                   ],
                 ),
               ),
@@ -73,12 +91,13 @@ class ProductCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    SizedBox(
+                      height: titleHeight,
+                      child: Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -121,6 +140,70 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One-tap "add to cart" pinned to the image's bottom-right corner — mirrors
+/// the reference marketplace mockup's small purple cart button on every
+/// product card, so a client can stock up while browsing without opening
+/// each product's detail page.
+class _QuickAddToCartButton extends ConsumerWidget {
+  const _QuickAddToCartButton({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    // Already-in-cart state flips the button to a white pill with a blue
+    // (primary-colored) cart icon, instead of the solid purple "add" look —
+    // and turns the tap into a toggle-off (remove) instead of add-again.
+    final cartItem = ref.watch(cartItemForProductProvider(product.id));
+    final inCart = cartItem != null;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        boxShadow: AppShadows.soft(brightness),
+        border: inCart ? Border.all(color: scheme.primary, width: 1.5) : null,
+      ),
+      child: Material(
+        color: inCart ? scheme.surface : scheme.primary,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          onTap: () {
+            final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+            if (cartItem != null) {
+              ref.read(cartControllerProvider.notifier).removeItem(cartItem.id);
+              messenger.showSnackBar(
+                SnackBar(
+                  duration: const Duration(seconds: 1),
+                  content: Text('${product.name} retiré du panier'),
+                ),
+              );
+            } else {
+              ref.read(cartControllerProvider.notifier).addProduct(product);
+              messenger.showSnackBar(
+                SnackBar(
+                  duration: const Duration(seconds: 1),
+                  content: Text('${product.name} ajouté au panier'),
+                ),
+              );
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xs),
+            child: Icon(
+              Icons.shopping_cart_rounded,
+              size: 18,
+              color: inCart ? scheme.primary : scheme.onPrimary,
+            ),
           ),
         ),
       ),

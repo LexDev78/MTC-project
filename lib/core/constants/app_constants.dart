@@ -5,4 +5,10 @@ abstract final class AppConstants {
 
   /// Shared password for every seeded demo account (mock backend only).
   static const String demoPassword = 'password123';
+
+  /// Version tag of the personal-data processing policy shown during
+  /// individual supplier ("fournisseur libre") KYC — recorded on
+  /// `DataProcessingConsent.policyVersion` so a later wording change is
+  /// auditable (loi malienne n°2013-015 / APDP Mali).
+  static const String currentDataProcessingPolicyVersion = 'v1';
 }

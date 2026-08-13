@@ -13,6 +13,7 @@ class MtcTextField extends StatelessWidget {
     this.textInputAction,
     this.onChanged,
     this.autofillHints,
+    this.maxLines = 1,
   });
 
   final String label;
@@ -25,6 +26,7 @@ class MtcTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final void Function(String)? onChanged;
   final Iterable<String>? autofillHints;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +39,7 @@ class MtcTextField extends StatelessWidget {
       textInputAction: textInputAction,
       onChanged: onChanged,
       autofillHints: autofillHints,
+      maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,

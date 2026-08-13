@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/providers/screen_idle_provider.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
 
@@ -164,22 +165,23 @@ class _CategorySection extends StatelessWidget {
   }
 }
 
-/// A horizontally-scrolling row of product cards that idly auto-advances —
-/// same "auto-scroll until the user actually touches it" idiom as
-/// `PromoHeroBanner`'s carousel and the product-detail photo strip. Manual
-/// drags cancel the timer immediately and restart it once the user lets go,
-/// so it never fights a scroll the user is actively performing.
-class _AutoScrollingProductRow extends StatefulWidget {
+/// A horizontally-scrolling row of product cards that auto-advances only
+/// once the client has gone [ScreenIdleNotifier.idleThreshold] without
+/// touching anything on the screen (see `screenIdleProvider`) — any
+/// activity anywhere, not just a drag on this row, stops it immediately, so
+/// it never fights browsing happening elsewhere on the page.
+class _AutoScrollingProductRow extends ConsumerStatefulWidget {
   const _AutoScrollingProductRow({required this.products});
 
   final List<Product> products;
 
   @override
-  State<_AutoScrollingProductRow> createState() =>
+  ConsumerState<_AutoScrollingProductRow> createState() =>
       _AutoScrollingProductRowState();
 }
 
-class _AutoScrollingProductRowState extends State<_AutoScrollingProductRow> {
+class _AutoScrollingProductRowState
+    extends ConsumerState<_AutoScrollingProductRow> {
   static const _cardWidth = 150.0;
   static const _cardGap = AppSpacing.md;
 
@@ -189,7 +191,7 @@ class _AutoScrollingProductRowState extends State<_AutoScrollingProductRow> {
   @override
   void initState() {
     super.initState();
-    if (widget.products.length > 1) _startAutoScroll();
+    if (ref.read(screenIdleProvider)) _startAutoScroll();
   }
 
   @override
@@ -200,6 +202,7 @@ class _AutoScrollingProductRowState extends State<_AutoScrollingProductRow> {
   }
 
   void _startAutoScroll() {
+    if (widget.products.length <= 1) return;
     _autoScrollTimer?.cancel();
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!_scrollController.hasClients) return;
@@ -214,37 +217,37 @@ class _AutoScrollingProductRowState extends State<_AutoScrollingProductRow> {
     });
   }
 
+  void _stopAutoScroll() {
+    _autoScrollTimer?.cancel();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification is ScrollStartNotification &&
-            notification.dragDetails != null) {
-          _autoScrollTimer?.cancel();
-        } else if (notification is ScrollEndNotification &&
-            notification.dragDetails != null) {
-          _startAutoScroll();
-        }
-        return false;
-      },
-      child: ListView.builder(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        itemCount: widget.products.length,
-        itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(right: _cardGap),
-          child: SizedBox(
-            width: _cardWidth,
-            child: FadeSlideIn(
-              index: index,
-              child: ProductCard(
-                product: widget.products[index],
-                overlay: FavoriteToggleButton(
-                  productId: widget.products[index].id,
-                  size: 20,
-                  inactiveColor: Colors.white,
-                ),
+    ref.listen<bool>(screenIdleProvider, (previous, isIdle) {
+      if (isIdle) {
+        _startAutoScroll();
+      } else {
+        _stopAutoScroll();
+      }
+    });
+
+    return ListView.builder(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      itemCount: widget.products.length,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(right: _cardGap),
+        child: SizedBox(
+          width: _cardWidth,
+          child: FadeSlideIn(
+            index: index,
+            child: ProductCard(
+              product: widget.products[index],
+              overlay: FavoriteToggleButton(
+                productId: widget.products[index].id,
+                size: 20,
+                inactiveColor: Colors.white,
               ),
             ),
           ),

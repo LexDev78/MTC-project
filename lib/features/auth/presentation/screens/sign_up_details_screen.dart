@@ -8,10 +8,15 @@ import 'package:mtc_app/core/widgets/core_widgets.dart';
 import '../../domain/entities/user_role.dart';
 import '../controllers/auth_controller.dart';
 
-class SignUpDetailsScreen extends ConsumerStatefulWidget {
-  const SignUpDetailsScreen({super.key, required this.role});
+/// What `RoleSelectionScreen` (client) or `SupplierLegalTypeScreen` (tiers
+/// supplier) hands off as this route's `extra`. [legalType] is only set for
+/// [UserRole.supplierTiers] — a client sign-up has no legal form to choose.
+typedef SignUpDetailsArgs = ({UserRole role, SupplierLegalType? legalType});
 
-  final UserRole role;
+class SignUpDetailsScreen extends ConsumerStatefulWidget {
+  const SignUpDetailsScreen({super.key, required this.args});
+
+  final SignUpDetailsArgs args;
 
   @override
   ConsumerState<SignUpDetailsScreen> createState() =>
@@ -27,7 +32,8 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
   final _businessNameController = TextEditingController();
   final _cityController = TextEditingController();
 
-  bool get _isSupplier => widget.role == UserRole.supplierTiers;
+  bool get _isSupplier => widget.args.role == UserRole.supplierTiers;
+  bool get _isCompany => widget.args.legalType == SupplierLegalType.company;
 
   @override
   void dispose() {
@@ -52,6 +58,7 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
             password: _passwordController.text,
             businessName: _businessNameController.text.trim(),
             city: _cityController.text.trim(),
+            legalType: widget.args.legalType!,
           )
         : await controller.signUpClient(
             displayName: _displayNameController.text.trim(),
@@ -74,7 +81,11 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isSupplier ? 'Compte fournisseur' : 'Compte client'),
+        title: Text(
+          !_isSupplier
+              ? 'Compte client'
+              : (_isCompany ? 'Compte société' : 'Compte vendeur individuel'),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -92,7 +103,7 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
                 const SizedBox(height: AppSpacing.md),
                 if (_isSupplier) ...[
                   MtcTextField(
-                    label: 'Nom de la boutique',
+                    label: _isCompany ? 'Nom de la société' : 'Nom de la boutique',
                     controller: _businessNameController,
                     validator: Validators.required,
                   ),

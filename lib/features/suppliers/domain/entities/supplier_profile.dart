@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart'
-    show VerificationStatus;
+    show VerificationStatus, SupplierLegalType;
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart'
     show SupplierType;
 
@@ -22,5 +22,8 @@ class SupplierProfile with _$SupplierProfile {
     required int productCount,
     VerificationStatus? verificationStatus,
     String? avatarUrl,
+    // Null for `SupplierType.principal` (MTC itself has no legal form to
+    // register) — only ever set for `SupplierType.tiers`.
+    SupplierLegalType? legalType,
   }) = _SupplierProfile;
 }

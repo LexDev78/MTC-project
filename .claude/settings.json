@@ -21,7 +21,8 @@
       "Bash(flutter pub *)",
       "Bash(pod install *)",
       "Bash(pkill -f \"flutter run\")",
-      "Bash(xargs -I{} echo {})"
+      "Bash(xargs -I{} echo {})",
+      "Bash(flutter run *)"
     ]
   }
 }

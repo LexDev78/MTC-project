@@ -7,6 +7,7 @@ abstract final class AppRoutes {
   static const String loading = '/loading';
   static const String signUp = '/sign-up';
   static const String signUpRole = '/sign-up/role';
+  static const String signUpSupplierLegalType = '/sign-up/supplier-type';
   static const String signUpDetails = '/sign-up/details';
 
   // Client shell
@@ -27,10 +28,44 @@ abstract final class AppRoutes {
   static const String clientProfileEdit = '/client/profile/edit';
   static const String clientSettings = '/client/settings';
 
-  // Supplier placeholders (full dashboards land in a later iteration)
+  // Supplier tiers shell — 6 branches, mirrored 1:1 by the "principal" group
+  // below (same `SupplierShell`/screens, see `app_router.dart`).
   static const String supplierTiersDashboard = '/supplier-tiers/dashboard';
+  static const String supplierTiersProducts = '/supplier-tiers/products';
+  static const String supplierTiersOrders = '/supplier-tiers/orders';
+  static const String supplierTiersMessages = '/supplier-tiers/messages';
+  static const String supplierTiersFinances = '/supplier-tiers/finances';
+  static const String supplierTiersAccount = '/supplier-tiers/account';
+  static const String supplierOnboarding = '/supplier-tiers/onboarding';
+  static const String supplierTiersProductForm = '/supplier-tiers/products/form';
+  static const String supplierTiersOrderDetailPath =
+      '/supplier-tiers/orders/:orderId';
+  static const String supplierTiersChatThreadPath =
+      '/supplier-tiers/messages/:conversationId';
+
+  // Supplier principal (MTC staff) shell — same 6 branches.
   static const String supplierPrincipalDashboard =
       '/supplier-principal/dashboard';
+  static const String supplierPrincipalProducts =
+      '/supplier-principal/products';
+  static const String supplierPrincipalOrders = '/supplier-principal/orders';
+  static const String supplierPrincipalMessages =
+      '/supplier-principal/messages';
+  static const String supplierPrincipalFinances =
+      '/supplier-principal/finances';
+  static const String supplierPrincipalAccount =
+      '/supplier-principal/account';
+  static const String supplierPrincipalProductForm =
+      '/supplier-principal/products/form';
+  static const String supplierPrincipalOrderDetailPath =
+      '/supplier-principal/orders/:orderId';
+  static const String supplierPrincipalChatThreadPath =
+      '/supplier-principal/messages/:conversationId';
+
+  // Staff-only KYC review (fournisseur principal)
+  static const String supplierPrincipalKycQueue = '/supplier-principal/kyc';
+  static const String supplierPrincipalKycDetailPath =
+      '/supplier-principal/kyc/:kycId';
 
   static String productDetail(String productId) => '/client/product/$productId';
   static String orderDetail(String orderId) => '/client/orders/$orderId';
@@ -40,4 +75,14 @@ abstract final class AppRoutes {
       '/client/chat/$conversationId';
   static String supplierProfile(String supplierId) =>
       '/client/supplier/$supplierId';
+  static String supplierPrincipalKycDetail(String kycId) =>
+      '/supplier-principal/kyc/$kycId';
+  static String supplierTiersOrderDetail(String orderId) =>
+      '/supplier-tiers/orders/$orderId';
+  static String supplierPrincipalOrderDetail(String orderId) =>
+      '/supplier-principal/orders/$orderId';
+  static String supplierTiersChatThread(String conversationId) =>
+      '/supplier-tiers/messages/$conversationId';
+  static String supplierPrincipalChatThread(String conversationId) =>
+      '/supplier-principal/messages/$conversationId';
 }

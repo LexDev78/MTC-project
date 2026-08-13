@@ -2,34 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/auth/presentation/screens/loading_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/role_selection_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/sign_up_details_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/splash_screen.dart';
+import 'package:mtc_app/features/auth/presentation/screens/supplier_legal_type_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:mtc_app/features/cart/presentation/screens/cart_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/product_detail_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/search_screen.dart';
+import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_form_screen.dart';
+import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_list_screen.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart';
 import 'package:mtc_app/features/chat/presentation/screens/conversation_list_screen.dart';
+import 'package:mtc_app/features/chat/presentation/screens/supplier_conversation_list_screen.dart';
 import 'package:mtc_app/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/checkout_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/order_detail_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/order_list_screen.dart';
+import 'package:mtc_app/features/orders/presentation/screens/supplier_order_detail_screen.dart';
+import 'package:mtc_app/features/orders/presentation/screens/supplier_order_list_screen.dart';
 import 'package:mtc_app/features/profile/presentation/screens/client_profile_screen.dart';
 import 'package:mtc_app/features/profile/presentation/screens/manage_addresses_screen.dart';
 import 'package:mtc_app/features/profile/presentation/screens/settings_screen.dart';
 import 'package:mtc_app/features/ratings/presentation/screens/submit_review_screen.dart';
-import 'package:mtc_app/features/supplier_placeholder/presentation/screens/supplier_principal_dashboard_screen.dart';
-import 'package:mtc_app/features/supplier_placeholder/presentation/screens/supplier_tiers_dashboard_screen.dart';
+import 'package:mtc_app/features/supplier_finance/presentation/screens/supplier_finance_screen.dart';
+import 'package:mtc_app/features/supplier_onboarding/domain/entities/supplier_kyc.dart';
+import 'package:mtc_app/features/supplier_onboarding/presentation/screens/kyc_review_detail_screen.dart';
+import 'package:mtc_app/features/supplier_onboarding/presentation/screens/kyc_review_queue_screen.dart';
+import 'package:mtc_app/features/supplier_onboarding/presentation/screens/supplier_kyc_wizard_screen.dart';
+import 'package:mtc_app/features/suppliers/presentation/screens/supplier_account_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_profile_screen.dart';
 import 'package:mtc_app/features/tracking/presentation/screens/live_tracking_screen.dart';
 import 'package:mtc_app/root/presentation/client_home_screen.dart';
 import 'package:mtc_app/root/presentation/client_shell.dart';
+import 'package:mtc_app/root/presentation/supplier_home_screen.dart';
+import 'package:mtc_app/root/presentation/supplier_shell.dart';
 
 import 'app_routes.dart';
 import 'route_guards.dart';
@@ -137,10 +148,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             _fluidPage(state, const RoleSelectionScreen()),
       ),
       GoRoute(
+        path: AppRoutes.signUpSupplierLegalType,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierLegalTypeScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.signUpDetails,
         pageBuilder: (context, state) => _fluidPage(
           state,
-          SignUpDetailsScreen(role: state.extra! as UserRole),
+          SignUpDetailsScreen(args: state.extra! as SignUpDetailsArgs),
         ),
       ),
       GoRoute(
@@ -210,14 +226,205 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: AppRoutes.supplierTiersDashboard,
+        path: AppRoutes.supplierOnboarding,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const SupplierTiersDashboardScreen()),
+            _fluidPage(state, const SupplierKycWizardScreen()),
       ),
       GoRoute(
-        path: AppRoutes.supplierPrincipalDashboard,
+        path: AppRoutes.supplierPrincipalKycQueue,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const SupplierPrincipalDashboardScreen()),
+            _fluidPage(state, const KycReviewQueueScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalKycDetailPath,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          KycReviewDetailScreen(kyc: state.extra! as SupplierKyc),
+        ),
+      ),
+      // Product create/edit — `extra` carries the `Product` being edited,
+      // `null` for create mode. Pushed on top of whichever shell the
+      // signed-in role is in, mirrored once per zone like the shells
+      // themselves (see `supplierRoutePrefixProvider`).
+      GoRoute(
+        path: AppRoutes.supplierTiersProductForm,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          SupplierProductFormScreen(product: state.extra as Product?),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalProductForm,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          SupplierProductFormScreen(product: state.extra as Product?),
+        ),
+      ),
+      // Order detail, scoped to the operating supplier's own group — see
+      // `SupplierOrderView`. Mirrored once per zone like the product form.
+      GoRoute(
+        path: AppRoutes.supplierTiersOrderDetailPath,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          SupplierOrderDetailScreen(
+            orderId: state.pathParameters['orderId']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalOrderDetailPath,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          SupplierOrderDetailScreen(
+            orderId: state.pathParameters['orderId']!,
+          ),
+        ),
+      ),
+      // Chat thread — reuses `ChatThreadScreen` as-is (already agnostic of
+      // which side is viewing, see the messaging lot).
+      GoRoute(
+        path: AppRoutes.supplierTiersChatThreadPath,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          ChatThreadScreen(
+            conversationId: state.pathParameters['conversationId']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalChatThreadPath,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          ChatThreadScreen(
+            conversationId: state.pathParameters['conversationId']!,
+          ),
+        ),
+      ),
+      // Fournisseur tiers shell — 6 branches sharing `SupplierShell` and its
+      // screens with the "principal" shell just below: what differs is only
+      // the URL prefix and the account operating each screen (see
+      // `operatingSupplierIdProvider`), not the widgets themselves.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            SupplierShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierTiersDashboard,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierHomeScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierTiersProducts,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierProductListScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierTiersOrders,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierOrderListScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierTiersMessages,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierConversationListScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierTiersFinances,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierFinanceScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierTiersAccount,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierAccountScreen()),
+              ),
+            ],
+          ),
+        ],
+      ),
+      // Fournisseur principal (MTC staff) shell — identical shape, separate
+      // URL prefix (kept apart by `route_guards.dart`'s zone check).
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            SupplierShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierPrincipalDashboard,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierHomeScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierPrincipalProducts,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierProductListScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierPrincipalOrders,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierOrderListScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierPrincipalMessages,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierConversationListScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierPrincipalFinances,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierFinanceScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.supplierPrincipalAccount,
+                pageBuilder: (context, state) =>
+                    _fluidPage(state, const SupplierAccountScreen()),
+              ),
+            ],
+          ),
+        ],
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

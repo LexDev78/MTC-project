@@ -4,6 +4,7 @@ import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 
+import '../../domain/entities/product_comment.dart';
 import '../providers/comment_providers.dart';
 
 class CommentController extends AsyncNotifier<void> {
@@ -34,6 +35,70 @@ class CommentController extends AsyncNotifier<void> {
     });
 
     return !state.hasError;
+  }
+
+  Future<bool> addImageComment({
+    required String productId,
+    required String imagePath,
+    String? parentId,
+  }) async {
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) return false;
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await ref
+          .read(productCommentRepositoryProvider)
+          .addComment(
+            productId: productId,
+            authorId: user.id,
+            authorName: user.displayName,
+            isSupplier: user.role != UserRole.client,
+            text: '',
+            parentId: parentId,
+            attachmentType: CommentAttachmentType.image,
+            attachmentPath: imagePath,
+          );
+    });
+
+    return !state.hasError;
+  }
+
+  Future<bool> addVoiceComment({
+    required String productId,
+    required String voicePath,
+    required int durationSeconds,
+    String? parentId,
+  }) async {
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) return false;
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await ref
+          .read(productCommentRepositoryProvider)
+          .addComment(
+            productId: productId,
+            authorId: user.id,
+            authorName: user.displayName,
+            isSupplier: user.role != UserRole.client,
+            text: '',
+            parentId: parentId,
+            attachmentType: CommentAttachmentType.voice,
+            attachmentPath: voicePath,
+            voiceDurationSeconds: durationSeconds,
+          );
+    });
+
+    return !state.hasError;
+  }
+
+  Future<void> toggleLike(String commentId) async {
+    final userId = ref.read(currentUserProvider).valueOrNull?.id;
+    if (userId == null) return;
+    await ref
+        .read(productCommentRepositoryProvider)
+        .toggleLike(commentId: commentId, userId: userId);
   }
 }
 

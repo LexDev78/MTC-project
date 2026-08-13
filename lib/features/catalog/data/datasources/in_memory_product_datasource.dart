@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
+import 'package:mtc_app/core/utils/id_generator.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
+import '../../domain/entities/product_status.dart';
+import '../../domain/entities/stock_movement.dart';
 
 /// Curated stock photos bundled as local assets (see `pubspec.yaml`), one
 /// per product so the catalog isn't a wall of repeated images even though
@@ -52,7 +55,10 @@ class InMemoryProductDatasource {
   }
 
   final List<Product> _products = [];
+  final List<StockMovement> _stockMovements = [];
   final StreamController<void> _changesController =
+      StreamController<void>.broadcast();
+  final StreamController<void> _stockMovementsController =
       StreamController<void>.broadcast();
 
   Stream<List<Product>> watchAll() {
@@ -86,6 +92,91 @@ class InMemoryProductDatasource {
     _changesController.add(null);
   }
 
+  List<Product> watchMyProducts(String supplierId) {
+    return _products.where((p) => p.supplierId == supplierId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  Product add(Product product) {
+    _products.add(product);
+    _changesController.add(null);
+    return product;
+  }
+
+  void update(Product product) {
+    final index = _products.indexWhere((p) => p.id == product.id);
+    if (index == -1) {
+      throw NotFoundException('Produit introuvable : ${product.id}');
+    }
+    _products[index] = product;
+    _changesController.add(null);
+  }
+
+  void setStatus(String id, ProductStatus status) {
+    final index = _products.indexWhere((p) => p.id == id);
+    if (index == -1) throw NotFoundException('Produit introuvable : $id');
+    _products[index] = _products[index].copyWith(status: status);
+    _changesController.add(null);
+  }
+
+  void adjustStock(
+    String id,
+    int quantityDelta,
+    StockMovementReason reason,
+    String? note,
+  ) {
+    final index = _products.indexWhere((p) => p.id == id);
+    if (index == -1) throw NotFoundException('Produit introuvable : $id');
+
+    final newQuantity = _products[index].stockQuantity + quantityDelta;
+    if (newQuantity < 0) {
+      throw InsufficientStockException(
+        'Stock insuffisant pour ${_products[index].name} : '
+        '${_products[index].stockQuantity} disponible(s), '
+        '${-quantityDelta} demandé(s).',
+      );
+    }
+
+    _products[index] = _products[index].copyWith(stockQuantity: newQuantity);
+    _stockMovements.add(
+      StockMovement(
+        id: IdGenerator.next(),
+        productId: id,
+        quantityDelta: quantityDelta,
+        reason: reason,
+        occurredAt: DateTime.now(),
+        note: note,
+      ),
+    );
+    _changesController.add(null);
+    _stockMovementsController.add(null);
+  }
+
+  Stream<List<StockMovement>> watchStockMovements(String productId) {
+    return Stream<void>.multi((controller) {
+      controller.add(null);
+      final subscription = _stockMovementsController.stream.listen(
+        controller.add,
+      );
+      controller.onCancel = subscription.cancel;
+    }, isBroadcast: true).map((_) {
+      final movements = _stockMovements
+          .where((m) => m.productId == productId)
+          .toList()
+        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      return List<StockMovement>.unmodifiable(movements);
+    });
+  }
+
+  void updateSupplierVerification(String supplierId, bool isVerified) {
+    for (var i = 0; i < _products.length; i++) {
+      if (_products[i].supplierId == supplierId) {
+        _products[i] = _products[i].copyWith(isSupplierVerified: isVerified);
+      }
+    }
+    _changesController.add(null);
+  }
+
   List<Product> _seed() {
     final now = DateTime.now();
     var idCounter = 0;
@@ -103,9 +194,9 @@ class InMemoryProductDatasource {
       required String city,
       required double ratingAverage,
       required int ratingCount,
+      required double weightKg,
       bool allowsSelfDelivery = true,
       bool allowsMtcDelivery = true,
-      int? mtcDeliveryFeeFcfa = 2000,
       bool isSupplierVerified = true,
       List<String> imageUrls = const [],
       List<String> sizes = const [],
@@ -128,7 +219,7 @@ class InMemoryProductDatasource {
         ratingCount: ratingCount,
         allowsSelfDelivery: allowsSelfDelivery,
         allowsMtcDelivery: allowsMtcDelivery,
-        mtcDeliveryFeeFcfa: allowsMtcDelivery ? mtcDeliveryFeeFcfa : null,
+        weightKg: weightKg,
         isSupplierVerified: isSupplierVerified,
         createdAt: now,
         sizes: sizes,
@@ -152,6 +243,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.6,
         ratingCount: 132,
+        weightKg: 0.6,
         imageUrls: const [_ProductImages.fabric, _ProductImages.fabric2],
         colors: const ['Marron', 'Ocre', 'Noir', 'Beige'],
       ),
@@ -168,6 +260,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.6,
         ratingCount: 132,
+        weightKg: 0.8,
         imageUrls: const [_ProductImages.fabric, _ProductImages.fabric2],
         sizes: const ['S', 'M', 'L', 'XL'],
         colors: const ['Marron', 'Noir', 'Ocre'],
@@ -185,6 +278,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.6,
         ratingCount: 132,
+        weightKg: 0.5,
         allowsMtcDelivery: false,
         imageUrls: const [_ProductImages.basket, _ProductImages.basket2],
         colors: const ['Marron', 'Noir'],
@@ -202,6 +296,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.6,
         ratingCount: 132,
+        weightKg: 1.5,
         imageUrls: const [_ProductImages.mask],
       ),
 
@@ -218,6 +313,7 @@ class InMemoryProductDatasource {
         city: 'Mopti',
         ratingAverage: 4.4,
         ratingCount: 76,
+        weightKg: 0.9,
         imageUrls: const [_ProductImages.fabric, _ProductImages.fabric2],
         colors: const ['Rouge', 'Bleu', 'Jaune', 'Vert'],
       ),
@@ -233,6 +329,7 @@ class InMemoryProductDatasource {
         city: 'Mopti',
         ratingAverage: 4.4,
         ratingCount: 76,
+        weightKg: 0.2,
         imageUrls: const [_ProductImages.fabric, _ProductImages.fabric2],
         colors: const ['Rouge', 'Bleu', 'Blanc'],
       ),
@@ -248,6 +345,7 @@ class InMemoryProductDatasource {
         city: 'Mopti',
         ratingAverage: 4.4,
         ratingCount: 76,
+        weightKg: 0.7,
         imageUrls: const [_ProductImages.fabric, _ProductImages.fabric2],
         colors: const ['Blanc', 'Beige'],
       ),
@@ -265,6 +363,7 @@ class InMemoryProductDatasource {
         city: 'Sikasso',
         ratingAverage: 0,
         ratingCount: 0,
+        weightKg: 2.0,
         isSupplierVerified: false,
         imageUrls: const [_ProductImages.mask],
       ),
@@ -280,6 +379,7 @@ class InMemoryProductDatasource {
         city: 'Sikasso',
         ratingAverage: 0,
         ratingCount: 0,
+        weightKg: 3.0,
         isSupplierVerified: false,
         imageUrls: const [_ProductImages.mask],
       ),
@@ -295,6 +395,7 @@ class InMemoryProductDatasource {
         city: 'Sikasso',
         ratingAverage: 0,
         ratingCount: 0,
+        weightKg: 0.8,
         isSupplierVerified: false,
         imageUrls: const [_ProductImages.basket, _ProductImages.basket2],
       ),
@@ -313,6 +414,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.2,
         ratingCount: 54,
+        weightKg: 0.3,
         imageUrls: const [
           _ProductImages.smartphone,
           _ProductImages.smartphone2,
@@ -333,6 +435,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.2,
         ratingCount: 54,
+        weightKg: 1.0,
         imageUrls: const [
           _ProductImages.solarPanel,
           _ProductImages.solarPanel2,
@@ -353,6 +456,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.2,
         ratingCount: 54,
+        weightKg: 0.7,
         allowsMtcDelivery: false,
         imageUrls: const [_ProductImages.radio, _ProductImages.radio2],
         colors: const ['Noir', 'Gris'],
@@ -370,6 +474,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.2,
         ratingCount: 54,
+        weightKg: 0.9,
         imageUrls: const [_ProductImages.speaker, _ProductImages.speaker2],
         colors: const ['Noir', 'Rouge', 'Bleu'],
         region: ProductRegion.chine,
@@ -388,6 +493,7 @@ class InMemoryProductDatasource {
         city: 'Ségou',
         ratingAverage: 4.8,
         ratingCount: 210,
+        weightKg: 25.0,
         imageUrls: const [_ProductImages.rice, _ProductImages.rice2],
       ),
       product(
@@ -402,6 +508,7 @@ class InMemoryProductDatasource {
         city: 'Ségou',
         ratingAverage: 4.8,
         ratingCount: 210,
+        weightKg: 50.0,
         imageUrls: const [_ProductImages.millet, _ProductImages.millet2],
       ),
       product(
@@ -417,6 +524,7 @@ class InMemoryProductDatasource {
         city: 'Ségou',
         ratingAverage: 4.8,
         ratingCount: 210,
+        weightKg: 4.6,
         imageUrls: const [_ProductImages.oil, _ProductImages.oil2],
       ),
       product(
@@ -431,6 +539,7 @@ class InMemoryProductDatasource {
         city: 'Ségou',
         ratingAverage: 4.8,
         ratingCount: 210,
+        weightKg: 1.3,
         imageUrls: const [_ProductImages.honey, _ProductImages.honey2],
       ),
 
@@ -447,6 +556,7 @@ class InMemoryProductDatasource {
         city: 'Koutiala',
         ratingAverage: 3.9,
         ratingCount: 41,
+        weightKg: 50.0,
         imageUrls: const [_ProductImages.cement],
         region: ProductRegion.afriqueHorsMali,
       ),
@@ -462,6 +572,7 @@ class InMemoryProductDatasource {
         city: 'Koutiala',
         ratingAverage: 3.9,
         ratingCount: 41,
+        weightKg: 6.0,
         imageUrls: const [
           _ProductImages.corrugatedSheets,
           _ProductImages.corrugatedSheets2,
@@ -480,6 +591,7 @@ class InMemoryProductDatasource {
         city: 'Koutiala',
         ratingAverage: 3.9,
         ratingCount: 41,
+        weightKg: 5.3,
         allowsMtcDelivery: false,
         imageUrls: const [_ProductImages.steel, _ProductImages.steel2],
         region: ProductRegion.afriqueHorsMali,
@@ -499,6 +611,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.9,
         ratingCount: 340,
+        weightKg: 8.0,
         allowsMtcDelivery: false,
         imageUrls: const [
           _ProductImages.solarPanel,
@@ -521,6 +634,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.9,
         ratingCount: 340,
+        weightKg: 25.0,
         allowsMtcDelivery: false,
         imageUrls: const [_ProductImages.rice, _ProductImages.rice2],
       ),
@@ -537,6 +651,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.9,
         ratingCount: 340,
+        weightKg: 0.9,
         allowsMtcDelivery: false,
         imageUrls: const [_ProductImages.fabric, _ProductImages.fabric2],
         colors: const ['Bleu', 'Vert', 'Or'],
@@ -553,6 +668,7 @@ class InMemoryProductDatasource {
         city: 'Bamako',
         ratingAverage: 4.9,
         ratingCount: 340,
+        weightKg: 50.0,
         allowsMtcDelivery: false,
         imageUrls: const [_ProductImages.cement],
       ),

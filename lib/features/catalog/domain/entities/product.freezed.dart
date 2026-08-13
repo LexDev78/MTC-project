@@ -33,7 +33,12 @@ mixin _$Product {
   bool get allowsSelfDelivery => throw _privateConstructorUsedError;
   bool get allowsMtcDelivery => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
-  int? get mtcDeliveryFeeFcfa => throw _privateConstructorUsedError;
+
+  /// Shipping weight — feeds `computeHomeDeliveryFeeFcfa`
+  /// (features/orders/domain/delivery_pricing.dart) alongside distance and
+  /// category, so heavier items cost more to have MTC deliver. No longer
+  /// a flat per-product fee: that's computed per order, per destination.
+  double get weightKg => throw _privateConstructorUsedError;
 
   /// Denormalized from the supplier's verification status. Products from
   /// unverified/pending tiers suppliers are excluded from client-facing
@@ -52,6 +57,24 @@ mixin _$Product {
   /// since most of the seeded catalog is local artisanal/agricultural
   /// goods; imported categories (electronics, some materials) override it.
   ProductRegion get region => throw _privateConstructorUsedError;
+
+  /// Lifecycle within the supplier's own catalog management — see
+  /// `ProductStatus`'s doc comment. Defaults to `active` so every
+  /// pre-existing seeded product (created before this field existed)
+  /// stays visible without a data migration.
+  ProductStatus get status => throw _privateConstructorUsedError;
+
+  /// Below this stock level, the supplier's product list flags the item
+  /// as low — `null` means no threshold is set (no warning is ever
+  /// shown). A per-product setting rather than a platform-wide constant
+  /// since restock lead time varies a lot by category (e.g. imported
+  /// electronics vs. locally-milled rice).
+  int? get lowStockThreshold => throw _privateConstructorUsedError;
+
+  /// The pre-discount price, shown struck through next to [priceFcfa]
+  /// when set and higher than it — a plain "barré" price, not a
+  /// scheduled/rule-based promotion engine.
+  int? get compareAtPriceFcfa => throw _privateConstructorUsedError;
 
   /// Create a copy of Product
   /// with the given fields replaced by the non-null parameter values.
@@ -81,11 +104,14 @@ abstract class $ProductCopyWith<$Res> {
     bool allowsSelfDelivery,
     bool allowsMtcDelivery,
     DateTime createdAt,
-    int? mtcDeliveryFeeFcfa,
+    double weightKg,
     bool isSupplierVerified,
     List<String> sizes,
     List<String> colors,
     ProductRegion region,
+    ProductStatus status,
+    int? lowStockThreshold,
+    int? compareAtPriceFcfa,
   });
 }
 
@@ -120,11 +146,14 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
     Object? allowsSelfDelivery = null,
     Object? allowsMtcDelivery = null,
     Object? createdAt = null,
-    Object? mtcDeliveryFeeFcfa = freezed,
+    Object? weightKg = null,
     Object? isSupplierVerified = null,
     Object? sizes = null,
     Object? colors = null,
     Object? region = null,
+    Object? status = null,
+    Object? lowStockThreshold = freezed,
+    Object? compareAtPriceFcfa = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -192,10 +221,10 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
-            mtcDeliveryFeeFcfa: freezed == mtcDeliveryFeeFcfa
-                ? _value.mtcDeliveryFeeFcfa
-                : mtcDeliveryFeeFcfa // ignore: cast_nullable_to_non_nullable
-                      as int?,
+            weightKg: null == weightKg
+                ? _value.weightKg
+                : weightKg // ignore: cast_nullable_to_non_nullable
+                      as double,
             isSupplierVerified: null == isSupplierVerified
                 ? _value.isSupplierVerified
                 : isSupplierVerified // ignore: cast_nullable_to_non_nullable
@@ -212,6 +241,18 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
                 ? _value.region
                 : region // ignore: cast_nullable_to_non_nullable
                       as ProductRegion,
+            status: null == status
+                ? _value.status
+                : status // ignore: cast_nullable_to_non_nullable
+                      as ProductStatus,
+            lowStockThreshold: freezed == lowStockThreshold
+                ? _value.lowStockThreshold
+                : lowStockThreshold // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            compareAtPriceFcfa: freezed == compareAtPriceFcfa
+                ? _value.compareAtPriceFcfa
+                : compareAtPriceFcfa // ignore: cast_nullable_to_non_nullable
+                      as int?,
           )
           as $Val,
     );
@@ -243,11 +284,14 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
     bool allowsSelfDelivery,
     bool allowsMtcDelivery,
     DateTime createdAt,
-    int? mtcDeliveryFeeFcfa,
+    double weightKg,
     bool isSupplierVerified,
     List<String> sizes,
     List<String> colors,
     ProductRegion region,
+    ProductStatus status,
+    int? lowStockThreshold,
+    int? compareAtPriceFcfa,
   });
 }
 
@@ -281,11 +325,14 @@ class __$$ProductImplCopyWithImpl<$Res>
     Object? allowsSelfDelivery = null,
     Object? allowsMtcDelivery = null,
     Object? createdAt = null,
-    Object? mtcDeliveryFeeFcfa = freezed,
+    Object? weightKg = null,
     Object? isSupplierVerified = null,
     Object? sizes = null,
     Object? colors = null,
     Object? region = null,
+    Object? status = null,
+    Object? lowStockThreshold = freezed,
+    Object? compareAtPriceFcfa = freezed,
   }) {
     return _then(
       _$ProductImpl(
@@ -353,10 +400,10 @@ class __$$ProductImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
-        mtcDeliveryFeeFcfa: freezed == mtcDeliveryFeeFcfa
-            ? _value.mtcDeliveryFeeFcfa
-            : mtcDeliveryFeeFcfa // ignore: cast_nullable_to_non_nullable
-                  as int?,
+        weightKg: null == weightKg
+            ? _value.weightKg
+            : weightKg // ignore: cast_nullable_to_non_nullable
+                  as double,
         isSupplierVerified: null == isSupplierVerified
             ? _value.isSupplierVerified
             : isSupplierVerified // ignore: cast_nullable_to_non_nullable
@@ -373,6 +420,18 @@ class __$$ProductImplCopyWithImpl<$Res>
             ? _value.region
             : region // ignore: cast_nullable_to_non_nullable
                   as ProductRegion,
+        status: null == status
+            ? _value.status
+            : status // ignore: cast_nullable_to_non_nullable
+                  as ProductStatus,
+        lowStockThreshold: freezed == lowStockThreshold
+            ? _value.lowStockThreshold
+            : lowStockThreshold // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        compareAtPriceFcfa: freezed == compareAtPriceFcfa
+            ? _value.compareAtPriceFcfa
+            : compareAtPriceFcfa // ignore: cast_nullable_to_non_nullable
+                  as int?,
       ),
     );
   }
@@ -398,11 +457,14 @@ class _$ProductImpl implements _Product {
     required this.allowsSelfDelivery,
     required this.allowsMtcDelivery,
     required this.createdAt,
-    this.mtcDeliveryFeeFcfa,
+    required this.weightKg,
     this.isSupplierVerified = true,
     final List<String> sizes = const [],
     final List<String> colors = const [],
     this.region = ProductRegion.mali,
+    this.status = ProductStatus.active,
+    this.lowStockThreshold,
+    this.compareAtPriceFcfa,
   }) : _imageUrls = imageUrls,
        _sizes = sizes,
        _colors = colors;
@@ -445,8 +507,13 @@ class _$ProductImpl implements _Product {
   final bool allowsMtcDelivery;
   @override
   final DateTime createdAt;
+
+  /// Shipping weight — feeds `computeHomeDeliveryFeeFcfa`
+  /// (features/orders/domain/delivery_pricing.dart) alongside distance and
+  /// category, so heavier items cost more to have MTC deliver. No longer
+  /// a flat per-product fee: that's computed per order, per destination.
   @override
-  final int? mtcDeliveryFeeFcfa;
+  final double weightKg;
 
   /// Denormalized from the supplier's verification status. Products from
   /// unverified/pending tiers suppliers are excluded from client-facing
@@ -490,9 +557,31 @@ class _$ProductImpl implements _Product {
   @JsonKey()
   final ProductRegion region;
 
+  /// Lifecycle within the supplier's own catalog management — see
+  /// `ProductStatus`'s doc comment. Defaults to `active` so every
+  /// pre-existing seeded product (created before this field existed)
+  /// stays visible without a data migration.
+  @override
+  @JsonKey()
+  final ProductStatus status;
+
+  /// Below this stock level, the supplier's product list flags the item
+  /// as low — `null` means no threshold is set (no warning is ever
+  /// shown). A per-product setting rather than a platform-wide constant
+  /// since restock lead time varies a lot by category (e.g. imported
+  /// electronics vs. locally-milled rice).
+  @override
+  final int? lowStockThreshold;
+
+  /// The pre-discount price, shown struck through next to [priceFcfa]
+  /// when set and higher than it — a plain "barré" price, not a
+  /// scheduled/rule-based promotion engine.
+  @override
+  final int? compareAtPriceFcfa;
+
   @override
   String toString() {
-    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, mtcDeliveryFeeFcfa: $mtcDeliveryFeeFcfa, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region)';
+    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, weightKg: $weightKg, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region, status: $status, lowStockThreshold: $lowStockThreshold, compareAtPriceFcfa: $compareAtPriceFcfa)';
   }
 
   @override
@@ -531,13 +620,18 @@ class _$ProductImpl implements _Product {
                 other.allowsMtcDelivery == allowsMtcDelivery) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
-            (identical(other.mtcDeliveryFeeFcfa, mtcDeliveryFeeFcfa) ||
-                other.mtcDeliveryFeeFcfa == mtcDeliveryFeeFcfa) &&
+            (identical(other.weightKg, weightKg) ||
+                other.weightKg == weightKg) &&
             (identical(other.isSupplierVerified, isSupplierVerified) ||
                 other.isSupplierVerified == isSupplierVerified) &&
             const DeepCollectionEquality().equals(other._sizes, _sizes) &&
             const DeepCollectionEquality().equals(other._colors, _colors) &&
-            (identical(other.region, region) || other.region == region));
+            (identical(other.region, region) || other.region == region) &&
+            (identical(other.status, status) || other.status == status) &&
+            (identical(other.lowStockThreshold, lowStockThreshold) ||
+                other.lowStockThreshold == lowStockThreshold) &&
+            (identical(other.compareAtPriceFcfa, compareAtPriceFcfa) ||
+                other.compareAtPriceFcfa == compareAtPriceFcfa));
   }
 
   @override
@@ -559,11 +653,14 @@ class _$ProductImpl implements _Product {
     allowsSelfDelivery,
     allowsMtcDelivery,
     createdAt,
-    mtcDeliveryFeeFcfa,
+    weightKg,
     isSupplierVerified,
     const DeepCollectionEquality().hash(_sizes),
     const DeepCollectionEquality().hash(_colors),
     region,
+    status,
+    lowStockThreshold,
+    compareAtPriceFcfa,
   ]);
 
   /// Create a copy of Product
@@ -593,11 +690,14 @@ abstract class _Product implements Product {
     required final bool allowsSelfDelivery,
     required final bool allowsMtcDelivery,
     required final DateTime createdAt,
-    final int? mtcDeliveryFeeFcfa,
+    required final double weightKg,
     final bool isSupplierVerified,
     final List<String> sizes,
     final List<String> colors,
     final ProductRegion region,
+    final ProductStatus status,
+    final int? lowStockThreshold,
+    final int? compareAtPriceFcfa,
   }) = _$ProductImpl;
 
   @override
@@ -632,8 +732,13 @@ abstract class _Product implements Product {
   bool get allowsMtcDelivery;
   @override
   DateTime get createdAt;
+
+  /// Shipping weight — feeds `computeHomeDeliveryFeeFcfa`
+  /// (features/orders/domain/delivery_pricing.dart) alongside distance and
+  /// category, so heavier items cost more to have MTC deliver. No longer
+  /// a flat per-product fee: that's computed per order, per destination.
   @override
-  int? get mtcDeliveryFeeFcfa;
+  double get weightKg;
 
   /// Denormalized from the supplier's verification status. Products from
   /// unverified/pending tiers suppliers are excluded from client-facing
@@ -656,6 +761,27 @@ abstract class _Product implements Product {
   /// goods; imported categories (electronics, some materials) override it.
   @override
   ProductRegion get region;
+
+  /// Lifecycle within the supplier's own catalog management — see
+  /// `ProductStatus`'s doc comment. Defaults to `active` so every
+  /// pre-existing seeded product (created before this field existed)
+  /// stays visible without a data migration.
+  @override
+  ProductStatus get status;
+
+  /// Below this stock level, the supplier's product list flags the item
+  /// as low — `null` means no threshold is set (no warning is ever
+  /// shown). A per-product setting rather than a platform-wide constant
+  /// since restock lead time varies a lot by category (e.g. imported
+  /// electronics vs. locally-milled rice).
+  @override
+  int? get lowStockThreshold;
+
+  /// The pre-discount price, shown struck through next to [priceFcfa]
+  /// when set and higher than it — a plain "barré" price, not a
+  /// scheduled/rule-based promotion engine.
+  @override
+  int? get compareAtPriceFcfa;
 
   /// Create a copy of Product
   /// with the given fields replaced by the non-null parameter values.

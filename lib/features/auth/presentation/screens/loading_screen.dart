@@ -8,7 +8,6 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_colors.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
-import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 
 import '../providers/auth_providers.dart';
 
@@ -51,12 +50,15 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
 
   void _onStatusChanged(AnimationStatus status) {
     if (status != AnimationStatus.completed || !mounted) return;
-    final role = ref.read(currentUserProvider).valueOrNull?.role;
+    final user = ref.read(currentUserProvider).valueOrNull;
     ref.read(justLoggedInProvider.notifier).state = false;
-    context.go(switch (role) {
-      UserRole.supplierTiers => AppRoutes.supplierTiersDashboard,
-      UserRole.supplierPrincipal => AppRoutes.supplierPrincipalDashboard,
-      UserRole.client || null => AppRoutes.clientHome,
+    context.go(switch (user) {
+      SupplierTiersUser(:final needsOnboarding) =>
+        needsOnboarding
+            ? AppRoutes.supplierOnboarding
+            : AppRoutes.supplierTiersDashboard,
+      SupplierPrincipalUser() => AppRoutes.supplierPrincipalDashboard,
+      ClientUser() || null => AppRoutes.clientHome,
     });
   }
 

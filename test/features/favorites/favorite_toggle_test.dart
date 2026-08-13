@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/features/favorites/presentation/widgets/favorite_line_item.dart';
 
 Future<void> _loginAsClient1(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
@@ -50,7 +51,10 @@ void main() {
     await tester.tap(find.byTooltip('Favoris'));
     await tester.pumpAndSettle();
 
+    // The pre-seeded favorite plus the one just added — `FavoritesScreen`
+    // renders them as a `ListView.separated` of `FavoriteLineItem`s, not a
+    // grid.
     expect(find.text('Aucun favori pour le moment'), findsNothing);
-    expect(find.byType(GridView), findsOneWidget);
+    expect(find.byType(FavoriteLineItem), findsNWidgets(2));
   });
 }

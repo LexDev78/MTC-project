@@ -55,6 +55,7 @@ class InMemoryAuthRepository implements AuthRepository {
     required String password,
     required String businessName,
     required String city,
+    required SupplierLegalType legalType,
   }) async {
     final user = AppUser.supplierTiers(
       id: IdGenerator.next(),
@@ -63,10 +64,14 @@ class InMemoryAuthRepository implements AuthRepository {
       phoneNumber: phoneNumber,
       createdAt: DateTime.now(),
       businessName: businessName,
-      verificationStatus: VerificationStatus.pending,
+      // No KYC dossier has been submitted yet at this point — submitting it
+      // (supplier_onboarding, a later iteration) is what moves this to
+      // `pending`.
+      verificationStatus: VerificationStatus.unverified,
       city: city,
       ratingAverage: 0,
       ratingCount: 0,
+      legalType: legalType,
     );
     final created = _datasource.createAccount(user, usernameOrPhone, password);
     await _persistSessionKey(usernameOrPhone);
@@ -108,6 +113,14 @@ class InMemoryAuthRepository implements AuthRepository {
     if (user != null) {
       _datasource.restoreCurrentUser(user);
     }
+  }
+
+  @override
+  Future<void> updateSupplierVerificationStatus({
+    required String userId,
+    required VerificationStatus status,
+  }) async {
+    _datasource.updateSupplierVerificationStatus(userId, status);
   }
 
   Future<void> _persistSessionKey(String usernameOrPhone) async {

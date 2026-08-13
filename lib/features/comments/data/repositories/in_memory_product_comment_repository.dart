@@ -22,6 +22,9 @@ class InMemoryProductCommentRepository implements ProductCommentRepository {
     required bool isSupplier,
     required String text,
     String? parentId,
+    CommentAttachmentType attachmentType = CommentAttachmentType.none,
+    String? attachmentPath,
+    int? voiceDurationSeconds,
   }) async {
     _datasource.addComment(
       ProductComment(
@@ -33,7 +36,18 @@ class InMemoryProductCommentRepository implements ProductCommentRepository {
         text: text,
         isSupplier: isSupplier,
         parentId: parentId,
+        attachmentType: attachmentType,
+        attachmentPath: attachmentPath,
+        voiceDurationSeconds: voiceDurationSeconds,
       ),
     );
+  }
+
+  @override
+  Future<void> toggleLike({
+    required String commentId,
+    required String userId,
+  }) async {
+    _datasource.toggleLike(commentId, userId);
   }
 }

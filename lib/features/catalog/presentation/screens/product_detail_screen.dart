@@ -12,7 +12,8 @@ import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/chat/presentation/controllers/chat_controller.dart';
-import 'package:mtc_app/features/comments/presentation/widgets/product_comments_section.dart';
+import 'package:mtc_app/features/comments/presentation/providers/comment_providers.dart';
+import 'package:mtc_app/features/comments/presentation/widgets/product_comments_modal.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
 
 import '../../domain/entities/product.dart';
@@ -353,13 +354,50 @@ class _ProductDetailContentState
               const SizedBox(height: AppSpacing.lg),
               _StockAndDelivery(product: product),
               const Divider(height: AppSpacing.xl),
-              ProductCommentsSection(productId: product.id),
+              _CommentsEntryRow(productId: product.id),
             ],
           ),
         ),
         _SimilarProducts(product: product),
         const SizedBox(height: AppSpacing.lg),
       ],
+    );
+  }
+}
+
+/// Tappable summary row that opens [ProductCommentsModal] — shows the live
+/// comment count so there's a reason to tap even before any reply is
+/// visible on the page itself.
+class _CommentsEntryRow extends ConsumerWidget {
+  const _CommentsEntryRow({required this.productId});
+
+  final String productId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final commentsAsync = ref.watch(productCommentsProvider(productId));
+    final count = commentsAsync.valueOrNull?.length ?? 0;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      onTap: () => showProductCommentsModal(context, productId: productId),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            Icon(Icons.mode_comment_outlined, color: scheme.onSurfaceVariant),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                count > 0 ? 'Commentaires ($count)' : 'Commentaires',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -861,11 +899,11 @@ class _StockAndDelivery extends StatelessWidget {
               label: 'Livraison par le fournisseur',
             ),
           if (product.allowsMtcDelivery)
-            _DeliveryRow(
+            const _DeliveryRow(
               icon: Icons.local_shipping_outlined,
-              label: product.mtcDeliveryFeeFcfa != null
-                  ? 'Livraison MTC (+${product.mtcDeliveryFeeFcfa} FCFA)'
-                  : 'Livraison MTC',
+              // Exact fee depends on the delivery address (distance/poids/
+              // catégorie) — computed at checkout, see delivery_pricing.dart.
+              label: 'Livraison MTC (1000 - 4000 FCFA selon la distance)',
             ),
         ],
       ),

@@ -32,6 +32,7 @@ sealed class AppUser with _$AppUser {
     required String city,
     required double ratingAverage,
     required int ratingCount,
+    required SupplierLegalType legalType,
   }) = SupplierTiersUser;
 
   const factory AppUser.supplierPrincipal({
@@ -50,4 +51,16 @@ extension AppUserRoleX on AppUser {
     SupplierTiersUser() => UserRole.supplierTiers,
     SupplierPrincipalUser() => UserRole.supplierPrincipal,
   };
+}
+
+extension SupplierTiersUserOnboardingX on SupplierTiersUser {
+  /// No KYC dossier has ever been submitted — the router forces this
+  /// account into the onboarding wizard instead of the dashboard.
+  bool get needsOnboarding =>
+      verificationStatus == VerificationStatus.unverified;
+
+  /// A dossier was submitted and rejected — the wizard stays reachable (to
+  /// correct and resubmit) but isn't forced the way [needsOnboarding] is.
+  bool get canReviseOnboarding =>
+      verificationStatus == VerificationStatus.rejected;
 }

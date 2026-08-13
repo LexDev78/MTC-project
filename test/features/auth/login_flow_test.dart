@@ -50,26 +50,34 @@ void main() {
   });
 
   testWidgets(
-    'fournisseur1 (verified) logs in and lands on the supplier dashboard',
+    'fournisseur1 (verified) logs in and lands on the supplier dashboard, '
+    'inside the 6-tab supplier shell',
     (tester) async {
       await _pumpApp(tester);
       await _login(tester, 'fournisseur1');
 
-      expect(find.text('Espace fournisseur'), findsOneWidget);
+      expect(find.text('Tableau de bord'), findsOneWidget);
       expect(find.text('Bienvenue, Bogolan Bamako'), findsOneWidget);
       expect(find.text('Identité vérifiée'), findsOneWidget);
+      // Bottom nav present -> we're inside the supplier shell.
+      expect(find.byTooltip('Produits'), findsOneWidget);
+      expect(find.byTooltip('Finances'), findsOneWidget);
     },
   );
 
-  testWidgets('agent1 (MTC staff) logs in and lands on the MTC staff console', (
-    tester,
-  ) async {
-    await _pumpApp(tester);
-    await _login(tester, 'agent1');
+  testWidgets(
+    'agent1 (MTC staff) logs in and lands on the MTC staff console, inside '
+    'the same shell shape as a fournisseur tiers',
+    (tester) async {
+      await _pumpApp(tester);
+      await _login(tester, 'agent1');
 
-    expect(find.text('MTC — Espace staff'), findsOneWidget);
-    expect(find.text('Agent'), findsOneWidget);
-  });
+      expect(find.text('Tableau de bord'), findsOneWidget);
+      expect(find.text('Bienvenue, Agent MTC'), findsOneWidget);
+      expect(find.text('Agent'), findsOneWidget);
+      expect(find.byTooltip('Produits'), findsOneWidget);
+    },
+  );
 
   testWidgets('wrong password shows an error and stays on the login screen', (
     tester,

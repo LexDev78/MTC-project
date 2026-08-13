@@ -34,6 +34,36 @@ class InMemorySupplierDatasource {
     );
   }
 
+  void updateVerificationStatus(String supplierId, VerificationStatus status) {
+    final index = _suppliers.indexWhere((s) => s.id == supplierId);
+    if (index == -1) {
+      throw NotFoundException('Fournisseur introuvable : $supplierId');
+    }
+    _suppliers[index] = _suppliers[index].copyWith(verificationStatus: status);
+    _changesController.add(null);
+  }
+
+  void adjustProductCount(String supplierId, int delta) {
+    final index = _suppliers.indexWhere((s) => s.id == supplierId);
+    if (index == -1) {
+      throw NotFoundException('Fournisseur introuvable : $supplierId');
+    }
+    final supplier = _suppliers[index];
+    _suppliers[index] = supplier.copyWith(
+      productCount: supplier.productCount + delta,
+    );
+    _changesController.add(null);
+  }
+
+  SupplierProfile add(SupplierProfile profile) {
+    if (_suppliers.any((s) => s.id == profile.id)) {
+      throw ValidationException('Fournisseur déjà existant : ${profile.id}');
+    }
+    _suppliers.add(profile);
+    _changesController.add(null);
+    return profile;
+  }
+
   ({double average, int count}) recordReview(String supplierId, int stars) {
     final index = _suppliers.indexWhere((s) => s.id == supplierId);
     if (index == -1) {
@@ -65,6 +95,7 @@ class InMemorySupplierDatasource {
         ratingCount: 132,
         productCount: 4,
         verificationStatus: VerificationStatus.verified,
+        legalType: SupplierLegalType.company,
       ),
       SupplierProfile(
         id: DemoIds.supplierTissusMopti,
@@ -75,6 +106,7 @@ class InMemorySupplierDatasource {
         ratingCount: 76,
         productCount: 3,
         verificationStatus: VerificationStatus.verified,
+        legalType: SupplierLegalType.company,
       ),
       SupplierProfile(
         id: DemoIds.supplierArtisanatSikasso,
@@ -85,6 +117,7 @@ class InMemorySupplierDatasource {
         ratingCount: 0,
         productCount: 3,
         verificationStatus: VerificationStatus.pending,
+        legalType: SupplierLegalType.company,
       ),
       SupplierProfile(
         id: DemoIds.supplierElectroBamako,
@@ -95,6 +128,7 @@ class InMemorySupplierDatasource {
         ratingCount: 54,
         productCount: 4,
         verificationStatus: VerificationStatus.verified,
+        legalType: SupplierLegalType.company,
       ),
       SupplierProfile(
         id: DemoIds.supplierAlimentationSegou,
@@ -105,6 +139,7 @@ class InMemorySupplierDatasource {
         ratingCount: 210,
         productCount: 4,
         verificationStatus: VerificationStatus.verified,
+        legalType: SupplierLegalType.company,
       ),
       SupplierProfile(
         id: DemoIds.supplierMateriauxKoutiala,
@@ -115,6 +150,29 @@ class InMemorySupplierDatasource {
         ratingCount: 41,
         productCount: 3,
         verificationStatus: VerificationStatus.verified,
+        legalType: SupplierLegalType.company,
+      ),
+      SupplierProfile(
+        id: DemoIds.supplierCoutureKayes,
+        businessName: 'Couture Kayes',
+        supplierType: SupplierType.tiers,
+        city: 'Kayes',
+        ratingAverage: 0,
+        ratingCount: 0,
+        productCount: 0,
+        verificationStatus: VerificationStatus.unverified,
+        legalType: SupplierLegalType.individual,
+      ),
+      SupplierProfile(
+        id: DemoIds.supplierFruitsNiono,
+        businessName: 'Fruits Niono',
+        supplierType: SupplierType.tiers,
+        city: 'Niono',
+        ratingAverage: 0,
+        ratingCount: 0,
+        productCount: 0,
+        verificationStatus: VerificationStatus.rejected,
+        legalType: SupplierLegalType.company,
       ),
       SupplierProfile(
         id: DemoIds.supplierMtcOfficiel,

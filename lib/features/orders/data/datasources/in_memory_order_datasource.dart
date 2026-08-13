@@ -6,6 +6,7 @@ import 'package:mtc_app/core/mock_data/malian_locations.dart';
 
 import '../../domain/entities/order.dart';
 import '../../domain/entities/order_status.dart';
+import '../../domain/order_status_transitions.dart';
 
 /// Seeded with one `delivered` and one `inTransit` order per demo client, so
 /// the review flow and live tracking are both reachable immediately after
@@ -39,14 +40,40 @@ class InMemoryOrderDatasource {
     _changesController.add(null);
   }
 
-  void updateGroupStatus(String orderId, String groupId, OrderStatus status) {
-    final index = _orders.indexWhere((o) => o.id == orderId);
-    if (index == -1) return;
-    final order = _orders[index];
-    final updatedGroups = order.supplierGroups
-        .map((g) => g.id == groupId ? g.copyWith(status: status) : g)
-        .toList();
-    _orders[index] = order.copyWith(
+  void updateGroupStatus(
+    String orderId,
+    String groupId,
+    OrderStatus status, {
+    String? cancellationReason,
+    CancelledBy? cancelledBy,
+  }) {
+    final orderIndex = _orders.indexWhere((o) => o.id == orderId);
+    if (orderIndex == -1) {
+      throw NotFoundException('Commande introuvable : $orderId');
+    }
+    final order = _orders[orderIndex];
+    final group = order.supplierGroups.firstWhere(
+      (g) => g.id == groupId,
+      orElse: () =>
+          throw NotFoundException('Groupe fournisseur introuvable : $groupId'),
+    );
+    if (!isValidTransition(group.status, status)) {
+      throw ValidationException(
+        'Transition invalide : ${group.status.label} → ${status.label}.',
+      );
+    }
+
+    final updatedGroups = order.supplierGroups.map((g) {
+      if (g.id != groupId) return g;
+      return g.copyWith(
+        status: status,
+        cancellationReason: status == OrderStatus.cancelled
+            ? cancellationReason
+            : null,
+        cancelledBy: status == OrderStatus.cancelled ? cancelledBy : null,
+      );
+    }).toList();
+    _orders[orderIndex] = order.copyWith(
       supplierGroups: updatedGroups,
       status: _deriveOverallStatus(updatedGroups),
     );
@@ -82,6 +109,8 @@ class InMemoryOrderDatasource {
       Order(
         id: 'order-awa-delivered',
         clientId: DemoIds.clientAwa,
+        clientDisplayNameSnapshot: 'Awa Traoré',
+        clientPhoneSnapshot: '+22370000001',
         status: OrderStatus.delivered,
         placedAt: now.subtract(const Duration(days: 6)),
         totalFcfa: 25000,
@@ -108,6 +137,8 @@ class InMemoryOrderDatasource {
       Order(
         id: 'order-awa-intransit',
         clientId: DemoIds.clientAwa,
+        clientDisplayNameSnapshot: 'Awa Traoré',
+        clientPhoneSnapshot: '+22370000001',
         status: OrderStatus.inTransit,
         placedAt: now.subtract(const Duration(hours: 3)),
         totalFcfa: 87000,
@@ -132,6 +163,8 @@ class InMemoryOrderDatasource {
       Order(
         id: 'order-moussa-delivered',
         clientId: DemoIds.clientMoussa,
+        clientDisplayNameSnapshot: 'Moussa Diarra',
+        clientPhoneSnapshot: '+22370000002',
         status: OrderStatus.delivered,
         placedAt: now.subtract(const Duration(days: 4)),
         totalFcfa: 12500,
@@ -156,6 +189,8 @@ class InMemoryOrderDatasource {
       Order(
         id: 'order-moussa-intransit',
         clientId: DemoIds.clientMoussa,
+        clientDisplayNameSnapshot: 'Moussa Diarra',
+        clientPhoneSnapshot: '+22370000002',
         status: OrderStatus.inTransit,
         placedAt: now.subtract(const Duration(hours: 1)),
         totalFcfa: 22000,

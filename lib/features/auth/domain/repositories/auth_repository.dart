@@ -26,6 +26,7 @@ abstract interface class AuthRepository {
     required String password,
     required String businessName,
     required String city,
+    required SupplierLegalType legalType,
   });
 
   Future<AppUser> signUpSupplierPrincipal({
@@ -40,4 +41,12 @@ abstract interface class AuthRepository {
 
   /// Restores a previously persisted session (e.g. after an app restart).
   Future<void> restoreSession();
+
+  /// Applies a staff KYC decision to the supplier's account. Called by
+  /// `KycReviewController` alongside `SupplierRepository.updateVerificationStatus`
+  /// — cross-repository orchestration lives in that controller, never here.
+  Future<void> updateSupplierVerificationStatus({
+    required String userId,
+    required VerificationStatus status,
+  });
 }

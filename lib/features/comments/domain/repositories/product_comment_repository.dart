@@ -10,5 +10,10 @@ abstract interface class ProductCommentRepository {
     required bool isSupplier,
     required String text,
     String? parentId,
+    CommentAttachmentType attachmentType = CommentAttachmentType.none,
+    String? attachmentPath,
+    int? voiceDurationSeconds,
   });
+
+  Future<void> toggleLike({required String commentId, required String userId});
 }

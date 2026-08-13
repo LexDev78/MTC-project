@@ -11,6 +11,29 @@ class InMemorySupplierRepository implements SupplierRepository {
   final InMemorySupplierDatasource _datasource;
 
   @override
+  Future<SupplierProfile> createProfile({
+    required String id,
+    required String businessName,
+    required SupplierType supplierType,
+    required String city,
+    required SupplierLegalType legalType,
+  }) async {
+    return _datasource.add(
+      SupplierProfile(
+        id: id,
+        businessName: businessName,
+        supplierType: supplierType,
+        city: city,
+        ratingAverage: 0,
+        ratingCount: 0,
+        productCount: 0,
+        verificationStatus: VerificationStatus.unverified,
+        legalType: legalType,
+      ),
+    );
+  }
+
+  @override
   Stream<List<SupplierProfile>> watchByType(SupplierType type) {
     return _datasource.watchAll().map(
       (suppliers) => suppliers.where((s) => s.supplierType == type).toList(),
@@ -25,8 +48,11 @@ class InMemorySupplierRepository implements SupplierRepository {
     return _datasource.watchAll().map((suppliers) {
       final visible =
           suppliers
-              .where((s) => s.verificationStatus != VerificationStatus.pending)
-              .where((s) => s.verificationStatus != VerificationStatus.rejected)
+              .where(
+                (s) =>
+                    s.verificationStatus == null ||
+                    s.verificationStatus == VerificationStatus.verified,
+              )
               .toList()
             ..sort((a, b) => b.ratingAverage.compareTo(a.ratingAverage));
       return visible.take(limit).toList();
@@ -39,5 +65,21 @@ class InMemorySupplierRepository implements SupplierRepository {
     required int stars,
   }) async {
     return _datasource.recordReview(supplierId, stars);
+  }
+
+  @override
+  Future<void> updateVerificationStatus({
+    required String supplierId,
+    required VerificationStatus status,
+  }) async {
+    _datasource.updateVerificationStatus(supplierId, status);
+  }
+
+  @override
+  Future<void> adjustProductCount({
+    required String supplierId,
+    required int delta,
+  }) async {
+    _datasource.adjustProductCount(supplierId, delta);
   }
 }

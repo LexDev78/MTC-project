@@ -11,6 +11,13 @@ abstract final class DemoIds {
   static const supplierMateriauxKoutiala = 'supplier-materiaux-koutiala';
   static const supplierTissusMopti = 'supplier-tissus-mopti';
 
+  // Tiers suppliers illustrating the verification state machine's remaining
+  // states (the six above are all `verified` or `pending`) — a freshly
+  // registered account with no KYC dossier submitted yet, and one whose
+  // dossier was reviewed and rejected.
+  static const supplierCoutureKayes = 'supplier-couture-kayes';
+  static const supplierFruitsNiono = 'supplier-fruits-niono';
+
   // MTC principal
   static const supplierMtcOfficiel = 'supplier-mtc-officiel';
 

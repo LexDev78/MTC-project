@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/animated_count_badge.dart';
+import 'package:mtc_app/core/widgets/screen_idle_detector.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
@@ -15,9 +16,10 @@ import 'package:mtc_app/features/catalog/presentation/widgets/product_filter_she
 
 import 'widgets/promo_hero_banner.dart';
 
-/// Hosts the two isolated catalog tabs — "Fournisseurs tiers" et
-/// "Fournisseur principal" — kept strictly separate (own scroll/filter
-/// state, own product query) so browsing one never leaks into the other.
+/// Hosts the two catalog tabs — "Fournisseur principal" (shown first; the
+/// aggregated MTC catalog, includes third-party products too) and
+/// "Fournisseurs tiers" (third-party products only) — each with its own
+/// scroll/filter state so browsing one never leaks into the other.
 class ClientHomeScreen extends ConsumerStatefulWidget {
   const ClientHomeScreen({super.key});
 
@@ -46,9 +48,10 @@ class _ClientHomeScreenState extends ConsumerState<ClientHomeScreen>
 
   /// The category menu is a home-level shortcut, not tab-scoped UI, but the
   /// filter it drives lives per-[SupplierType] — so a pick applies to
-  /// whichever catalog tab is currently in view.
+  /// whichever catalog tab is currently in view. "Fournisseur principal" is
+  /// the first tab, so it maps to index 0.
   SupplierType get _activeSupplierType =>
-      _tabController.index == 0 ? SupplierType.tiers : SupplierType.principal;
+      _tabController.index == 0 ? SupplierType.principal : SupplierType.tiers;
 
   void _toggleCategory(ProductCategory category) {
     final provider = catalogCategoryProvider(_activeSupplierType);
@@ -71,61 +74,63 @@ class _ClientHomeScreenState extends ConsumerState<ClientHomeScreen>
       catalogHasActiveFilterProvider(_activeSupplierType),
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        titleSpacing: AppSpacing.md,
-        title: _HomeHeader(
-          onSearchTap: () => context.push(AppRoutes.clientSearch),
-          onCartTap: () => context.go(AppRoutes.clientCart),
-          cartCount: cartCount,
+    return ScreenIdleDetector(
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          titleSpacing: AppSpacing.md,
+          title: _HomeHeader(
+            onSearchTap: () => context.push(AppRoutes.clientSearch),
+            onCartTap: () => context.go(AppRoutes.clientCart),
+            cartCount: cartCount,
+          ),
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: 'Fournisseur principal'),
+              Tab(text: 'Fournisseurs tiers'),
+            ],
+          ),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Fournisseurs tiers'),
-            Tab(text: 'Fournisseur principal'),
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            const SliverToBoxAdapter(child: PromoHeroBanner()),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.xs,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _CategoryMenuButton(
+                      selected: selectedCategory,
+                      onSelectCategory: _toggleCategory,
+                      onClear: _clearCategory,
+                    ),
+                    _FilterIconButton(
+                      active: hasActiveFilter,
+                      onTap: () => showProductFilterSheet(
+                        context,
+                        supplierType: _activeSupplierType,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
+          body: TabBarView(
+            controller: _tabController,
+            children: const [
+              CatalogTabScreen(supplierType: SupplierType.principal),
+              CatalogTabScreen(supplierType: SupplierType.tiers),
+            ],
+          ),
         ),
-      ),
-      body: Column(
-        children: [
-          const PromoHeroBanner(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              AppSpacing.xs,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _CategoryMenuButton(
-                  selected: selectedCategory,
-                  onSelectCategory: _toggleCategory,
-                  onClear: _clearCategory,
-                ),
-                _FilterIconButton(
-                  active: hasActiveFilter,
-                  onTap: () => showProductFilterSheet(
-                    context,
-                    supplierType: _activeSupplierType,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [
-                CatalogTabScreen(supplierType: SupplierType.tiers),
-                CatalogTabScreen(supplierType: SupplierType.principal),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

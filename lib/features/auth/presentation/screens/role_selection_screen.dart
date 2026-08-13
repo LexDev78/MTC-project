@@ -28,18 +28,17 @@ class RoleSelectionScreen extends StatelessWidget {
               title: 'Client',
               subtitle:
                   'Je veux acheter des produits et suivre mes livraisons.',
-              onTap: () =>
-                  context.push(AppRoutes.signUpDetails, extra: UserRole.client),
+              onTap: () => context.push(
+                AppRoutes.signUpDetails,
+                extra: (role: UserRole.client, legalType: null),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             _RoleCard(
               icon: Icons.storefront_outlined,
               title: 'Fournisseur tiers',
               subtitle: 'Je veux vendre mes produits sur la plateforme.',
-              onTap: () => context.push(
-                AppRoutes.signUpDetails,
-                extra: UserRole.supplierTiers,
-              ),
+              onTap: () => context.push(AppRoutes.signUpSupplierLegalType),
             ),
           ],
         ),

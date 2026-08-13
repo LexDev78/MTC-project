@@ -74,6 +74,25 @@ class InMemoryAuthDatasource {
 
   void restoreCurrentUser(AppUser user) => _setCurrentUser(user);
 
+  void updateSupplierVerificationStatus(
+    String userId,
+    VerificationStatus status,
+  ) {
+    for (final record in _recordsByUsernameOrPhone.values) {
+      if (record.user.id != userId) continue;
+      final user = record.user;
+      if (user is! SupplierTiersUser) {
+        throw const ValidationException(
+          'Seuls les fournisseurs tiers ont un statut de vérification.',
+        );
+      }
+      record.user = user.copyWith(verificationStatus: status);
+      if (_currentUser?.id == userId) _setCurrentUser(record.user);
+      return;
+    }
+    throw NotFoundException('Utilisateur introuvable : $userId');
+  }
+
   void _setCurrentUser(AppUser? user) {
     _currentUser = user;
     _currentUserController.add(user);
@@ -119,6 +138,7 @@ class InMemoryAuthDatasource {
         city: 'Bamako',
         ratingAverage: 4.6,
         ratingCount: 132,
+        legalType: SupplierLegalType.company,
       ),
     );
     seed(
@@ -134,6 +154,43 @@ class InMemoryAuthDatasource {
         city: 'Sikasso',
         ratingAverage: 0,
         ratingCount: 0,
+        legalType: SupplierLegalType.company,
+      ),
+    );
+    seed(
+      // Fresh registration, no KYC dossier submitted yet — exercises the
+      // `unverified` state and the "fournisseur libre" (individual) path.
+      'fournisseur3',
+      AppUser.supplierTiers(
+        id: DemoIds.supplierCoutureKayes,
+        displayName: 'Aïssata Sangaré',
+        usernameOrPhone: 'fournisseur3',
+        phoneNumber: '+22376000003',
+        createdAt: now,
+        businessName: 'Couture Kayes',
+        verificationStatus: VerificationStatus.unverified,
+        city: 'Kayes',
+        ratingAverage: 0,
+        ratingCount: 0,
+        legalType: SupplierLegalType.individual,
+      ),
+    );
+    seed(
+      // Dossier reviewed and rejected — exercises the "correction/resoumise"
+      // path and the "société" registration type.
+      'fournisseur4',
+      AppUser.supplierTiers(
+        id: DemoIds.supplierFruitsNiono,
+        displayName: 'Seydou Traoré',
+        usernameOrPhone: 'fournisseur4',
+        phoneNumber: '+22376000004',
+        createdAt: now,
+        businessName: 'Fruits Niono',
+        verificationStatus: VerificationStatus.rejected,
+        city: 'Niono',
+        ratingAverage: 0,
+        ratingCount: 0,
+        legalType: SupplierLegalType.company,
       ),
     );
     seed(

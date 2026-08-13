@@ -31,6 +31,21 @@ mixin _$ProductComment {
   /// Null for a top-level comment; the top-level comment's id for a reply.
   String? get parentId => throw _privateConstructorUsedError;
 
+  /// Local file path for an image or voice-note attachment — same
+  /// no-upload-backend caveat as `ChatMessage.attachmentPath`.
+  CommentAttachmentType get attachmentType =>
+      throw _privateConstructorUsedError;
+  String? get attachmentPath => throw _privateConstructorUsedError;
+
+  /// Set only for [CommentAttachmentType.voice], so the bubble can show a
+  /// duration immediately without probing the audio file.
+  int? get voiceDurationSeconds => throw _privateConstructorUsedError;
+
+  /// User ids who liked this comment — a set rather than a bare count so
+  /// "did the current user already like this" is a cheap lookup instead
+  /// of needing a separate per-user query.
+  Set<String> get likedByUserIds => throw _privateConstructorUsedError;
+
   /// Create a copy of ProductComment
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -54,6 +69,10 @@ abstract class $ProductCommentCopyWith<$Res> {
     String text,
     bool isSupplier,
     String? parentId,
+    CommentAttachmentType attachmentType,
+    String? attachmentPath,
+    int? voiceDurationSeconds,
+    Set<String> likedByUserIds,
   });
 }
 
@@ -80,6 +99,10 @@ class _$ProductCommentCopyWithImpl<$Res, $Val extends ProductComment>
     Object? text = null,
     Object? isSupplier = null,
     Object? parentId = freezed,
+    Object? attachmentType = null,
+    Object? attachmentPath = freezed,
+    Object? voiceDurationSeconds = freezed,
+    Object? likedByUserIds = null,
   }) {
     return _then(
       _value.copyWith(
@@ -115,6 +138,22 @@ class _$ProductCommentCopyWithImpl<$Res, $Val extends ProductComment>
                 ? _value.parentId
                 : parentId // ignore: cast_nullable_to_non_nullable
                       as String?,
+            attachmentType: null == attachmentType
+                ? _value.attachmentType
+                : attachmentType // ignore: cast_nullable_to_non_nullable
+                      as CommentAttachmentType,
+            attachmentPath: freezed == attachmentPath
+                ? _value.attachmentPath
+                : attachmentPath // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            voiceDurationSeconds: freezed == voiceDurationSeconds
+                ? _value.voiceDurationSeconds
+                : voiceDurationSeconds // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            likedByUserIds: null == likedByUserIds
+                ? _value.likedByUserIds
+                : likedByUserIds // ignore: cast_nullable_to_non_nullable
+                      as Set<String>,
           )
           as $Val,
     );
@@ -139,6 +178,10 @@ abstract class _$$ProductCommentImplCopyWith<$Res>
     String text,
     bool isSupplier,
     String? parentId,
+    CommentAttachmentType attachmentType,
+    String? attachmentPath,
+    int? voiceDurationSeconds,
+    Set<String> likedByUserIds,
   });
 }
 
@@ -164,6 +207,10 @@ class __$$ProductCommentImplCopyWithImpl<$Res>
     Object? text = null,
     Object? isSupplier = null,
     Object? parentId = freezed,
+    Object? attachmentType = null,
+    Object? attachmentPath = freezed,
+    Object? voiceDurationSeconds = freezed,
+    Object? likedByUserIds = null,
   }) {
     return _then(
       _$ProductCommentImpl(
@@ -199,6 +246,22 @@ class __$$ProductCommentImplCopyWithImpl<$Res>
             ? _value.parentId
             : parentId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        attachmentType: null == attachmentType
+            ? _value.attachmentType
+            : attachmentType // ignore: cast_nullable_to_non_nullable
+                  as CommentAttachmentType,
+        attachmentPath: freezed == attachmentPath
+            ? _value.attachmentPath
+            : attachmentPath // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        voiceDurationSeconds: freezed == voiceDurationSeconds
+            ? _value.voiceDurationSeconds
+            : voiceDurationSeconds // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        likedByUserIds: null == likedByUserIds
+            ? _value._likedByUserIds
+            : likedByUserIds // ignore: cast_nullable_to_non_nullable
+                  as Set<String>,
       ),
     );
   }
@@ -216,7 +279,11 @@ class _$ProductCommentImpl implements _ProductComment {
     required this.text,
     this.isSupplier = false,
     this.parentId,
-  });
+    this.attachmentType = CommentAttachmentType.none,
+    this.attachmentPath,
+    this.voiceDurationSeconds,
+    final Set<String> likedByUserIds = const <String>{},
+  }) : _likedByUserIds = likedByUserIds;
 
   @override
   final String id;
@@ -241,9 +308,38 @@ class _$ProductCommentImpl implements _ProductComment {
   @override
   final String? parentId;
 
+  /// Local file path for an image or voice-note attachment — same
+  /// no-upload-backend caveat as `ChatMessage.attachmentPath`.
+  @override
+  @JsonKey()
+  final CommentAttachmentType attachmentType;
+  @override
+  final String? attachmentPath;
+
+  /// Set only for [CommentAttachmentType.voice], so the bubble can show a
+  /// duration immediately without probing the audio file.
+  @override
+  final int? voiceDurationSeconds;
+
+  /// User ids who liked this comment — a set rather than a bare count so
+  /// "did the current user already like this" is a cheap lookup instead
+  /// of needing a separate per-user query.
+  final Set<String> _likedByUserIds;
+
+  /// User ids who liked this comment — a set rather than a bare count so
+  /// "did the current user already like this" is a cheap lookup instead
+  /// of needing a separate per-user query.
+  @override
+  @JsonKey()
+  Set<String> get likedByUserIds {
+    if (_likedByUserIds is EqualUnmodifiableSetView) return _likedByUserIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableSetView(_likedByUserIds);
+  }
+
   @override
   String toString() {
-    return 'ProductComment(id: $id, productId: $productId, authorId: $authorId, authorName: $authorName, createdAt: $createdAt, text: $text, isSupplier: $isSupplier, parentId: $parentId)';
+    return 'ProductComment(id: $id, productId: $productId, authorId: $authorId, authorName: $authorName, createdAt: $createdAt, text: $text, isSupplier: $isSupplier, parentId: $parentId, attachmentType: $attachmentType, attachmentPath: $attachmentPath, voiceDurationSeconds: $voiceDurationSeconds, likedByUserIds: $likedByUserIds)';
   }
 
   @override
@@ -264,7 +360,17 @@ class _$ProductCommentImpl implements _ProductComment {
             (identical(other.isSupplier, isSupplier) ||
                 other.isSupplier == isSupplier) &&
             (identical(other.parentId, parentId) ||
-                other.parentId == parentId));
+                other.parentId == parentId) &&
+            (identical(other.attachmentType, attachmentType) ||
+                other.attachmentType == attachmentType) &&
+            (identical(other.attachmentPath, attachmentPath) ||
+                other.attachmentPath == attachmentPath) &&
+            (identical(other.voiceDurationSeconds, voiceDurationSeconds) ||
+                other.voiceDurationSeconds == voiceDurationSeconds) &&
+            const DeepCollectionEquality().equals(
+              other._likedByUserIds,
+              _likedByUserIds,
+            ));
   }
 
   @override
@@ -278,6 +384,10 @@ class _$ProductCommentImpl implements _ProductComment {
     text,
     isSupplier,
     parentId,
+    attachmentType,
+    attachmentPath,
+    voiceDurationSeconds,
+    const DeepCollectionEquality().hash(_likedByUserIds),
   );
 
   /// Create a copy of ProductComment
@@ -302,6 +412,10 @@ abstract class _ProductComment implements ProductComment {
     required final String text,
     final bool isSupplier,
     final String? parentId,
+    final CommentAttachmentType attachmentType,
+    final String? attachmentPath,
+    final int? voiceDurationSeconds,
+    final Set<String> likedByUserIds,
   }) = _$ProductCommentImpl;
 
   @override
@@ -325,6 +439,24 @@ abstract class _ProductComment implements ProductComment {
   /// Null for a top-level comment; the top-level comment's id for a reply.
   @override
   String? get parentId;
+
+  /// Local file path for an image or voice-note attachment — same
+  /// no-upload-backend caveat as `ChatMessage.attachmentPath`.
+  @override
+  CommentAttachmentType get attachmentType;
+  @override
+  String? get attachmentPath;
+
+  /// Set only for [CommentAttachmentType.voice], so the bubble can show a
+  /// duration immediately without probing the audio file.
+  @override
+  int? get voiceDurationSeconds;
+
+  /// User ids who liked this comment — a set rather than a bare count so
+  /// "did the current user already like this" is a cheap lookup instead
+  /// of needing a separate per-user query.
+  @override
+  Set<String> get likedByUserIds;
 
   /// Create a copy of ProductComment
   /// with the given fields replaced by the non-null parameter values.

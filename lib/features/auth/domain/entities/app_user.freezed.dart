@@ -44,6 +44,7 @@ mixin _$AppUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )
     supplierTiers,
     required TResult Function(
@@ -78,6 +79,7 @@ mixin _$AppUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )?
     supplierTiers,
     TResult? Function(
@@ -112,6 +114,7 @@ mixin _$AppUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )?
     supplierTiers,
     TResult Function(
@@ -375,6 +378,7 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )
     supplierTiers,
     required TResult Function(
@@ -420,6 +424,7 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )?
     supplierTiers,
     TResult? Function(
@@ -465,6 +470,7 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )?
     supplierTiers,
     TResult Function(
@@ -576,6 +582,7 @@ abstract class _$$SupplierTiersUserImplCopyWith<$Res>
     String city,
     double ratingAverage,
     int ratingCount,
+    SupplierLegalType legalType,
   });
 }
 
@@ -603,6 +610,7 @@ class __$$SupplierTiersUserImplCopyWithImpl<$Res>
     Object? city = null,
     Object? ratingAverage = null,
     Object? ratingCount = null,
+    Object? legalType = null,
   }) {
     return _then(
       _$SupplierTiersUserImpl(
@@ -646,6 +654,10 @@ class __$$SupplierTiersUserImplCopyWithImpl<$Res>
             ? _value.ratingCount
             : ratingCount // ignore: cast_nullable_to_non_nullable
                   as int,
+        legalType: null == legalType
+            ? _value.legalType
+            : legalType // ignore: cast_nullable_to_non_nullable
+                  as SupplierLegalType,
       ),
     );
   }
@@ -665,6 +677,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
     required this.city,
     required this.ratingAverage,
     required this.ratingCount,
+    required this.legalType,
   });
 
   @override
@@ -687,10 +700,12 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   final double ratingAverage;
   @override
   final int ratingCount;
+  @override
+  final SupplierLegalType legalType;
 
   @override
   String toString() {
-    return 'AppUser.supplierTiers(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, businessName: $businessName, verificationStatus: $verificationStatus, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount)';
+    return 'AppUser.supplierTiers(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, businessName: $businessName, verificationStatus: $verificationStatus, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, legalType: $legalType)';
   }
 
   @override
@@ -715,7 +730,9 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
             (identical(other.ratingAverage, ratingAverage) ||
                 other.ratingAverage == ratingAverage) &&
             (identical(other.ratingCount, ratingCount) ||
-                other.ratingCount == ratingCount));
+                other.ratingCount == ratingCount) &&
+            (identical(other.legalType, legalType) ||
+                other.legalType == legalType));
   }
 
   @override
@@ -731,6 +748,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
     city,
     ratingAverage,
     ratingCount,
+    legalType,
   );
 
   /// Create a copy of AppUser
@@ -767,6 +785,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )
     supplierTiers,
     required TResult Function(
@@ -790,6 +809,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       city,
       ratingAverage,
       ratingCount,
+      legalType,
     );
   }
 
@@ -816,6 +836,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )?
     supplierTiers,
     TResult? Function(
@@ -839,6 +860,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       city,
       ratingAverage,
       ratingCount,
+      legalType,
     );
   }
 
@@ -865,6 +887,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )?
     supplierTiers,
     TResult Function(
@@ -890,6 +913,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
         city,
         ratingAverage,
         ratingCount,
+        legalType,
       );
     }
     return orElse();
@@ -942,6 +966,7 @@ abstract class SupplierTiersUser implements AppUser {
     required final String city,
     required final double ratingAverage,
     required final int ratingCount,
+    required final SupplierLegalType legalType,
   }) = _$SupplierTiersUserImpl;
 
   @override
@@ -959,6 +984,7 @@ abstract class SupplierTiersUser implements AppUser {
   String get city;
   double get ratingAverage;
   int get ratingCount;
+  SupplierLegalType get legalType;
 
   /// Create a copy of AppUser
   /// with the given fields replaced by the non-null parameter values.
@@ -1133,6 +1159,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )
     supplierTiers,
     required TResult Function(
@@ -1178,6 +1205,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )?
     supplierTiers,
     TResult? Function(
@@ -1223,6 +1251,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
     )?
     supplierTiers,
     TResult Function(

@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'product_category.dart';
+import 'product_status.dart';
 
 part 'product.freezed.dart';
 
@@ -23,7 +24,12 @@ class Product with _$Product {
     required bool allowsSelfDelivery,
     required bool allowsMtcDelivery,
     required DateTime createdAt,
-    int? mtcDeliveryFeeFcfa,
+
+    /// Shipping weight — feeds `computeHomeDeliveryFeeFcfa`
+    /// (features/orders/domain/delivery_pricing.dart) alongside distance and
+    /// category, so heavier items cost more to have MTC deliver. No longer
+    /// a flat per-product fee: that's computed per order, per destination.
+    required double weightKg,
 
     /// Denormalized from the supplier's verification status. Products from
     /// unverified/pending tiers suppliers are excluded from client-facing
@@ -42,5 +48,23 @@ class Product with _$Product {
     /// since most of the seeded catalog is local artisanal/agricultural
     /// goods; imported categories (electronics, some materials) override it.
     @Default(ProductRegion.mali) ProductRegion region,
+
+    /// Lifecycle within the supplier's own catalog management — see
+    /// `ProductStatus`'s doc comment. Defaults to `active` so every
+    /// pre-existing seeded product (created before this field existed)
+    /// stays visible without a data migration.
+    @Default(ProductStatus.active) ProductStatus status,
+
+    /// Below this stock level, the supplier's product list flags the item
+    /// as low — `null` means no threshold is set (no warning is ever
+    /// shown). A per-product setting rather than a platform-wide constant
+    /// since restock lead time varies a lot by category (e.g. imported
+    /// electronics vs. locally-milled rice).
+    int? lowStockThreshold,
+
+    /// The pre-discount price, shown struck through next to [priceFcfa]
+    /// when set and higher than it — a plain "barré" price, not a
+    /// scheduled/rule-based promotion engine.
+    int? compareAtPriceFcfa,
   }) = _Product;
 }

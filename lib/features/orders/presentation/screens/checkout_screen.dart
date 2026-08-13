@@ -7,10 +7,17 @@ import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
 
+import '../../domain/entities/fulfillment.dart';
 import '../../domain/entities/order_status.dart';
+import '../../domain/entities/payment.dart';
 import '../controllers/checkout_controller.dart';
 import '../providers/checkout_providers.dart';
 import '../widgets/delivery_mode_selector.dart';
+import '../widgets/fulfillment_method_selector.dart';
+import '../widgets/home_delivery_form.dart';
+import '../widgets/mobile_money_payment_sheet.dart';
+import '../widgets/payment_method_selector.dart';
+import '../widgets/pickup_point_picker.dart';
 
 class CheckoutScreen extends ConsumerWidget {
   const CheckoutScreen({super.key});
@@ -20,7 +27,36 @@ class CheckoutScreen extends ConsumerWidget {
     final groupsAsync = ref.watch(checkoutGroupsProvider);
     final address = ref.watch(defaultAddressProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
+    final fulfillmentMethod = ref.watch(fulfillmentMethodProvider);
+    final isPriority =
+        fulfillmentMethod == FulfillmentMethod.homeDelivery &&
+        ref.watch(isPriorityOrderProvider);
     final scheme = Theme.of(context).colorScheme;
+
+    // Computed here (not just inside the body's AsyncValueWidget) so the
+    // bottom action bar's payment step can know the amount to charge too.
+    final groupsForTotals = groupsAsync.valueOrNull ?? const [];
+    final subtotal = groupsForTotals.fold<int>(
+      0,
+      (sum, g) => sum + g.subtotalFcfa,
+    );
+    final deliveryFees = groupsForTotals.fold<int>(0, (sum, g) {
+      final bool isMtc;
+      if (fulfillmentMethod == FulfillmentMethod.pickupPoint) {
+        // MTC always fetches the parcel from the supplier and brings it to
+        // the pickup point — there's no "supplier delivers it themselves"
+        // option once the client isn't receiving it at their own address.
+        isMtc = g.allowsMtcDelivery;
+      } else {
+        final chosen = ref.watch(deliveryModeChoiceProvider(g.supplierId));
+        isMtc =
+            chosen == DeliveryMode.mtcDelivery ||
+            (chosen == null && !g.allowsSelfDelivery);
+      }
+      return sum + (isMtc ? g.mtcDeliveryFeeFcfa : 0);
+    });
+    final priorityFee = isPriority ? priorityOrderFeeFcfa : 0;
+    final total = subtotal + deliveryFees + priorityFee;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Commande')),
@@ -34,42 +70,38 @@ class CheckoutScreen extends ConsumerWidget {
             );
           }
 
-          final subtotal = groups.fold<int>(
-            0,
-            (sum, g) => sum + g.subtotalFcfa,
-          );
-          final deliveryFees = groups.fold<int>(0, (sum, g) {
-            final chosen = ref.watch(deliveryModeChoiceProvider(g.supplierId));
-            final isMtc =
-                chosen == DeliveryMode.mtcDelivery ||
-                (chosen == null && !g.allowsSelfDelivery);
-            return sum + (isMtc ? g.mtcDeliveryFeeFcfa : 0);
-          });
-          final total = subtotal + deliveryFees;
-
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              Text(
-                'Adresse de livraison',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.location_on_outlined),
-                  title: Text(address?.label ?? 'Aucune adresse'),
-                  subtitle: Text(
-                    address != null
-                        ? '${address.details}, ${address.city}'
-                        : 'Ajoutez-en une pour continuer',
-                  ),
-                  trailing: TextButton(
-                    onPressed: () => context.push(AppRoutes.clientProfileEdit),
-                    child: const Text('Changer'),
+              const FulfillmentMethodSelector(),
+              const SizedBox(height: AppSpacing.lg),
+              if (fulfillmentMethod == FulfillmentMethod.pickupPoint)
+                const PickupPointPicker()
+              else ...[
+                Text(
+                  'Adresse de livraison',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.location_on_outlined),
+                    title: Text(address?.label ?? 'Aucune adresse'),
+                    subtitle: Text(
+                      address != null
+                          ? '${address.details}, ${address.city}'
+                          : 'Ajoutez-en une pour continuer',
+                    ),
+                    trailing: TextButton(
+                      onPressed: () =>
+                          context.push(AppRoutes.clientProfileEdit),
+                      child: const Text('Changer'),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.md),
+                const HomeDeliveryForm(),
+              ],
               const SizedBox(height: AppSpacing.lg),
               for (final group in groups) ...[
                 Card(
@@ -103,18 +135,31 @@ class CheckoutScreen extends ConsumerWidget {
                               ],
                             ),
                           ),
-                        const Divider(),
-                        DeliveryModeSelector(group: group),
+                        if (fulfillmentMethod ==
+                            FulfillmentMethod.homeDelivery) ...[
+                          const Divider(),
+                          DeliveryModeSelector(group: group),
+                        ],
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],
+              Text('Paiement', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              const PaymentMethodSelector(),
+              if (ref.watch(paymentMethodProvider) == PaymentMethod.now) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _MobileMoneyStatusRow(
+                  provider: ref.watch(mobileMoneyProviderChoiceProvider),
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               _TotalsCard(
                 subtotal: subtotal,
                 deliveryFees: deliveryFees,
+                priorityFee: priorityFee,
                 total: total,
               ),
             ],
@@ -136,9 +181,22 @@ class CheckoutScreen extends ConsumerWidget {
               child: SafeArea(
                 top: false,
                 child: MtcPrimaryButton(
-                  label: 'Confirmer la commande',
+                  label: fulfillmentMethod == FulfillmentMethod.homeDelivery &&
+                          ref.watch(paymentMethodProvider) == PaymentMethod.now &&
+                          ref.watch(mobileMoneyProviderChoiceProvider) == null
+                      ? 'Payer et commander'
+                      : 'Confirmer la commande',
                   isLoading: checkoutState.isLoading,
                   onPressed: () async {
+                    if (ref.read(paymentMethodProvider) == PaymentMethod.now &&
+                        ref.read(mobileMoneyProviderChoiceProvider) == null) {
+                      final paid = await showMobileMoneyPaymentSheet(
+                        context,
+                        amountFcfa: total,
+                      );
+                      if (!paid) return;
+                      if (!context.mounted) return;
+                    }
                     final success = await ref
                         .read(checkoutControllerProvider.notifier)
                         .placeOrder();
@@ -171,15 +229,52 @@ class CheckoutScreen extends ConsumerWidget {
   }
 }
 
+/// Small confirmation/prompt line under the payment selector — shows
+/// whether the mocked Mobile Money payment already went through, or that
+/// it's still pending so tapping "Payer et commander" will ask for it.
+class _MobileMoneyStatusRow extends StatelessWidget {
+  const _MobileMoneyStatusRow({required this.provider});
+
+  final MobileMoneyProvider? provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    if (provider == null) {
+      return Text(
+        'Le paiement vous sera demandé à la confirmation.',
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+      );
+    }
+    return Row(
+      children: [
+        Icon(Icons.check_circle_rounded, size: 16, color: scheme.primary),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          'Payé via ${provider!.label}',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: scheme.primary),
+        ),
+      ],
+    );
+  }
+}
+
 class _TotalsCard extends StatelessWidget {
   const _TotalsCard({
     required this.subtotal,
     required this.deliveryFees,
+    required this.priorityFee,
     required this.total,
   });
 
   final int subtotal;
   final int deliveryFees;
+  final int priorityFee;
   final int total;
 
   @override
@@ -191,6 +286,8 @@ class _TotalsCard extends StatelessWidget {
           children: [
             _TotalsRow(label: 'Sous-total', amountFcfa: subtotal),
             _TotalsRow(label: 'Livraison', amountFcfa: deliveryFees),
+            if (priorityFee > 0)
+              _TotalsRow(label: 'Commande prioritaire', amountFcfa: priorityFee),
             const Divider(),
             _TotalsRow(label: 'Total', amountFcfa: total, emphasize: true),
           ],

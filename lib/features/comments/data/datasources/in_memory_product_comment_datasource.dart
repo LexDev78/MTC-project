@@ -30,6 +30,18 @@ class InMemoryProductCommentDatasource {
     _changesController.add(null);
   }
 
+  void toggleLike(String commentId, String userId) {
+    final index = _comments.indexWhere((c) => c.id == commentId);
+    if (index == -1) return;
+
+    final comment = _comments[index];
+    final likedByUserIds = {...comment.likedByUserIds};
+    if (!likedByUserIds.remove(userId)) likedByUserIds.add(userId);
+
+    _comments[index] = comment.copyWith(likedByUserIds: likedByUserIds);
+    _changesController.add(null);
+  }
+
   /// Seeded on the very first product ("Tissu Bogolan traditionnel", id
   /// `product-001` — stable because `InMemoryProductDatasource` seeds
   /// products in a fixed order) so the feature has something to show
@@ -64,6 +76,7 @@ class InMemoryProductCommentDatasource {
         authorName: 'Awa Traoré',
         createdAt: now.subtract(const Duration(hours: 5)),
         text: 'Magnifiques couleurs, exactement comme sur les photos !',
+        likedByUserIds: {DemoIds.clientMoussa},
       ),
     ];
   }

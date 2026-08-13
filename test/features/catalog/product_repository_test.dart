@@ -28,17 +28,41 @@ void main() {
     }
   });
 
-  test('filters by supplier type', () async {
-    final principalProducts = await repository
-        .watchProducts(supplierType: SupplierType.principal)
+  test('tiers filter returns only third-party products', () async {
+    final tiersProducts = await repository
+        .watchProducts(supplierType: SupplierType.tiers)
         .first;
 
-    expect(principalProducts, isNotEmpty);
+    expect(tiersProducts, isNotEmpty);
     expect(
-      principalProducts.every((p) => p.supplierType == SupplierType.principal),
+      tiersProducts.every((p) => p.supplierType == SupplierType.tiers),
       isTrue,
     );
   });
+
+  test(
+    'principal filter aggregates every verified product, tiers included',
+    () async {
+      final allProducts = await repository.watchProducts().first;
+      final principalProducts = await repository
+          .watchProducts(supplierType: SupplierType.principal)
+          .first;
+
+      expect(principalProducts, hasLength(allProducts.length));
+      expect(
+        principalProducts.any((p) => p.supplierType == SupplierType.tiers),
+        isTrue,
+      );
+      // Tiers products keep their original supplier attribution — the
+      // aggregation only changes catalog *visibility*, not ownership.
+      expect(
+        principalProducts
+            .firstWhere((p) => p.supplierName == 'Bogolan Bamako')
+            .supplierType,
+        SupplierType.tiers,
+      );
+    },
+  );
 
   test('filters by category', () async {
     final products = await repository
