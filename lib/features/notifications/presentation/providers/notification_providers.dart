@@ -1,19 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/datasources/in_memory_notification_datasource.dart';
-import '../../data/repositories/in_memory_notification_repository.dart';
+import 'package:mtc_app/core/di/providers.dart';
+
+import '../../data/datasources/supabase_notification_datasource.dart';
+import '../../data/repositories/supabase_notification_repository.dart';
 import '../../domain/entities/app_notification.dart';
 import '../../domain/repositories/notification_repository.dart';
 
 final notificationDatasourceProvider =
-    Provider<InMemoryNotificationDatasource>((ref) {
-      return InMemoryNotificationDatasource();
+    Provider<SupabaseNotificationDatasource>((ref) {
+      return SupabaseNotificationDatasource(ref.watch(supabaseClientProvider));
     });
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((
   ref,
 ) {
-  return InMemoryNotificationRepository(ref.watch(notificationDatasourceProvider));
+  return SupabaseNotificationRepository(ref.watch(notificationDatasourceProvider));
 });
 
 final notificationsProvider =

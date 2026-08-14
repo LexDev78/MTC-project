@@ -143,6 +143,19 @@ class SupabaseOrderRepository implements OrderRepository {
       rethrow;
     }
   }
+
+  @override
+  Future<void> attachSupplierVoiceMessage({
+    required String orderId,
+    required String voicePath,
+    required int durationSeconds,
+  }) {
+    return _datasource.setVoiceMessage(
+      orderId: orderId,
+      voicePath: voicePath,
+      durationSeconds: durationSeconds,
+    );
+  }
 }
 
 String _orderStatusToDb(OrderStatus status) => switch (status) {

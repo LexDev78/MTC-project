@@ -65,21 +65,21 @@ void main() {
           .placeOrder();
       expect(success, isTrue);
 
-      final repo = container.read(notificationRepositoryProvider);
-      final riceSupplierNotifications = await repo
-          .watchForUser(DemoIds.supplierAlimentationSegou)
-          .first;
-      final phoneSupplierNotifications = await repo
-          .watchForUser(DemoIds.supplierElectroBamako)
-          .first;
+      // Neither supplier is the currently signed-in session (client2) —
+      // reading their notifications back needs the admin bypass rather
+      // than logging in as each of them just to check.
+      final riceSupplierNotifications = await fetchNotificationsForUserAsAdmin(
+        DemoIds.supplierAlimentationSegou,
+      );
+      final phoneSupplierNotifications = await fetchNotificationsForUserAsAdmin(
+        DemoIds.supplierElectroBamako,
+      );
       expect(
-        riceSupplierNotifications.any((n) => n.type == NotificationType.newOrder),
+        riceSupplierNotifications.any((n) => n['type'] == 'new_order'),
         isTrue,
       );
       expect(
-        phoneSupplierNotifications.any(
-          (n) => n.type == NotificationType.newOrder,
-        ),
+        phoneSupplierNotifications.any((n) => n['type'] == 'new_order'),
         isTrue,
       );
     },
@@ -97,17 +97,18 @@ void main() {
           .read(chatControllerProvider.notifier)
           .sendMessage(conversationId: 'conv-awa-bogolan', text: 'Merci !');
 
-      final clientNotifications = await container
-          .read(notificationRepositoryProvider)
-          .watchForUser(DemoIds.clientAwa)
-          .first;
+      // Awa (the recipient) isn't the signed-in session (fournisseur1).
+      final clientNotifications = await fetchNotificationsForUserAsAdmin(
+        DemoIds.clientAwa,
+      );
       expect(
-        clientNotifications.any((n) => n.type == NotificationType.newMessage),
+        clientNotifications.any((n) => n['type'] == 'new_message'),
         isTrue,
       );
 
       // The supplier's own notifications aren't touched by their own
-      // message.
+      // message — fournisseur1 IS the signed-in session here, so this one
+      // can go through the real repository.
       final supplierNotifications = await container
           .read(notificationRepositoryProvider)
           .watchForUser(DemoIds.supplierBogolanBamako)
@@ -193,12 +194,11 @@ void main() {
             staffId: DemoIds.staffAgent,
           );
 
-      final notifications = await container
-          .read(notificationRepositoryProvider)
-          .watchForUser(DemoIds.supplierArtisanatSikasso)
-          .first;
+      final notifications = await fetchNotificationsForUserAsAdmin(
+        DemoIds.supplierArtisanatSikasso,
+      );
       expect(
-        notifications.any((n) => n.type == NotificationType.kycDecision),
+        notifications.any((n) => n['type'] == 'kyc_decision'),
         isTrue,
       );
     },
@@ -217,13 +217,13 @@ void main() {
             status: PayoutStatus.rejected,
           );
       // Already terminal in the seed (`paid`) — invalid transition, no
-      // notification should have been sent.
-      final none = await container
-          .read(notificationRepositoryProvider)
-          .watchForUser(DemoIds.supplierBogolanBamako)
-          .first;
+      // notification should have been sent. Bogolan Bamako isn't the
+      // signed-in session (admin1).
+      final none = await fetchNotificationsForUserAsAdmin(
+        DemoIds.supplierBogolanBamako,
+      );
       expect(
-        none.any((n) => n.type == NotificationType.payoutDecision),
+        none.any((n) => n['type'] == 'payout_decision'),
         isFalse,
       );
 
@@ -249,12 +249,11 @@ void main() {
           .read(supplierFinanceControllerProvider.notifier)
           .reviewPayout(payoutId: fresh.id, status: PayoutStatus.processing);
 
-      final notified = await container
-          .read(notificationRepositoryProvider)
-          .watchForUser(DemoIds.supplierBogolanBamako)
-          .first;
+      final notified = await fetchNotificationsForUserAsAdmin(
+        DemoIds.supplierBogolanBamako,
+      );
       expect(
-        notified.any((n) => n.type == NotificationType.payoutDecision),
+        notified.any((n) => n['type'] == 'payout_decision'),
         isTrue,
       );
     },
@@ -275,12 +274,11 @@ void main() {
             comment: 'Excellent service.',
           );
 
-      final notifications = await container
-          .read(notificationRepositoryProvider)
-          .watchForUser(DemoIds.supplierBogolanBamako)
-          .first;
+      final notifications = await fetchNotificationsForUserAsAdmin(
+        DemoIds.supplierBogolanBamako,
+      );
       expect(
-        notifications.any((n) => n.type == NotificationType.newReview),
+        notifications.any((n) => n['type'] == 'new_review'),
         isTrue,
       );
     },

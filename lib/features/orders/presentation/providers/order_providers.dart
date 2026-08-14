@@ -17,7 +17,10 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
 });
 
 final ordersForUserProvider = StreamProvider<List<Order>>((ref) {
-  final userId = ref.watch(currentUserProvider).valueOrNull?.id;
+  // `.select`: see the same note in cart_providers.dart — avoids
+  // rebuilding (and losing the in-flight subscription) on a re-emitted
+  // but id-equal AppUser.
+  final userId = ref.watch(currentUserProvider.select((u) => u.valueOrNull?.id));
   if (userId == null) return Stream.value(const <Order>[]);
   return ref.watch(orderRepositoryProvider).watchOrdersForUser(userId);
 });

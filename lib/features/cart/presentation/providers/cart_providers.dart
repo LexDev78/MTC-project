@@ -17,7 +17,13 @@ final cartRepositoryProvider = Provider<CartRepository>((ref) {
 });
 
 final cartItemsProvider = StreamProvider<List<CartItem>>((ref) {
-  final userId = ref.watch(currentUserProvider).valueOrNull?.id;
+  // `.select` (not a bare `.watch`) since currentUserProvider can
+  // re-emit an equal-but-distinct AppUser instance (Supabase replays
+  // auth events to each new onAuthStateChange subscriber) — watching the
+  // whole AsyncValue would rebuild this, and lose the in-flight
+  // subscription, every time that happens even though the id didn't
+  // change.
+  final userId = ref.watch(currentUserProvider.select((u) => u.valueOrNull?.id));
   if (userId == null) return Stream.value(const <CartItem>[]);
   return ref.watch(cartRepositoryProvider).watchCart(userId);
 });

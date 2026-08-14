@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 
@@ -41,10 +42,10 @@ class ProductCommentsModal extends ConsumerWidget {
         .addComment(productId: productId, text: text);
   }
 
-  Future<void> _submitImage(WidgetRef ref, String imagePath) async {
+  Future<void> _submitImage(WidgetRef ref, XFile image) async {
     await ref
         .read(commentControllerProvider.notifier)
-        .addImageComment(productId: productId, imagePath: imagePath);
+        .addImageComment(productId: productId, image: image);
   }
 
   Future<void> _submitVoice(WidgetRef ref, String voicePath, int duration) async {

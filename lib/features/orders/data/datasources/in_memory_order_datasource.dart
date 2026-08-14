@@ -40,6 +40,18 @@ class InMemoryOrderDatasource {
     _changesController.add(null);
   }
 
+  void setVoiceMessage(String orderId, String voicePath, int durationSeconds) {
+    final orderIndex = _orders.indexWhere((o) => o.id == orderId);
+    if (orderIndex == -1) {
+      throw NotFoundException('Commande introuvable : $orderId');
+    }
+    _orders[orderIndex] = _orders[orderIndex].copyWith(
+      supplierMessageVoicePath: voicePath,
+      supplierMessageVoiceDurationSeconds: durationSeconds,
+    );
+    _changesController.add(null);
+  }
+
   void updateGroupStatus(
     String orderId,
     String groupId,

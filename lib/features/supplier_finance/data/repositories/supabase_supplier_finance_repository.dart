@@ -1,4 +1,7 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:mtc_app/core/constants/app_constants.dart';
+import 'package:mtc_app/core/error/exceptions.dart';
 
 import '../../../orders/domain/entities/payment.dart';
 import '../../domain/entities/payout_request.dart';
@@ -47,11 +50,19 @@ class SupabaseSupplierFinanceRepository implements SupplierFinanceRepository {
     required PayoutStatus status,
     String? rejectionReason,
   }) async {
-    final row = await _datasource.updatePayoutStatus(
-      payoutId: payoutId,
-      status: status.name,
-      rejectionReason: rejectionReason,
-    );
+    final Map<String, dynamic> row;
+    try {
+      row = await _datasource.updatePayoutStatus(
+        payoutId: payoutId,
+        status: status.name,
+        rejectionReason: rejectionReason,
+      );
+    } on PostgrestException catch (e) {
+      if (e.message.contains('Transition invalide')) {
+        throw ValidationException(e.message);
+      }
+      rethrow;
+    }
     return PayoutRequest.fromJson(row);
   }
 

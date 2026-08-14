@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
+import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/error/exceptions.dart';
+import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
@@ -136,7 +139,7 @@ class CheckoutController extends AsyncNotifier<Order?> {
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final order = await ref
+      var order = await ref
           .read(orderRepositoryProvider)
           .placeOrder(
             clientId: userId,
@@ -165,14 +168,9 @@ class CheckoutController extends AsyncNotifier<Order?> {
             supplierMessageText: supplierMessageType == SupplierMessageType.text
                 ? ref.read(supplierMessageTextProvider)
                 : null,
-            supplierMessageVoicePath:
-                supplierMessageType == SupplierMessageType.voice
-                ? ref.read(supplierMessageVoicePathProvider)
-                : null,
-            supplierMessageVoiceDurationSeconds:
-                supplierMessageType == SupplierMessageType.voice
-                ? ref.read(supplierMessageVoiceDurationProvider)
-                : null,
+            // Never the local path here — `order-messages`'s Storage
+            // policy is keyed by order id, which doesn't exist until this
+            // very call returns one (see the upload step below).
             paymentMethod: paymentMethod,
             paymentStatus: paymentMethod == PaymentMethod.now
                 ? PaymentStatus.paid
@@ -185,6 +183,31 @@ class CheckoutController extends AsyncNotifier<Order?> {
       // (RLS requires the operating supplier), so this must not be
       // repeated here.
       await ref.read(cartRepositoryProvider).clear(userId);
+
+      if (supplierMessageType == SupplierMessageType.voice) {
+        final localPath = ref.read(supplierMessageVoicePathProvider);
+        final duration = ref.read(supplierMessageVoiceDurationProvider);
+        if (localPath != null && duration != null) {
+          final voicePath = await uploadPickedImage(
+            client: ref.read(supabaseClientProvider),
+            bucket: 'order-messages',
+            folder: order.id,
+            file: XFile(localPath),
+            contentType: 'audio/mp4',
+          );
+          await ref
+              .read(orderRepositoryProvider)
+              .attachSupplierVoiceMessage(
+                orderId: order.id,
+                voicePath: voicePath,
+                durationSeconds: duration,
+              );
+          order = order.copyWith(
+            supplierMessageVoicePath: voicePath,
+            supplierMessageVoiceDurationSeconds: duration,
+          );
+        }
+      }
 
       final notificationRepository = ref.read(notificationRepositoryProvider);
       for (final group in order.supplierGroups) {

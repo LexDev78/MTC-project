@@ -150,4 +150,13 @@ class InMemoryOrderRepository implements OrderRepository {
       cancelledBy: cancelledBy,
     );
   }
+
+  @override
+  Future<void> attachSupplierVoiceMessage({
+    required String orderId,
+    required String voicePath,
+    required int durationSeconds,
+  }) async {
+    _datasource.setVoiceMessage(orderId, voicePath, durationSeconds);
+  }
 }

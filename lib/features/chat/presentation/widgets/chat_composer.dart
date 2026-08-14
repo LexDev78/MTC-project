@@ -19,7 +19,7 @@ class ChatComposer extends StatefulWidget {
   });
 
   final void Function(String text) onSend;
-  final void Function(String imagePath) onSendImage;
+  final void Function(XFile image) onSendImage;
   final void Function(String voicePath, int durationSeconds) onSendVoice;
 
   /// Pre-fills the field — used when the composer opens with a pending
@@ -64,7 +64,7 @@ class _ChatComposerState extends State<ChatComposer> {
         source: ImageSource.gallery,
         imageQuality: 85,
       );
-      if (file != null) widget.onSendImage(file.path);
+      if (file != null) widget.onSendImage(file);
     } catch (_) {
       _showAccessDeniedSnackBar(
         "Impossible d'accéder à la galerie. Vérifiez l'autorisation dans les réglages du téléphone.",

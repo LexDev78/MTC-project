@@ -133,13 +133,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   );
               if (product != null) setState(() => _pendingProduct = null);
             },
-            onSendImage: (imagePath) {
+            onSendImage: (image) {
               final product = _pendingProduct;
               ref
                   .read(chatControllerProvider.notifier)
                   .sendImage(
                     conversationId: widget.conversationId,
-                    imagePath: imagePath,
+                    image: image,
                     productId: product?.id,
                     productNameSnapshot: product?.name,
                     productImageSnapshot: product?.imageUrls.isNotEmpty == true

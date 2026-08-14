@@ -101,6 +101,12 @@ void main() {
   );
 
   test('marking a conversation read clears its unread count', () async {
+    await container
+        .read(authRepositoryProvider)
+        .login(usernameOrPhone: 'client1', password: 'password123');
+    await container.read(currentUserProvider.future);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
     final repo = container.read(chatRepositoryProvider);
     const conversationId = 'conv-awa-bogolan';
 

@@ -1,21 +1,77 @@
-import 'package:flutter_test/flutter_test.dart';
+@Tags(['integration'])
+library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/error/exceptions.dart';
-import 'package:mtc_app/features/supplier_onboarding/data/datasources/in_memory_supplier_kyc_datasource.dart';
-import 'package:mtc_app/features/supplier_onboarding/data/repositories/in_memory_supplier_kyc_repository.dart';
+import 'package:mtc_app/core/mock_data/demo_ids.dart';
+import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
+import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/supplier_onboarding/domain/entities/supplier_kyc.dart';
+import 'package:mtc_app/features/supplier_onboarding/presentation/providers/supplier_kyc_providers.dart';
+
+import '../../support/supabase_test_harness.dart';
 
 void main() {
-  late InMemorySupplierKycRepository repository;
+  late ProviderContainer container;
 
-  setUp(() {
-    repository = InMemorySupplierKycRepository(InMemorySupplierKycDatasource());
+  setUp(() async {
+    await resetAndSeed();
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
+    );
+    addTearDown(container.dispose);
   });
 
-  group('company dossier', () {
-    const supplierId = 'supplier-test-company';
+  // `supplier_kyc` RLS scopes owner writes to the caller's own
+  // `operating_supplier_id()` — a fresh, KYC-untouched account per test
+  // (rather than reusing the seeded Artisanat Sikasso/Fruits Niono
+  // fixtures, already exercised end-to-end by `kyc_review_flow_test.dart`/
+  // `supplier_kyc_flow_test.dart`) keeps these narrower validation-rule
+  // tests isolated from each other and from those fixtures' own state.
+  Future<String> signUpCompany(String usernameOrPhone) async {
+    final user = await container.read(authRepositoryProvider).signUpSupplierTiers(
+      displayName: 'Testeur',
+      usernameOrPhone: usernameOrPhone,
+      phoneNumber: '+22300000000',
+      password: 'password123',
+      businessName: 'Entreprise Test',
+      city: 'Bamako',
+      legalType: SupplierLegalType.company,
+    );
+    return user.id;
+  }
 
+  Future<String> signUpIndividual(String usernameOrPhone) async {
+    final user = await container.read(authRepositoryProvider).signUpSupplierTiers(
+      displayName: 'Testeur',
+      usernameOrPhone: usernameOrPhone,
+      phoneNumber: '+22300000001',
+      password: 'password123',
+      businessName: 'Boutique Test',
+      city: 'Bamako',
+      legalType: SupplierLegalType.individual,
+    );
+    return user.id;
+  }
+
+  Future<void> loginAs(String usernameOrPhone) => container
+      .read(authRepositoryProvider)
+      .login(usernameOrPhone: usernameOrPhone, password: 'password123');
+
+  group('company dossier', () {
     test('starts as an empty draft on first save', () async {
+      final supplierId = await signUpCompany('kyctest1');
+      final repository = container.read(supplierKycRepositoryProvider);
+
       await repository.saveDraftCompany(
         supplierId: supplierId,
         rccmNumber: 'MA.BKO.2026.B.1234',
@@ -29,6 +85,9 @@ void main() {
     });
 
     test('a second draft save only overwrites the fields it passes', () async {
+      final supplierId = await signUpCompany('kyctest2');
+      final repository = container.read(supplierKycRepositoryProvider);
+
       await repository.saveDraftCompany(
         supplierId: supplierId,
         rccmNumber: 'MA.BKO.2026.B.1234',
@@ -45,9 +104,11 @@ void main() {
     test(
       'submit fails without the manager ID and a registration proof',
       () async {
+        final supplierId = await signUpCompany('kyctest3');
+        final repository = container.read(supplierKycRepositoryProvider);
         await repository.saveDraftCompany(supplierId: supplierId);
 
-        expect(
+        await expectLater(
           () => repository.submit(supplierId: supplierId),
           throwsA(isA<ValidationException>()),
         );
@@ -57,6 +118,8 @@ void main() {
     test(
       'submit succeeds once the manager ID and RCCM certificate are uploaded',
       () async {
+        final supplierId = await signUpCompany('kyctest4');
+        final repository = container.read(supplierKycRepositoryProvider);
         await repository.saveDraftCompany(supplierId: supplierId);
         await repository.addDocument(
           supplierId: supplierId,
@@ -81,6 +144,8 @@ void main() {
       'an Entreprenant declaration satisfies the registration-proof '
       'requirement just like an RCCM certificate',
       () async {
+        final supplierId = await signUpCompany('kyctest5');
+        final repository = container.read(supplierKycRepositoryProvider);
         await repository.saveDraftCompany(supplierId: supplierId);
         await repository.addDocument(
           supplierId: supplierId,
@@ -103,6 +168,8 @@ void main() {
     );
 
     test('re-uploading the same document type replaces it, not duplicates it', () async {
+      final supplierId = await signUpCompany('kyctest6');
+      final repository = container.read(supplierKycRepositoryProvider);
       await repository.saveDraftCompany(supplierId: supplierId);
       await repository.addDocument(
         supplierId: supplierId,
@@ -122,9 +189,8 @@ void main() {
   });
 
   group('individual dossier', () {
-    const supplierId = 'supplier-test-individual';
-
-    Future<void> uploadAllIdDocuments() async {
+    Future<void> uploadAllIdDocuments(String supplierId) async {
+      final repository = container.read(supplierKycRepositoryProvider);
       await repository.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.nationalIdFront,
@@ -143,18 +209,22 @@ void main() {
     }
 
     test('submit fails without APDP consent even with all documents', () async {
+      final supplierId = await signUpIndividual('kyctest7');
+      final repository = container.read(supplierKycRepositoryProvider);
       await repository.saveDraftIndividual(supplierId: supplierId);
-      await uploadAllIdDocuments();
+      await uploadAllIdDocuments(supplierId);
 
-      expect(
+      await expectLater(
         () => repository.submit(supplierId: supplierId),
         throwsA(isA<ValidationException>()),
       );
     });
 
     test('submit succeeds once documents and consent are both present', () async {
+      final supplierId = await signUpIndividual('kyctest8');
+      final repository = container.read(supplierKycRepositoryProvider);
       await repository.saveDraftIndividual(supplierId: supplierId);
-      await uploadAllIdDocuments();
+      await uploadAllIdDocuments(supplierId);
       await repository.setConsent(supplierId: supplierId, policyVersion: 'v1');
 
       await repository.submit(supplierId: supplierId);
@@ -167,10 +237,11 @@ void main() {
     });
 
     test('setConsent refuses a company dossier', () async {
-      const companyId = 'supplier-test-company-consent';
+      final companyId = await signUpCompany('kyctest9');
+      final repository = container.read(supplierKycRepositoryProvider);
       await repository.saveDraftCompany(supplierId: companyId);
 
-      expect(
+      await expectLater(
         () => repository.setConsent(supplierId: companyId, policyVersion: 'v1'),
         throwsA(isA<ValidationException>()),
       );
@@ -178,9 +249,9 @@ void main() {
   });
 
   group('staff review', () {
-    const supplierId = 'supplier-test-review';
-
-    Future<String> submitACompleteCompanyDossier() async {
+    Future<String> submitACompleteCompanyDossier(String usernameOrPhone) async {
+      final supplierId = await signUpCompany(usernameOrPhone);
+      final repository = container.read(supplierKycRepositoryProvider);
       await repository.saveDraftCompany(supplierId: supplierId);
       await repository.addDocument(
         supplierId: supplierId,
@@ -193,15 +264,18 @@ void main() {
         filePath: '/tmp/rccm.jpg',
       );
       await repository.submit(supplierId: supplierId);
-      return (await repository.getForSupplier(supplierId)).id;
+      return supplierId;
     }
 
     test('rejecting records a reason and lets the supplier resubmit', () async {
-      final kycId = await submitACompleteCompanyDossier();
+      final supplierId = await submitACompleteCompanyDossier('kyctest10');
+      final repository = container.read(supplierKycRepositoryProvider);
+      final kycId = (await repository.getForSupplier(supplierId)).id;
 
+      await loginAs('admin1');
       await repository.reject(
         kycId: kycId,
-        staffId: 'staff-1',
+        staffId: DemoIds.staffAdmin,
         reason: 'Numéro RCCM illisible sur la photo.',
       );
 
@@ -209,6 +283,7 @@ void main() {
       expect(kyc.status, KycReviewStatus.rejected);
       expect(kyc.rejectionReason, 'Numéro RCCM illisible sur la photo.');
 
+      await loginAs('kyctest10');
       await repository.submit(supplierId: supplierId);
 
       kyc = await repository.getForSupplier(supplierId);
@@ -217,41 +292,40 @@ void main() {
     });
 
     test('approving clears any prior rejection reason', () async {
-      final kycId = await submitACompleteCompanyDossier();
-      await repository.startReview(kycId: kycId, staffId: 'staff-1');
+      final supplierId = await submitACompleteCompanyDossier('kyctest11');
+      final repository = container.read(supplierKycRepositoryProvider);
+      final kycId = (await repository.getForSupplier(supplierId)).id;
 
-      await repository.approve(kycId: kycId, staffId: 'staff-1');
+      await loginAs('admin1');
+      await repository.startReview(kycId: kycId, staffId: DemoIds.staffAdmin);
+      await repository.approve(kycId: kycId, staffId: DemoIds.staffAdmin);
 
       final kyc = await repository.getForSupplier(supplierId);
       expect(kyc.status, KycReviewStatus.approved);
-      expect(kyc.reviewedByStaffId, 'staff-1');
+      expect(kyc.reviewedByStaffId, DemoIds.staffAdmin);
       expect(kyc.reviewedAt, isNotNull);
     });
 
     test('the review queue only surfaces submitted/under-review dossiers', () async {
-      const draftId = 'supplier-test-queue-draft';
-      const approvedId = 'supplier-test-queue-approved';
-      await repository.saveDraftCompany(supplierId: draftId);
-      final approvedKycId = await () async {
-        await repository.saveDraftCompany(supplierId: approvedId);
-        await repository.addDocument(
-          supplierId: approvedId,
-          type: SupplierDocumentType.managerIdCard,
-          filePath: '/tmp/manager-id.jpg',
-        );
-        await repository.addDocument(
-          supplierId: approvedId,
-          type: SupplierDocumentType.rccmCertificate,
-          filePath: '/tmp/rccm.jpg',
-        );
-        await repository.submit(supplierId: approvedId);
-        final kyc = await repository.getForSupplier(approvedId);
-        await repository.approve(kycId: kyc.id, staffId: 'staff-1');
-        return kyc.id;
-      }();
-      final submittedKycId = await submitACompleteCompanyDossier();
+      final draftId = await signUpCompany('kyctest12');
+      await container
+          .read(supplierKycRepositoryProvider)
+          .saveDraftCompany(supplierId: draftId);
 
-      final queue = await repository.watchQueue().first;
+      final approvedId = await submitACompleteCompanyDossier('kyctest13');
+      final approvedKycId =
+          (await container.read(supplierKycRepositoryProvider).getForSupplier(approvedId)).id;
+      await loginAs('admin1');
+      await container
+          .read(supplierKycRepositoryProvider)
+          .approve(kycId: approvedKycId, staffId: DemoIds.staffAdmin);
+
+      final submittedId = await submitACompleteCompanyDossier('kyctest14');
+      final submittedKycId =
+          (await container.read(supplierKycRepositoryProvider).getForSupplier(submittedId)).id;
+
+      await loginAs('admin1');
+      final queue = await container.read(supplierKycRepositoryProvider).watchQueue().first;
       final queueIds = queue.map((k) => k.id).toSet();
 
       expect(queueIds.contains(submittedKycId), isTrue);

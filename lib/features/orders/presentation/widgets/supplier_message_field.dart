@@ -7,10 +7,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/widgets/voice_note_player.dart';
 
 import '../../domain/entities/fulfillment.dart';
 import '../providers/checkout_providers.dart';
-import 'voice_note_player.dart';
 
 /// A single "note to the supplier" slot — either written or spoken, never
 /// both. Shows a compact summary row; tapping it opens a bottom sheet to

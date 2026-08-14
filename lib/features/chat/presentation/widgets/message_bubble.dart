@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,6 +5,8 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/widgets/resolved_image.dart';
+import 'package:mtc_app/core/widgets/voice_note_player.dart';
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
     show ProductImage;
 
@@ -65,10 +64,12 @@ class MessageBubble extends StatelessWidget {
                   horizontal: AppSpacing.sm,
                   vertical: 2,
                 ),
-                child: _VoiceMessage(
+                child: VoiceNotePlayer(
                   path: message.attachmentPath!,
                   durationSeconds: message.voiceDurationSeconds,
-                  onBubble: onBubble,
+                  bucket: 'chat-attachments',
+                  signed: true,
+                  color: onBubble,
                 ),
               ),
             if (message.text.isNotEmpty)
@@ -174,9 +175,9 @@ class _ProductAttachment extends StatelessWidget {
   }
 }
 
-/// A gallery photo attached to a message — tap to view full-screen. Local
-/// file only (no upload backend), so it disappears if the app's temp/cache
-/// storage is cleared, same lifetime as every other mock record here.
+/// A gallery photo attached to a message — tap to view full-screen. [path]
+/// is a `chat-attachments` Storage object path (private bucket, signed URL
+/// resolved at display time — see `ResolvedImage`), not a local file.
 class _ImageAttachment extends StatelessWidget {
   const _ImageAttachment({required this.path});
 
@@ -192,7 +193,13 @@ class _ImageAttachment extends StatelessWidget {
             child: InteractiveViewer(
               minScale: 1,
               maxScale: 4,
-              child: Center(child: Image.file(File(path))),
+              child: Center(
+                child: ResolvedImage(
+                  path: path,
+                  bucket: 'chat-attachments',
+                  signed: true,
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -215,17 +222,18 @@ class _ImageAttachment extends StatelessWidget {
       onTap: () => _openFullscreen(context),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        child: Image.file(
-          File(path),
+        child: SizedBox(
           width: 200,
           height: 200,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            width: 200,
-            height: 200,
-            color: Colors.black12,
-            alignment: Alignment.center,
-            child: const Icon(Icons.broken_image_outlined),
+          child: ResolvedImage(
+            path: path,
+            bucket: 'chat-attachments',
+            signed: true,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.black12,
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined),
+            ),
           ),
         ),
       ),
@@ -233,105 +241,3 @@ class _ImageAttachment extends StatelessWidget {
   }
 }
 
-/// A voice-note bubble — play/pause plus an elapsed/total duration label.
-/// Local file only, same caveat as [_ImageAttachment].
-class _VoiceMessage extends StatefulWidget {
-  const _VoiceMessage({
-    required this.path,
-    required this.durationSeconds,
-    required this.onBubble,
-  });
-
-  final String path;
-  final int? durationSeconds;
-  final Color onBubble;
-
-  @override
-  State<_VoiceMessage> createState() => _VoiceMessageState();
-}
-
-class _VoiceMessageState extends State<_VoiceMessage> {
-  final _player = AudioPlayer();
-  bool _isPlaying = false;
-  Duration _position = Duration.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    _player.onPlayerStateChanged.listen((state) {
-      if (mounted) setState(() => _isPlaying = state == PlayerState.playing);
-    });
-    _player.onPositionChanged.listen((position) {
-      if (mounted) setState(() => _position = position);
-    });
-    _player.onPlayerComplete.listen((_) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-          _position = Duration.zero;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-
-  Future<void> _toggle() async {
-    if (_isPlaying) {
-      await _player.pause();
-    } else {
-      await _player.play(DeviceFileSource(widget.path));
-    }
-  }
-
-  String _format(Duration d) {
-    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final total = widget.durationSeconds != null
-        ? Duration(seconds: widget.durationSeconds!)
-        : _position;
-    final label = _position > Duration.zero ? _position : total;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          icon: Icon(
-            _isPlaying
-                ? Icons.pause_circle_filled_rounded
-                : Icons.play_circle_fill_rounded,
-            color: widget.onBubble,
-            size: 32,
-          ),
-          onPressed: _toggle,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Icon(
-          Icons.graphic_eq_rounded,
-          color: widget.onBubble.withValues(alpha: 0.7),
-          size: 18,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          _format(label),
-          style: TextStyle(
-            color: widget.onBubble,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}

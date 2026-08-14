@@ -1,16 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/datasources/in_memory_review_datasource.dart';
-import '../../data/repositories/in_memory_review_repository.dart';
+import 'package:mtc_app/core/di/providers.dart';
+
+import '../../data/datasources/supabase_review_datasource.dart';
+import '../../data/repositories/supabase_review_repository.dart';
 import '../../domain/entities/review.dart';
 import '../../domain/repositories/review_repository.dart';
 
-final reviewDatasourceProvider = Provider<InMemoryReviewDatasource>((ref) {
-  return InMemoryReviewDatasource();
+final reviewDatasourceProvider = Provider<SupabaseReviewDatasource>((ref) {
+  return SupabaseReviewDatasource(ref.watch(supabaseClientProvider));
 });
 
 final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
-  return InMemoryReviewRepository(ref.watch(reviewDatasourceProvider));
+  return SupabaseReviewRepository(ref.watch(reviewDatasourceProvider));
 });
 
 final supplierReviewsProvider = StreamProvider.family<List<Review>, String>((

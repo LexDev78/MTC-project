@@ -59,4 +59,15 @@ abstract interface class OrderRepository {
     String? cancellationReason,
     CancelledBy? cancelledBy,
   });
+
+  /// Records a supplier voice message's uploaded path on an already-placed
+  /// order — a second step after `placeOrder`, since the voice note's
+  /// Storage folder is keyed by the order's own id, which only exists once
+  /// `placeOrder` has already returned it (see BACKEND_MIGRATION_PROGRESS.md,
+  /// Lot 9).
+  Future<void> attachSupplierVoiceMessage({
+    required String orderId,
+    required String voicePath,
+    required int durationSeconds,
+  });
 }

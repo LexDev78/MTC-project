@@ -99,3 +99,21 @@ Future<List<Map<String, dynamic>>> fetchStockMovementsAsAdmin(
   );
   return (rows as List).cast<Map<String, dynamic>>();
 }
+
+/// Reads a user's notifications, bypassing RLS via
+/// `test_fetch_notifications_for_user()` (`0007_test_notification_helper.sql`)
+/// — a notification's recipient is often not the session that just
+/// triggered it (e.g. a client's checkout notifies each supplier), and
+/// tests asserting "X got notified" shouldn't need to log in as X purely
+/// to read the result back. Not a substitute for
+/// `NotificationRepository.watchForUser`, which real code and most tests
+/// should keep going through.
+Future<List<Map<String, dynamic>>> fetchNotificationsForUserAsAdmin(
+  String userId,
+) async {
+  final rows = await _adminClient.rpc(
+    'test_fetch_notifications_for_user',
+    params: {'p_user_id': userId},
+  );
+  return (rows as List).cast<Map<String, dynamic>>();
+}

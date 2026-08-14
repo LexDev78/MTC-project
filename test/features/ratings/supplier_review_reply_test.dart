@@ -30,10 +30,21 @@ void main() {
     addTearDown(container.dispose);
   });
 
+  // `reviews_update_own_supplier` requires a real session — no anon grant
+  // on UPDATE.
+  Future<void> login(String usernameOrPhone) async {
+    await container
+        .read(authRepositoryProvider)
+        .login(usernameOrPhone: usernameOrPhone, password: 'password123');
+    await container.read(currentUserProvider.future);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+
   test(
     'ReviewRepository.reply records the reply on the right supplier\'s '
     'review, and rejects a supplier trying to reply to someone else\'s',
     () async {
+      await login('fournisseur1');
       final repo = container.read(reviewRepositoryProvider);
 
       await repo.reply(
@@ -90,6 +101,7 @@ void main() {
   );
 
   test('re-replying edits the existing reply rather than duplicating it', () async {
+    await login('fournisseur1');
     final repo = container.read(reviewRepositoryProvider);
 
     await repo.reply(

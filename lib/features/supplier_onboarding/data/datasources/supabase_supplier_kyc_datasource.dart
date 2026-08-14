@@ -58,7 +58,7 @@ class SupabaseSupplierKycDatasource {
           .from('supplier_kyc')
           .select(_nestedSelect)
           .inFilter('status', statuses)
-          .order('submitted_at'),
+          .order('submitted_at', ascending: true),
     );
   }
 

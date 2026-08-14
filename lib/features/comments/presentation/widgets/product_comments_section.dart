@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
@@ -37,12 +38,12 @@ class _ProductCommentsSectionState
     if (ok) setState(() => _replyingToId = null);
   }
 
-  Future<void> _submitReplyImage(String parentId, String imagePath) async {
+  Future<void> _submitReplyImage(String parentId, XFile image) async {
     final ok = await ref
         .read(commentControllerProvider.notifier)
         .addImageComment(
           productId: widget.productId,
-          imagePath: imagePath,
+          image: image,
           parentId: parentId,
         );
     if (ok) setState(() => _replyingToId = null);

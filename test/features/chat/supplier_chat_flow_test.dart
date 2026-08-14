@@ -30,10 +30,25 @@ void main() {
     addTearDown(container.dispose);
   });
 
+  // `chat_conversations`/`chat_messages` have no anon-readable grant, and
+  // `chat_messages_insert_participants` requires `sender_id` to actually
+  // match the caller — every test below needs a real session, switching
+  // between client1 (Awa) and fournisseur1 (Bogolan Bamako) whenever a
+  // step acts as the other side.
+  Future<void> login(String usernameOrPhone) async {
+    await container
+        .read(authRepositoryProvider)
+        .login(usernameOrPhone: usernameOrPhone, password: 'password123');
+    await container.read(currentUserProvider.future);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+
   test(
     'watchConversationsForSupplier only returns that supplier\'s own '
     'conversations',
     () async {
+      await login('fournisseur1');
+
       final conversations = await container
           .read(chatRepositoryProvider)
           .watchConversationsForSupplier(DemoIds.supplierBogolanBamako)
@@ -43,6 +58,10 @@ void main() {
       expect(conversations.single.id, 'conv-awa-bogolan');
       expect(conversations.single.clientDisplayNameSnapshot, 'Awa Traoré');
 
+      // Still logged in as fournisseur1 (Bogolan Bamako) — RLS restricts
+      // this to Bogolan's own conversations regardless of which
+      // supplierId is passed, so Electro Bamako's genuinely come back
+      // empty rather than merely being filtered client-side.
       final none = await container
           .read(chatRepositoryProvider)
           .watchConversationsForSupplier(DemoIds.supplierElectroBamako)
@@ -58,6 +77,7 @@ void main() {
       final repo = container.read(chatRepositoryProvider);
       const conversationId = 'conv-awa-bogolan';
 
+      await login('client1');
       final before = (await repo
               .watchConversationsForSupplier(DemoIds.supplierBogolanBamako)
               .first)
@@ -78,6 +98,10 @@ void main() {
       // The client's own unread count doesn't move for their own message.
       expect(afterClientMessage.unreadCountClient, 1);
 
+      // `sender_id` must match the caller — switch to the supplier's own
+      // session for their reply.
+      await container.read(authRepositoryProvider).logout();
+      await login('fournisseur1');
       await repo.sendMessage(
         conversationId: conversationId,
         senderId: DemoIds.supplierBogolanBamako,
@@ -101,12 +125,15 @@ void main() {
       final repo = container.read(chatRepositoryProvider);
       const conversationId = 'conv-awa-bogolan';
 
+      await login('client1');
       await repo.sendMessage(
         conversationId: conversationId,
         senderId: DemoIds.clientAwa,
         text: 'Question avant lecture côté fournisseur.',
       );
 
+      await container.read(authRepositoryProvider).logout();
+      await login('fournisseur1');
       await repo.markConversationRead(
         conversationId: conversationId,
         readBy: ChatParticipant.supplier,
@@ -125,25 +152,26 @@ void main() {
     'ChatController.markRead clears the supplier side when a signed-in '
     'supplier reads the thread, without the caller having to say so',
     () async {
-      await container
-          .read(authRepositoryProvider)
-          .login(usernameOrPhone: 'fournisseur1', password: 'password123');
-      await container.read(currentUserProvider.future);
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-
-      final repo = container.read(chatRepositoryProvider);
       const conversationId = 'conv-awa-bogolan';
-      await repo.sendMessage(
-        conversationId: conversationId,
-        senderId: DemoIds.clientAwa,
-        text: 'Question pour le fournisseur connecté.',
-      );
+
+      await login('client1');
+      await container
+          .read(chatRepositoryProvider)
+          .sendMessage(
+            conversationId: conversationId,
+            senderId: DemoIds.clientAwa,
+            text: 'Question pour le fournisseur connecté.',
+          );
+
+      await container.read(authRepositoryProvider).logout();
+      await login('fournisseur1');
 
       await container
           .read(chatControllerProvider.notifier)
           .markRead(conversationId);
 
-      final after = (await repo
+      final after = (await container
+              .read(chatRepositoryProvider)
               .watchConversationsForSupplier(DemoIds.supplierBogolanBamako)
               .first)
           .single;

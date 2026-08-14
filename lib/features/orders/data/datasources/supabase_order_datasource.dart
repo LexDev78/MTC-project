@@ -92,4 +92,23 @@ class SupabaseOrderDatasource {
       },
     );
   }
+
+  /// Second step of attaching a supplier voice message — the RPC that
+  /// records its already-uploaded path (see `attachSupplierVoiceMessage`,
+  /// `SupabaseOrderRepository`, and `0008_lot9_order_voice_message.sql` for
+  /// why this can't happen inside `placeOrder` itself).
+  Future<void> setVoiceMessage({
+    required String orderId,
+    required String voicePath,
+    required int durationSeconds,
+  }) {
+    return _client.rpc(
+      'set_order_voice_message',
+      params: {
+        'p_order_id': orderId,
+        'p_voice_path': voicePath,
+        'p_duration_seconds': durationSeconds,
+      },
+    );
+  }
 }

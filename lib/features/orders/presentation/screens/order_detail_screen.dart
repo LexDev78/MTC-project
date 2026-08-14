@@ -6,6 +6,7 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/widgets/voice_note_player.dart';
 
 import '../../domain/entities/fulfillment.dart';
 import '../../domain/entities/order.dart';
@@ -13,7 +14,6 @@ import '../../domain/entities/order_status.dart';
 import '../../domain/entities/payment.dart';
 import '../providers/order_providers.dart';
 import '../widgets/order_status_stepper.dart';
-import '../widgets/voice_note_player.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   const OrderDetailScreen({super.key, required this.orderId});
@@ -225,6 +225,8 @@ class _HomeDeliveryDetailsCard extends StatelessWidget {
               path: order.supplierMessageVoicePath!,
               durationSeconds: order.supplierMessageVoiceDurationSeconds,
               compact: true,
+              bucket: 'order-messages',
+              signed: true,
             ),
           ],
         ),

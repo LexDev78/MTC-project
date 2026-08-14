@@ -7,12 +7,14 @@ storage, stratégie de tests, séquence des 12 lots), est dans
 `/Users/solomon/.claude/plans/purrfect-swimming-fog.md` — **le lire en
 premier** si le contexte ci-dessous ne suffit pas.
 
-**État au 2026-08-13** : **Lots 0, 1, 2, 3, 4 et 5 terminés.** Panier,
-favoris et commandes sont désormais **réels** (Postgres + RLS +
-`placeOrder`/`updateGroupStatus` en RPC atomiques), en plus de
-l'auth/fournisseurs/catalogue (Lots 3-4). Chat/commentaires/avis/
-finances/KYC restent in-memory jusqu'à leurs lots respectifs. Reprendre
-au Lot 6 (Onboarding fournisseur + Finances).
+**État au 2026-08-14** : **Lots 0 à 10 terminés.** Toutes les 14 features
+métier tournent sur le vrai backend Postgres, tous les chemins de
+fichiers sont de vrais chemins Storage, et **la suite de tests widget est
+désormais migrée vers `integration_test`** — les 16 tests bloqués par
+`FakeAsync` depuis le Lot 3 tournent enfin, et ont révélé plusieurs vrais
+bugs applicatifs (détail ci-dessous) invisibles jusqu'ici. Reste
+uniquement le nettoyage final (Lot 11). Reprendre au Lot 11 (Nettoyage
+final).
 
 ## Stack locale — infos de connexion
 
@@ -637,26 +639,509 @@ agissant côté client). `test/support/supabase_test_harness.dart` expose
   commandes/stock sont toutes résolues**, sauf `review_flow_test.dart`
   qui dépendait du Lot 7, pas du Lot 5.
 
-## À faire (Lots 6 → 11, détail complet dans le plan original)
+## Fait (Lot 6 — terminé)
 
-### Lot 6 — Onboarding fournisseur + Finances (PROCHAIN)
-- `supplier_onboarding/data/**` (upload KYC), `supplier_finance/data/**`.
+### Code applicatif
+- `lib/features/supplier_onboarding/data/{datasources,repositories}/supabase_supplier_kyc_*.dart` :
+  implémente `SupplierKycRepository` (interface **inchangée**). `SupplierKyc`
+  (union scellée company/individual) et `DataProcessingConsent` n'ont
+  toujours aucun `fromJson` généré (Lot 2, volontaire) — hydratation
+  manuelle dans le repository à partir de la table aplatie
+  `supplier_kyc` (discriminée par `legal_type`) + `consent_accepted`/
+  `consent_accepted_at`/`consent_policy_version` (3 colonnes aplaties →
+  `DataProcessingConsent?`), tandis que `SupplierDocument` (déjà
+  `fromJson`/`toJson` généré) est réutilisé tel quel pour le tableau
+  `documents` (`select` imbriqué PostgREST, `*, documents:
+  supplier_documents(*)`). `submit()`/`setConsent()` gardent leurs gardes
+  Dart (`kyc_requirements.isComplete`, "consentement individuel
+  uniquement") dans le repository plutôt qu'une RPC — contrairement aux
+  commandes (Lot 5), aucune de ces règles n'est un état-machine à
+  transitions strictes qu'un `PATCH` REST direct pourrait dangereusement
+  contourner (au pire, un dossier mal rempli est rejeté par le staff).
+  `saveDraftCompany` reproduit le merge partiel de l'ancien datasource
+  in-memory (seuls les champs non-nuls passés écrasent l'existant).
+- `lib/features/supplier_finance/data/{datasources,repositories}/supabase_supplier_finance_*.dart` :
+  implémente `SupplierFinanceRepository`. `PayoutRequest`/
+  `SupplierFinanceSettings` ont déjà leur `fromJson`/`toJson` généré (Lot 2)
+  — mapping direct, aucune hydratation manuelle. `getSettings` reproduit
+  le comportement in-memory exact : renvoie un défaut
+  (`AppConstants.defaultCommissionRatePercent`) **sans** l'insérer tant
+  qu'`updateSettings` n'a pas été appelé. `computeFinancialSummary` non
+  touché (fonction pure, aucune dépendance repository).
+- **Upload réel des documents KYC câblé** (jusqu'ici, `filePath` recevait
+  le chemin local brut du device sans jamais être uploadé nulle part) :
+  `DocumentUploadTile.onPicked` expose désormais l'`XFile` choisi (plus
+  seulement son `.path`) ; `SupplierKycController.addDocument` l'uploade
+  via `uploadPickedImage` (bucket `kyc-documents`, dossier
+  `<supplierId>`) avant d'enregistrer le chemin objet retourné — même
+  découpage "upload avant d'enregistrer" que Lot 4, la logique reste dans
+  le controller plutôt que republiée à chaque écran appelant (7+ points
+  d'appel dans l'assistant KYC), contrairement à `_pickImage`/`_pickBanner`
+  du Lot 4 qui vivent directement dans l'écran (un seul appelant chacun).
+  Note : ni l'assistant KYC ni l'écran de revue staff n'affichent jamais
+  la miniature d'un document (juste une coche "ajouté") — pas besoin
+  d'équivalent `ResolvedImage` pour le bucket privé `kyc-documents`
+  (`getPublicUrl` ne fonctionnerait pas dessus ; une URL signée serait
+  nécessaire seulement si un jour un aperçu visuel est ajouté).
 
-### Lot 7 — Commentaires, Avis, Chat, Notifications
-- `comments/data/**` (table `comment_likes`), `ratings/data/**`,
-  `chat/data/**` (Realtime + pièces jointes), `notifications/data/**`.
+### RPC — `supabase/migrations/0005_payout_status_rpc.sql`
+`updatePayoutStatus` impose une machine à états (`requested →
+processing/rejected`, `processing → paid/rejected`, `paid`/`rejected`
+terminaux) — jusqu'ici vérifiée uniquement côté Dart
+(`InMemorySupplierFinanceDatasource._isValidTransition`). La policy RLS
+existante (`payout_requests_update_admin`, `is_admin()` seul) ne validait
+aucune transition : même faille que celle fermée pour les commandes au
+Lot 5 (un `PATCH` REST direct aurait pu faire régresser un virement déjà
+`paid`). Même remède : policy UPDATE **supprimée**, remplacée par
+`update_payout_status(payout_id, status, rejection_reason)` — `security
+definer`, vérifie `is_admin()` puis la transition avant d'écrire.
+`requestPayout` (insertion) n'a pas eu besoin du même traitement : la
+policy `payout_requests_insert_own` (`supplier_id =
+operating_supplier_id()`) suffit déjà à empêcher un fournisseur de créer
+une demande au nom d'un autre, et un montant excessif dans une demande
+`requested` n'est qu'une friction pour le staff qui décide ensuite — pas
+une fuite de fonds (contrairement au stock, aucune ressource partagée
+n'est modifiée avant décision).
 
-### Lot 8 — Profil (adresses)
-- `profile/data/**`.
+### Tests — que des trous de couverture RLS (aucun bug applicatif nouveau)
+Même classe de problème qu'aux Lots 5/6 : ces tests appelaient les
+repositories directement sans session authentifiée (ou avec le mauvais
+compte), ce qui marchait par accident sous l'ancien mock in-memory (aucune
+notion de "qui est connecté").
+- `kyc_review_flow_test.dart` : les deux tests lisaient le dossier
+  (`getForSupplier`) **avant** de se connecter en staff — `supplier_kyc`
+  n'a aucun grant `anon` (dossiers KYC privés). Corrigé en avançant le
+  login au tout début de chaque test (le commentaire du test anticipait
+  déjà le besoin d'authentification pour l'action de décision, juste pas
+  pour cette première lecture).
+- `supplier_kyc_flow_test.dart` : la lecture de la file de revue staff et
+  la lecture/soumission du dossier rejeté de Fruits Niono ne se
+  connectaient pas du tout. Corrigé (`admin1` pour la file, `fournisseur4`
+  — le vrai propriétaire — pour la resoumission). `addDocument` migré vers
+  la nouvelle signature `XFile` avec un fichier réel sur disque (l'upload
+  réel exige `file.readAsBytes()`, un chemin `/tmp/xxx.jpg` inexistant ne
+  suffit plus).
+- `payout_flow_test.dart` : 3 tests ne se connectaient pas du tout
+  (`permission denied ... GRANT SELECT ON public.payout_requests TO
+  anon`). Corrigés avec le compte pertinent par test — `admin1` pour la
+  lecture croisée fournisseur/admin (`is_admin()` laisse passer n'importe
+  quelle ligne que le filtre Dart cible déjà, donc le scoping par
+  fournisseur reste testé), `fournisseur1` pour créer la demande
+  (`payout_requests_insert_own` exige le vrai propriétaire) puis bascule
+  vers `admin1` pour les transitions de statut (RPC admin-only), `admin1`
+  pour `getSettings`/`updateSettings` (écriture réservée au staff).
+  **Bug réel trouvé et corrigé** dans `SupabaseSupplierFinanceRepository.
+  updatePayoutStatus` : oubli de traduire la `PostgrestException`
+  ("Transition invalide : …") de la RPC en `ValidationException` — le
+  test s'attendait à ce type précis (`throwsA(isA<ValidationException>())`),
+  recevait la `PostgrestException` brute. Même correctif que Lot 5 pour
+  `place_order`/`update_order_group_status`, oublié ici à la première
+  passe.
+- `notification_hooks_test.dart` : le test `SupplierFinanceController.
+  reviewPayout` créait une nouvelle demande de retrait en étant connecté
+  `admin1` plutôt que le fournisseur propriétaire — `payout_requests_
+  insert_own` refusait ("new row violates row-level security policy").
+  Corrigé en basculant vers `fournisseur1` pour la création, puis
+  `admin1` pour la revue.
+- Un échec transitoire (`PostgrestException: deadlock detected, code:
+  40P01`) observé une seule fois sur `stock_decrement_test.dart` (Lot 5,
+  non touché par ce lot) a disparu au re-run suivant — bruit
+  d'infrastructure Postgres local, pas une régression.
+- `flutter analyze` propre, **59/59 tests non-integration verts**,
+  **64/94 tests integration verts** — les 30 échecs restants sont
+  exactement les ~29 tests widget différés au Lot 10 (limitation
+  `FakeAsync`, Lot 3) + `review_flow_test.dart` (différé au Lot 7, avis
+  encore in-memory, régression documentée au Lot 4).
 
-### Lot 9 — Storage transverse
-- Les 5 points d'appel `ImagePicker` + les points d'enregistrement vocal
-  (`record`) uploadés vers Storage au lieu d'un chemin local.
+## Fait (Lot 7 — terminé)
 
-### Lot 10 — Migration de la suite de tests
-- Tag `integration`, harnais reset/seed partout, stabilisation timings.
+### Code applicatif
+- `lib/features/comments/data/{datasources,repositories}/supabase_product_comment_*.dart` :
+  implémente `ProductCommentRepository`. Les lectures passent par la vue
+  `product_comments_with_likes` (`0001_initial_schema.sql`, `security_invoker`,
+  `array_agg` des `comment_likes`) — sa colonne `liked_by_user_ids` tombe
+  exactement sur la clé que `ProductComment.fromJson` (généré, Lot 2)
+  attend déjà, donc **aucune hydratation manuelle** n'est nécessaire ici
+  (contrairement à `SupplierKyc`, Lot 6). `toggleLike` lit d'abord la ligne
+  `comment_likes` existante puis insère/supprime — pas d'upsert atomique,
+  mais chaque utilisateur ne peut toggler que sa propre ligne (`comment_
+  likes_toggle_own`), donc aucune course inter-utilisateurs possible.
+- `lib/features/ratings/data/{datasources,repositories}/supabase_review_*.dart` :
+  implémente `ReviewRepository`. `Review` a déjà son `fromJson`/`toJson`
+  généré — mapping direct. `reply()` lit d'abord la ligne (lecture publique,
+  `reviews_select_public`), vérifie `supplier_id` côté Dart et lève
+  `ValidationException` avant même de tenter l'`update`, exactement comme
+  l'ancien datasource in-memory — `reviews_update_own_supplier` (RLS)
+  offre la même garantie côté serveur en profondeur, mais le message
+  d'erreur explicite reste utile côté client. `ReviewController.submit`
+  (inchangé) recalcule désormais pour de vrai `suppliers.rating_average`/
+  `products.rating_average` via les repositories déjà réels du Lot 4
+  (`SupplierRepository.recordReview`, `ProductRepository.
+  updateSupplierRating`), autorisé par `has_reviewed_supplier()` (déjà en
+  place depuis le Lot 4) — **résout automatiquement la régression
+  documentée au Lot 4** (`review_flow_test.dart`), comme prévu.
+- `lib/features/chat/data/{datasources,repositories}/supabase_chat_*.dart` :
+  implémente `ChatRepository`. Seule feature de ce lot à utiliser du vrai
+  Realtime Postgres (`.stream()`) plutôt que "notify after my own write" —
+  un fil de discussion doit afficher les messages de l'autre partie en
+  direct, sans changer d'écran (`chat_messages`/`chat_conversations`
+  ajoutées à la publication `supabase_realtime`,
+  `0006_lot7_realtime_and_notifications.sql`). `.stream()` sert uniquement
+  de déclencheur ("quelque chose a changé", `.eq()` seul) — chaque
+  émission relance un `.select().eq().order()` complet via `.asyncMap()`,
+  même pattern que les commandes (Lot 5) et pour la même raison (voir bug
+  réel ci-dessous). `sendMessage` fait un insert du message puis relit/
+  met à jour la conversation (aperçu, horodatage, compteur non-lu du
+  **destinataire** uniquement) en deux appels séquentiels — pas de RPC
+  atomique ici : contrairement au stock des commandes, une incohérence
+  transitoire entre message et compteur n'a aucun impact sécurité/argent,
+  juste un badge momentanément désynchronisé.
+- `lib/features/notifications/data/{datasources,repositories}/supabase_notification_*.dart` :
+  implémente `NotificationRepository`. Pas de Realtime (le destinataire
+  voit la notification à sa prochaine visite d'écran, comme le mock
+  in-memory — contrairement au chat, aucun aller-retour synchrone n'est
+  attendu côté UI).
+- **Upload réel des pièces jointes câblé** (photos + notes vocales,
+  jusqu'ici stockées comme chemin local brut, jamais uploadées) :
+  `uploadPickedImage` (`lib/core/storage/image_upload.dart`) gagne un
+  paramètre `contentType` optionnel — les notes vocales ne sont jamais
+  des images (leur `XFile(path)` n'a pas de `mimeType` détecté, contrairement
+  à un fichier choisi via `image_picker`), donc le défaut `image/jpeg` de
+  la fonction serait faux sans ce paramètre (`'audio/mp4'` passé
+  explicitement aux deux points d'appel voix). `DocumentUploadTile`-like :
+  `CommentComposer.onSendImage`/`ChatComposer.onSendImage` exposent
+  désormais l'`XFile` choisi (pas seulement son `.path`) ; l'upload
+  lui-même reste dans les controllers (`CommentController.
+  addImageComment/addVoiceComment`, `ChatController.sendImage/
+  sendVoiceNote`) plutôt que republié à chaque écran appelant, même choix
+  qu'au Lot 6 pour les documents KYC (nombreux points d'appel). Dossier
+  Storage : `authorId`/`operatingSupplierId` pour les commentaires
+  (`comment-attachments`, public en lecture), `conversationId` pour le
+  chat (`chat-attachments`, privé aux deux participants).
 
-### Lot 11 — Nettoyage final
+### RLS — une vraie lacune comblée (`0006_lot7_realtime_and_notifications.sql`)
+`notifications` n'avait **aucune policy INSERT** (trou hérité du Lot 1) —
+`NotificationRepository.add()` notifie systématiquement un compte *autre*
+que l'appelant (un client qui commande notifie le fournisseur, un staff
+qui décide un KYC notifie le fournisseur concerné...), donc aucune règle
+de propriété étroite n'est possible ici, contrairement aux commentaires/
+messages de chat (toujours scopés à un fil dont l'appelant est déjà
+participant). Une notification n'ayant aucune valeur exploitable au-delà
+de son propre affichage, `notifications_insert_authenticated for insert
+with check (true)` reste un risque mineur (spam de la liste, jamais une
+fuite) — même arbitrage que les policies INSERT déjà ouvertes sur les
+commentaires.
+
+### Bugs réels trouvés et corrigés
+- **`.order(colonne)` sans `ascending:` explicite trie par défaut en
+  DESCENDANT, pas ascendant** (piège classique PostgREST/supabase-dart —
+  `ascending` vaut `false` par défaut). Repéré dans 4 appels neufs de ce
+  lot : `watchForProduct`/`watchForSupplier` (commentaires, devraient être
+  chronologiques, plus ancien en premier, comme un fil de discussion),
+  `watchMessages` (chat, idem), et rétroactivement `watchQueue` (Lot 6,
+  file de revue KYC — devrait être FIFO). Diagnostiqué via un test
+  autonome direct contre l'API REST locale (`dart run` d'un script isolé
+  imitant exactement la séquence du test qui échouait) après avoir écarté
+  à tort une hypothèse de "staleness" du cache de `.stream()`/Realtime —
+  la vraie cause était beaucoup plus simple. Corrigé en 4 endroits avec
+  `ascending: true` explicite ; tous les autres appels `.order()` du
+  projet (Lots 4-6) le précisaient déjà correctement, seuls ceux écrits
+  dans ce lot (+ le Lot 6, jamais exercé par un test qui aurait révélé
+  l'inversion) avaient l'omission.
+- `.stream().eq().order()` chaîné directement sur le stream builder de
+  chat s'est révélé peu fiable pour fusionner une ligne fraîchement
+  arrivée par Realtime dans l'ordre demandé (symptôme initial identique
+  au bug ci-dessus, ce qui a d'abord brouillé le diagnostic). Remplacé
+  par le pattern `.stream().eq()` (déclencheur seul) + `.asyncMap()`
+  refetch complet, comme les commandes au Lot 5 — plus lent (un aller-retour
+  REST par changement plutôt qu'une fusion locale) mais fiable, et déjà le
+  choix par défaut établi pour tout ce qui a une forme de requête un peu
+  élaborée.
+
+### Tests — que des trous de couverture RLS (même classe qu'aux Lots 5/6)
+Tous ces tests appelaient les repositories directement sans session
+authentifiée, avec le mauvais compte, ou (nouveau cette fois) avec des
+identifiants factices incompatibles avec le vrai schéma :
+- `kyc_review_flow_test.dart`-like partout : `notification_hooks_test.dart`
+  (5 sur 6 tests), `notification_flow_test.dart` (les deux tests),
+  `supplier_chat_flow_test.dart` (les 4 tests), `chat_flow_test.dart` (2
+  sur 3), `supplier_review_reply_test.dart` (2 sur 3) — connexion ajoutée
+  ou avancée avant la première lecture/écriture qui en avait besoin,
+  avec bascule de session (`logout()` puis `login()`) quand un même test
+  agit successivement des deux côtés d'une relation (client qui écrit un
+  message, puis le fournisseur qui le lit).
+- **`notification_flow_test.dart` réécrit plus en profondeur** :
+  utilisait des identifiants `'user-a'`/`'user-b'` факtices — `notifications.
+  user_id` est une vraie colonne `uuid`, donc ces inserts auraient échoué
+  au typage en plus de l'absence de session. Remplacé par de vrais
+  comptes seedés (`client1`/`client2`) et le contournement admin ci-dessous
+  pour les lectures "d'un autre utilisateur".
+- **Nouveau contournement de test** : `fetchNotificationsForUserAsAdmin()`
+  (`test/support/supabase_test_harness.dart`, RPC `test_fetch_
+  notifications_for_user`, `0007_test_notification_helper.sql`) — un
+  déclencheur (checkout, décision KYC/retrait, avis, message) notifie
+  presque toujours un compte *différent* de la session qui vient d'agir ;
+  se reconnecter comme le destinataire uniquement pour vérifier le
+  résultat serait lourd pour un simple contrôle d'existence. Même pattern
+  que `fetchStockMovementsAsAdmin` (Lot 5).
+- `product_comments_modal_test.dart` : ses 3 tests rejoignent la liste des
+  tests widget différés au Lot 10 (limitation `FakeAsync`, Lot 3) — avant
+  ce lot, seule sa dernière assertion (poster un commentaire) déclenchait
+  un appel réseau réel depuis un geste UI ; désormais la **lecture** du
+  fil (`_openModal`, partagée par les 3 tests) en déclenche un aussi,
+  donc les 3 y basculent. Pas une régression : conséquence attendue des
+  commentaires devenant réels, exactement le raisonnement déjà acté aux
+  Lots 3/4 pour la même limitation structurelle de `flutter_test`.
+- Un run complet anormalement lent (46 à 64 minutes contre 20-25
+  habituellement) a fait apparaître deux échecs ponctuels sans rapport
+  avec le code de ce lot — un `PostgrestException: JWT issued at future`
+  (dérive d'horloge Docker après une session très longue, résolu par
+  `supabase stop && supabase start`) et un timeout de 30s sur un test déjà
+  vert par ailleurs, confirmé non reproductible en le relançant seul
+  (4 secondes, propre). Bruit d'infrastructure, pas des régressions.
+- `flutter analyze` propre, **59/59 tests non-integration verts**,
+  **63/94 tests integration verts** — les 31 échecs restants sont
+  exactement les tests widget différés au Lot 10 (limitation `FakeAsync`,
+  Lot 3), désormais 31 au lieu de 29 (les 3 de `product_comments_modal_
+  test.dart` en remplacent 1). **Plus aucun échec « régression connue »** —
+  `review_flow_test.dart` (dernière régression du Lot 4) est résolu par
+  ce lot comme prévu.
+
+## Fait (Lot 8 — terminé)
+
+Le plus petit lot de la migration — une seule entité (`Address`, 3
+méthodes d'interface, déjà `fromJson`/`toJson` généré depuis le Lot 2),
+aucune table/RLS/seed nouvelle à écrire (tout existait déjà depuis le Lot
+1 : `addresses`, policy unique `addresses_all_own` owner-only, 2 lignes
+de seed pour Awa/Moussa).
+
+### Code applicatif
+- `lib/features/profile/data/{datasources,repositories}/supabase_address_*.dart` :
+  implémente `AddressRepository`. Pur CRUD, aucune logique métier
+  (`removeAddress` ignore `userId` comme l'ancien datasource in-memory —
+  `addresses_all_own` (RLS) est désormais le seul garde-fou réel, un
+  appel avec l'id d'une autre adresse ne supprime simplement rien côté
+  serveur).
+- `defaultAddressProvider` (`profile_providers.dart`) **volontairement
+  inchangé** : continue de prendre `addresses.first` plutôt que de lire
+  `profiles.default_address_id` (colonne existante depuis le Lot 1, FK
+  vers `addresses.id`, mais jamais renseignée nulle part ni côté seed ni
+  côté app — `ClientUser.defaultAddressId` existe côté Dart mais n'est
+  lu par aucun provider). Corriger cet écart schéma/app serait un vrai
+  changement de comportement, hors périmètre d'un lift-and-shift — noté
+  ici pour un lot futur si un jour plusieurs adresses par client doivent
+  distinguer une adresse "par défaut" explicite.
+
+### Tests
+- **Aucun fichier de test dédié n'existe pour ce feature** (`test/features/profile/`
+  n'existe pas) — vérifié uniquement via les 6 fichiers de tests
+  `orders`/`notifications` qui dépendent de `addressesProvider`/
+  `defaultAddressProvider` pour leur propre setup (`checkout_flow_test.dart`,
+  `fulfillment_method_test.dart`, `supplier_order_flow_test.dart`,
+  `stock_decrement_test.dart`, `notification_hooks_test.dart`,
+  `checkout_dynamic_fee_test.dart`, `payment_and_supplier_message_test.dart`)
+  — tous déjà verts avant ce lot, restés verts après.
+- `flutter analyze` propre, **59/59 tests non-integration verts**,
+  **63/94 tests integration verts** — résultat strictement identique au
+  Lot 7 (mêmes 31 échecs, tous déjà connus/différés au Lot 10) : ce lot
+  n'a introduit ni corrigé aucune régression, lift-and-shift pur.
+
+## Fait (Lot 9 — terminé)
+
+### État de départ, plus avancé que prévu — et un vrai bug découvert
+Les 5 points d'appel `ImagePicker` annoncés par le plan étaient déjà tous
+câblés vers Storage (photos produit et bannière au Lot 4, documents KYC au
+Lot 6, photos commentaire/chat au Lot 7) — rien à faire côté écriture
+image. Mais l'audit de ce lot a révélé que **l'écriture avait couru en
+avance sur la lecture** : les bulles de message (chat, commentaires)
+affichaient encore les pièces jointes via `Image.file(File(path))`/
+`DeviceFileSource(path)`, alors que `path` contient un chemin objet
+Storage depuis le Lot 7, plus un chemin local — **toute photo/note vocale
+envoyée depuis le Lot 7 était invisible/injouable côté destinataire**,
+un vrai régression fonctionnelle passée inaperçue parce que les tests
+widget qui l'auraient révélée sont eux-mêmes dans le bucket différé au
+Lot 10 (limitation `FakeAsync`).
+
+### Code applicatif
+- `lib/core/widgets/resolved_image.dart` : nouveau paramètre `signed`
+  (bool, défaut `false`) — bascule entre `getPublicUrl` (buckets publics :
+  `product-images`, `supplier-branding`, `comment-attachments`) et un
+  `createSignedUrl` frais résolu via `FutureBuilder` (buckets privés :
+  `chat-attachments`, `order-messages`, `kyc-documents`). Les appelants
+  publics existants (Lot 4) sont inchangés (`signed` par défaut à `false`).
+- `lib/core/widgets/voice_note_player.dart` (**nouveau**, déplacé hors de
+  `features/orders/` puisqu'utilisé par 4 features) : consolide 4 lecteurs
+  audio quasi identiques (checkout, détail commande, bulle de chat, pièce
+  jointe commentaire) qui dupliquaient exactement la même logique
+  `AudioPlayer`/formatage de durée. `bucket`/`signed` optionnels : `null`
+  (défaut) = fichier local (`DeviceFileSource`, pour l'aperçu du
+  formulaire checkout avant tout upload) ; sinon résout une URL
+  publique/signée **au moment où la lecture démarre**, jamais en avance
+  (pas de `createSignedUrl` gaspillé pour un message jamais écouté).
+  `color` optionnel pour s'accorder à la couleur de texte d'une bulle de
+  chat colorée ("mine" vs "leur" côté).
+- `lib/features/chat/presentation/widgets/message_bubble.dart` /
+  `lib/features/comments/presentation/widgets/product_comment_tile.dart` :
+  `_ImageAttachment` bascule vers `ResolvedImage` (chat : `signed: true`,
+  bucket privé ; commentaires : bucket public, pas de signature) ; les
+  classes `_VoiceMessage`/`_VoiceAttachment` (dupliquées, ~90 lignes
+  chacune) supprimées entièrement au profit de `VoiceNotePlayer` partagé.
+- **Message vocal du checkout, dernier point d'écriture réellement
+  manquant** — `order-messages` (bucket déjà provisionné au Lot 1, RLS
+  `order_messages_visible` keyed par `order_id`) ne peut pas recevoir
+  l'upload avant que la commande existe (la policy exige une ligne
+  `orders` correspondante), et `place_order()` ne connaît l'id de la
+  commande qu'à son propre retour — chicken-and-egg résolu en deux temps,
+  même raisonnement que les commandes elles-mêmes (Lot 5) appliqué au
+  stockage plutôt qu'au stock : `place_order()` crée la commande sans
+  chemin vocal ; `CheckoutController.placeOrder()` uploade ensuite le
+  fichier local vers `order-messages/<orderId>/...` (la ligne existe
+  désormais, l'upload est autorisé) puis appelle la nouvelle RPC
+  `set_order_voice_message()` pour l'attacher. Nouvelle méthode
+  d'interface `OrderRepository.attachSupplierVoiceMessage` (seul ajout
+  d'interface de ce lot — aucune méthode existante ne pouvait porter ce
+  besoin en deux temps ; implémentée aussi côté `InMemoryOrderRepository`,
+  orpheline mais doit rester compilable). L'`Order` retourné par
+  `placeOrder()` est mis à jour localement (`copyWith`) après l'attache
+  pour refléter le chemin final sans un second aller-retour réseau.
+
+### SQL — `supabase/migrations/0008_lot9_order_voice_message.sql`
+`set_order_voice_message(order_id, voice_path, duration_seconds)` —
+`security definer`, `update ... where id = p_order_id and client_id =
+auth.uid()`. Pas de nouveau bucket : `order-messages` existait déjà
+depuis le Lot 1 (prévu mais jamais câblé côté app).
+
+### Tests
+- `payment_and_supplier_message_test.dart` ("un message vocal…") : le
+  test utilisait un chemin factice (`/tmp/voice.m4a`, aucun fichier réel)
+  et affirmait que le chemin stocké resterait le chemin local brut — les
+  deux hypothèses sont désormais fausses (l'upload lit vraiment le
+  fichier, et le chemin stocké est le chemin objet uploadé). Corrigé avec
+  un vrai fichier temporaire et une assertion sur le préfixe
+  `<orderId>/`.
+- `flutter analyze` propre, **59/59 tests non-integration verts**,
+  **63/94 tests integration verts** — résultat strictement identique aux
+  Lots 7/8 (mêmes 31 échecs, tous déjà connus/différés au Lot 10). Le
+  vrai bug de lecture corrigé par ce lot (bulles chat/commentaires
+  injouables) n'a **aucun** test qui l'aurait détecté avant Lot 10 (même
+  cause : geste UI + réseau réel = `FakeAsync` bloqué) — trouvé par audit
+  de code plutôt que par un test rouge, à garder en tête pour le Lot 10 :
+  ces écrans mériteront une vérification manuelle une fois `integration_test`
+  en place, pas seulement une suite verte.
+
+## Fait (Lot 10 — terminé)
+
+### Le vrai fix : `integration_test` + macOS desktop, pas `FakeAsync`
+Les 16 tests widget bloqués depuis le Lot 3 (tout geste UI qui déclenche
+un I/O réseau réel ne peut jamais se terminer sous `FakeAsync`) sont migrés
+vers le package `integration_test` (ajouté à `pubspec.yaml`), qui fournit
+`IntegrationTestWidgetsFlutterBinding` — un binding réel (pas de temps
+simulé), exécuté directement contre un build desktop macOS (`flutter test
+<fichier> -d macos`) déjà disponible sur cette machine sans avoir à
+démarrer de simulateur iOS. Recette mécanique appliquée aux 16 fichiers
+(portés depuis `test/` vers un nouveau répertoire `integration_test/` à la
+racine, miroir de la structure de `test/`) : retirer `@Tags(['integration'])`
+(garder `library;`), ajouter l'import `integration_test/integration_test.dart`,
+ajouter `IntegrationTestWidgetsFlutterBinding.ensureInitialized();` en
+première ligne de `main()`, corriger le chemin relatif vers
+`supabase_test_harness.dart` (un `../` de plus qu'à l'origine, puisque
+`integration_test/` est un frère de `test/`, pas un sous-dossier), et
+garder le corps de chaque test identique **sauf** les `pump()`/
+`pump();pump();` bruts qui suivaient un geste déclenchant un vrai I/O
+réseau — sous un binding réel (contrairement à `FakeAsync`), un simple
+pump ne garantit pas qu'un `Future` réseau en attente se soit résolu, donc
+ceux-là sont devenus des `pumpAndSettle(...)` (ou un `pump(Duration(...))`
+brut quand rien ne maintient `hasScheduledFrame` à `true` pendant l'attente
+— voir plus bas).
+
+### Découverte clé : un seul fichier par invocation `flutter test -d macos`
+Premier réflexe testé (`flutter test integration_test/ -d macos`, tous les
+fichiers dans une seule invocation) : seul le **premier** fichier passe —
+tous les suivants échouent avec `Failed to foreground app; open returned 1`
+puis `Error waiting for a debug connection`. Le binding macOS ne relance
+pas proprement l'app entre deux fichiers de test au sein du même process
+`flutter test`. Solution : chaque fichier est exécuté comme sa **propre**
+invocation `flutter test <fichier> -d macos` (script bash séquentiel,
+`run_in_background` jamais `&` manuel — même leçon qu'au Lot 5). Avec ce
+découpage, les 16 fichiers passent de façon fiable et reproductible.
+
+### Bugs réels trouvés et corrigés (invisibles avant Lot 10)
+- **`lib/features/orders/presentation/providers/supplier_order_providers.dart`** —
+  crash réel `Bad state: No element` pour un compte admin/staff consultant
+  ses propres ventes MTC directes (`SupplierFinanceScreen`/
+  `_PrincipalFinance`). Cause : la policy RLS `orders_select_visible`
+  admet **toute** commande à une session admin (`or is_admin()`), pas
+  seulement celles où le fournisseur opérant a un groupe — alors que
+  `supplierOrdersProvider`/`_toView` supposait (commentaire du Lot 5 à
+  l'appui) que la RLS elle-même garantissait déjà ce filtrage, vrai pour
+  une session fournisseur normale mais faux pour un admin. `firstWhere`
+  plantait sur la première commande tierce sans groupe MTC. Fix :
+  filtrage défensif côté Dart (`.where((o) => o.supplierGroups.any(...))`
+  avant `_toView`) plutôt que de complexifier la RLS.
+- **`lib/features/cart/presentation/providers/cart_providers.dart` +
+  4 autres** (`order_providers.dart`, `favorite_providers.dart`,
+  `profile_providers.dart`, `chat_providers.dart`) — churn de rebuild
+  réel : ces 5 providers font `ref.watch(currentUserProvider).valueOrNull
+  ?.id` (toute la valeur), alors que Supabase rejoue les événements
+  `onAuthStateChange` à chaque nouvel abonné (`ReplaySubject` sans
+  `maxSize` côté `gotrue`) — `SupabaseAuthRepository.watchCurrentUser()`
+  ré-hydrate donc un `AppUser` deux fois de suite pour une seule connexion
+  (seed `currentSession` + replay de l'événement `signedIn`), et une
+  ré-émission (même égale) fait reconstruire ces 5 providers, perdant
+  transitoirement leur abonnement local en cours. Corrigé partout avec
+  `ref.watch(currentUserProvider.select((u) => u.valueOrNull?.id))` — ne
+  reconstruit que si l'id lui-même change. Trouvé par un test
+  100 % reproductible (`quick_add_to_cart_test.dart` : le deuxième tap sur
+  le bouton panier retombait dans la branche "ajouter" au lieu de
+  "retirer").
+- Deux tests utilisaient un `currentUserProvider` **factice** (`AppUser
+  .client(id: 'test-client', ...)`) sans jamais s'authentifier pour de
+  vrai — invisible avec l'ancien backend in-memory (aucune notion de rôle
+  Postgres), mais `cart_items`/`comment_likes`/`product_comments` n'ont
+  pas de grant `anon` en écriture : `permission denied`. Corrigé en
+  signant réellement `client1` via `createTestSupabaseClient()` +
+  `signInWithPassword` avant de construire l'arbre de widgets, et en
+  laissant `currentUserProvider` s'hydrater normalement plutôt que de le
+  surcharger.
+- `notification_center_screen_test.dart` : le test insérait une
+  notification via le repository **avant** la connexion — la policy
+  d'insertion (`notifications_insert_authenticated`) exige un rôle
+  authentifié, la session étant encore anonyme à ce moment l'insertion
+  échouait silencieusement (permission denied). Corrigé en déplaçant le
+  seed après la connexion.
+- `supplier_finance_screen_test.dart` : assertion figée sur un solde
+  disponible de `12500 FCFA`, valeur héritée de l'ancien seed in-memory —
+  le vrai seed Postgres calcule `35000 FCFA` pour ce compte. Corrigé
+  l'assertion (pas un bug applicatif, juste une expectation obsolète).
+
+### Un autre `pumpAndSettle` insuffisant, cette fois lié à un `SnackBar`
+`_QuickAddToCartButton.onTap` (`product_card.dart`) appelle
+`messenger.hideCurrentSnackBar()` avant de ré-afficher un nouveau
+`SnackBar` — contrairement au tout premier affichage (rien à masquer),
+cette passation masquage→affichage a besoin d'un instant de vrai temps
+pour aboutir ; un `pump()` sec la manque parfois. Corrigé avec
+`pump(const Duration(milliseconds: 300))` à cet endroit précis dans
+`quick_add_to_cart_test.dart`.
+
+### Suppression des 16 originaux et suite finale
+Les 16 fichiers d'origine dans `test/` (dupliqués dans
+`integration_test/`) sont supprimés. Vérification complète :
+- `dart run build_runner build --delete-conflicting-outputs` : propre.
+- `flutter analyze` (projet entier) : aucun souci.
+- `flutter test --exclude-tags integration` : **59/59 verts**.
+- `flutter test --tags integration --concurrency=1` : **63/63 verts** —
+  les 31 échecs connus depuis les Lots 7/8/9 (`test/features/...
+  Provider container...`) ont disparu, puisque les 16 fichiers qui les
+  contenaient n'existent plus dans ce répertoire (déplacés vers
+  `integration_test/`).
+- `integration_test/` (16 fichiers) exécutés individuellement, chacun via
+  sa propre invocation `flutter test <fichier> -d macos` : **16/16
+  verts**, de façon reproductible (chaque fichier re-testé plusieurs fois
+  après chaque correctif pour écarter la fragilité).
+
+## À faire (Lot 11, détail complet dans le plan original)
+
+### Lot 11 — Nettoyage final (PROCHAIN)
 - Suppression des 28 fichiers `in_memory_*_datasource.dart`/
   `in_memory_*_repository.dart` ; audit `shared_preferences` restant ;
   clôture de ce fichier.

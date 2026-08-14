@@ -1,6 +1,8 @@
 @Tags(['integration'])
 library;
 
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -134,10 +136,19 @@ void main() {
     'a voice message to the supplier is recorded as SupplierMessageType.voice '
     'with its path and duration',
     () async {
+      // `attachSupplierVoiceMessage` uploads the local recording for real
+      // (Lot 9) — needs an actual file on disk, and the stored path ends
+      // up as the uploaded `order-messages` object path, not the local
+      // path passed in.
+      final localFile = File(
+        '${Directory.systemTemp.path}/voice-${DateTime.now().millisecondsSinceEpoch}.m4a',
+      );
+      await localFile.writeAsBytes([0xff, 0xd8, 0xff, 0xd9]);
+
       container.read(supplierMessageTypeProvider.notifier).state =
           SupplierMessageType.voice;
       container.read(supplierMessageVoicePathProvider.notifier).state =
-          '/tmp/voice.m4a';
+          localFile.path;
       container.read(supplierMessageVoiceDurationProvider.notifier).state = 7;
 
       final success = await container
@@ -147,7 +158,8 @@ void main() {
       expect(success, isTrue);
       final order = container.read(checkoutControllerProvider).valueOrNull;
       expect(order!.supplierMessageType, SupplierMessageType.voice);
-      expect(order.supplierMessageVoicePath, '/tmp/voice.m4a');
+      expect(order.supplierMessageVoicePath, startsWith('${order.id}/'));
+      expect(order.supplierMessageVoicePath, isNot(localFile.path));
       expect(order.supplierMessageVoiceDurationSeconds, 7);
       expect(order.supplierMessageText, isNull);
     },

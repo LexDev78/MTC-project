@@ -1,19 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/datasources/in_memory_product_comment_datasource.dart';
-import '../../data/repositories/in_memory_product_comment_repository.dart';
+import 'package:mtc_app/core/di/providers.dart';
+
+import '../../data/datasources/supabase_product_comment_datasource.dart';
+import '../../data/repositories/supabase_product_comment_repository.dart';
 import '../../domain/entities/product_comment.dart';
 import '../../domain/repositories/product_comment_repository.dart';
 
 final productCommentDatasourceProvider =
-    Provider<InMemoryProductCommentDatasource>((ref) {
-      return InMemoryProductCommentDatasource();
+    Provider<SupabaseProductCommentDatasource>((ref) {
+      return SupabaseProductCommentDatasource(ref.watch(supabaseClientProvider));
     });
 
 final productCommentRepositoryProvider = Provider<ProductCommentRepository>((
   ref,
 ) {
-  return InMemoryProductCommentRepository(
+  return SupabaseProductCommentRepository(
     ref.watch(productCommentDatasourceProvider),
   );
 });

@@ -41,7 +41,17 @@ final supplierOrdersProvider =
       return ref
           .watch(orderRepositoryProvider)
           .watchOrdersForSupplier(supplierId)
-          .map((orders) => orders.map((o) => _toView(o, supplierId)).toList());
+          // `orders_select_visible` RLS also admits every order to an
+          // admin session (`or is_admin()`), not just ones with a group
+          // for `supplierId` — unlike a real supplier session, where RLS
+          // alone guarantees that. Skip orders this supplier has no group
+          // in rather than let `_toView`'s `firstWhere` throw on them.
+          .map(
+            (orders) => orders
+                .where((o) => o.supplierGroups.any((g) => g.supplierId == supplierId))
+                .map((o) => _toView(o, supplierId))
+                .toList(),
+          );
     });
 
 final supplierOrderDetailProvider =

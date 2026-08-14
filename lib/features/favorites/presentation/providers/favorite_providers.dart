@@ -19,7 +19,10 @@ final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) {
 
 /// The current user's favorited product IDs. Empty when signed out.
 final favoriteProductIdsProvider = StreamProvider<Set<String>>((ref) {
-  final userId = ref.watch(currentUserProvider).valueOrNull?.id;
+  // `.select`: see the same note in cart_providers.dart — avoids
+  // rebuilding (and losing the in-flight subscription) on a re-emitted
+  // but id-equal AppUser.
+  final userId = ref.watch(currentUserProvider.select((u) => u.valueOrNull?.id));
   if (userId == null) return Stream.value(const <String>{});
   return ref
       .watch(favoriteRepositoryProvider)

@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
+import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
@@ -66,7 +69,7 @@ class ChatController extends AsyncNotifier<void> {
 
   Future<void> sendImage({
     required String conversationId,
-    required String imagePath,
+    required XFile image,
     String? productId,
     String? productNameSnapshot,
     String? productImageSnapshot,
@@ -74,6 +77,12 @@ class ChatController extends AsyncNotifier<void> {
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
     if (userId == null) return;
+    final path = await uploadPickedImage(
+      client: ref.read(supabaseClientProvider),
+      bucket: 'chat-attachments',
+      folder: conversationId,
+      file: image,
+    );
     await ref
         .read(chatRepositoryProvider)
         .sendMessage(
@@ -81,7 +90,7 @@ class ChatController extends AsyncNotifier<void> {
           senderId: userId,
           text: '',
           attachmentType: ChatAttachmentType.image,
-          attachmentPath: imagePath,
+          attachmentPath: path,
           productId: productId,
           productNameSnapshot: productNameSnapshot,
           productImageSnapshot: productImageSnapshot,
@@ -109,6 +118,13 @@ class ChatController extends AsyncNotifier<void> {
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
     if (userId == null) return;
+    final path = await uploadPickedImage(
+      client: ref.read(supabaseClientProvider),
+      bucket: 'chat-attachments',
+      folder: conversationId,
+      file: XFile(voicePath),
+      contentType: 'audio/mp4',
+    );
     await ref
         .read(chatRepositoryProvider)
         .sendMessage(
@@ -116,7 +132,7 @@ class ChatController extends AsyncNotifier<void> {
           senderId: userId,
           text: '',
           attachmentType: ChatAttachmentType.voice,
-          attachmentPath: voicePath,
+          attachmentPath: path,
           voiceDurationSeconds: durationSeconds,
           productId: productId,
           productNameSnapshot: productNameSnapshot,

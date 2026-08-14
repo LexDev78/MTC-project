@@ -163,14 +163,20 @@ class SupabaseProductDatasource {
     );
   }
 
+  /// RPC rather than a direct table write — `products` has no staff-read
+  /// SELECT policy, and Postgres RLS requires a row to be visible via some
+  /// SELECT-capable policy for an UPDATE to even locate it, not just
+  /// satisfy the UPDATE policy's own USING clause. A raw client-side
+  /// update here would silently affect 0 rows for every staff caller (see
+  /// `0009_lot11_supplier_verification_rpc.sql`).
   Future<void> updateSupplierVerification({
     required String supplierId,
     required bool isVerified,
   }) async {
-    await _client
-        .from('products')
-        .update({'is_supplier_verified': isVerified})
-        .eq('supplier_id', supplierId);
+    await _client.rpc(
+      'set_products_supplier_verification',
+      params: {'p_supplier_id': supplierId, 'p_verified': isVerified},
+    );
     _notify();
   }
 }

@@ -1,14 +1,25 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mtc_app/features/catalog/data/datasources/in_memory_product_datasource.dart';
-import 'package:mtc_app/features/catalog/data/repositories/in_memory_product_repository.dart';
+import 'package:mtc_app/features/catalog/data/datasources/supabase_product_datasource.dart';
+import 'package:mtc_app/features/catalog/data/repositories/supabase_product_repository.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
+import 'package:mtc_app/features/catalog/domain/repositories/product_repository.dart';
+
+import '../../support/supabase_test_harness.dart';
 
 void main() {
-  late InMemoryProductRepository repository;
+  late ProductRepository repository;
 
-  setUp(() {
-    repository = InMemoryProductRepository(InMemoryProductDatasource());
+  setUp(() async {
+    await resetAndSeed();
+    // Public catalog browsing — an anonymous visitor, same session an
+    // unauthenticated client uses in the real app.
+    repository = SupabaseProductRepository(
+      SupabaseProductDatasource(createTestSupabaseClient()),
+    );
   });
 
   test('hides products from unverified/pending tiers suppliers', () async {
