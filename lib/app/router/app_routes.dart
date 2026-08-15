@@ -12,6 +12,8 @@ abstract final class AppRoutes {
 
   // Client shell
   static const String clientHome = '/client/home';
+  static const String clientCatalogue = '/client/catalogue';
+  static const String clientCatalogueCategory = '/client/catalogue/:category';
   static const String clientProductDetail = '/client/product/:productId';
   static const String clientSearch = '/client/search';
   static const String clientFavorites = '/client/favorites';
@@ -26,6 +28,7 @@ abstract final class AppRoutes {
   static const String clientSupplierProfile = '/client/supplier/:supplierId';
   static const String clientProfile = '/client/profile';
   static const String clientProfileEdit = '/client/profile/edit';
+  static const String clientNotifications = '/client/notifications';
   static const String clientSettings = '/client/settings';
 
   // Supplier tiers shell — 6 branches, mirrored 1:1 by the "principal" group
@@ -84,6 +87,8 @@ abstract final class AppRoutes {
   static const String supplierPrincipalPayoutQueue =
       '/supplier-principal/finances/payouts';
 
+  static String catalogueCategory(String categoryName) =>
+      '/client/catalogue/$categoryName';
   static String productDetail(String productId) => '/client/product/$productId';
   static String orderDetail(String orderId) => '/client/orders/$orderId';
   static String orderTrack(String orderId) => '/client/orders/$orderId/track';

@@ -28,10 +28,10 @@ enum DeliveryMode {
   mtcDelivery,
 }
 
-/// Who cancelled a supplier group — only ever [supplier] today (the client
-/// has no cancellation flow yet, and MTC-initiated cancellation isn't
-/// modeled), kept as a full enum rather than a bare flag so both are easy
-/// to add later without another migration.
+/// Who cancelled a supplier group — [client] (only while the group is
+/// still `pending`, see `canClientCancel`) or [supplier] (any non-terminal
+/// status). [mtc] isn't wired to any flow yet, kept as a full enum rather
+/// than a bare flag so it's easy to add later without another migration.
 enum CancelledBy {
   client,
   supplier,

@@ -206,6 +206,77 @@ final supplierProductsProvider = StreamProvider.family<List<Product>, String>((
       .watchProducts(supplierId: supplierId);
 });
 
+/// Sort/price filter state for the Catalogue tab's per-category product
+/// list (`CategoryProductsScreen`) — isolated per [ProductCategory], and
+/// deliberately supplier-type-agnostic (unlike `catalogSortProvider` &
+/// friends above): Catalogue groups by category across both principal and
+/// tiers suppliers combined, so there's no `SupplierType` to key on.
+final categorySortProvider = StateProvider.family<ProductSortOption, ProductCategory>(
+  (ref, category) => ProductSortOption.relevance,
+);
+final categoryMinPriceProvider = StateProvider.family<int?, ProductCategory>(
+  (ref, category) => null,
+);
+final categoryMaxPriceProvider = StateProvider.family<int?, ProductCategory>(
+  (ref, category) => null,
+);
+
+final categoryPriceBoundsProvider =
+    StreamProvider.family<(int min, int max), ProductCategory>((ref, category) {
+      final repository = ref.watch(productRepositoryProvider);
+      return repository.watchProducts(category: category).map((products) {
+        if (products.isEmpty) return (0, 0);
+        var min = products.first.priceFcfa;
+        var max = products.first.priceFcfa;
+        for (final p in products) {
+          if (p.priceFcfa < min) min = p.priceFcfa;
+          if (p.priceFcfa > max) max = p.priceFcfa;
+        }
+        return (min, max);
+      });
+    });
+
+final categoryHasActiveFilterProvider = Provider.family<bool, ProductCategory>((
+  ref,
+  category,
+) {
+  return ref.watch(categoryMinPriceProvider(category)) != null ||
+      ref.watch(categoryMaxPriceProvider(category)) != null ||
+      ref.watch(categorySortProvider(category)) != ProductSortOption.relevance;
+});
+
+/// Every product in [category], from both supplier types combined — the
+/// Catalogue tab's whole point is browsing by nature of product rather than
+/// by which side of the marketplace sells it.
+final categoryProductListProvider =
+    StreamProvider.family<List<Product>, ProductCategory>((ref, category) {
+      final repository = ref.watch(productRepositoryProvider);
+      final minPrice = ref.watch(categoryMinPriceProvider(category));
+      final maxPrice = ref.watch(categoryMaxPriceProvider(category));
+      final sort = ref.watch(categorySortProvider(category));
+
+      return repository.watchProducts(category: category).map((products) {
+        var filtered = products.where((p) {
+          if (minPrice != null && p.priceFcfa < minPrice) return false;
+          if (maxPrice != null && p.priceFcfa > maxPrice) return false;
+          return true;
+        }).toList();
+        switch (sort) {
+          case ProductSortOption.relevance:
+            break;
+          case ProductSortOption.priceAsc:
+            filtered.sort((a, b) => a.priceFcfa.compareTo(b.priceFcfa));
+          case ProductSortOption.priceDesc:
+            filtered.sort((a, b) => b.priceFcfa.compareTo(a.priceFcfa));
+          case ProductSortOption.ratingDesc:
+            filtered.sort((a, b) => b.ratingAverage.compareTo(a.ratingAverage));
+          case ProductSortOption.newest:
+            filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        }
+        return filtered;
+      });
+    });
+
 /// Global search (across both supplier types), used by `search_screen.dart`.
 final globalSearchQueryProvider = StateProvider<String>((ref) => '');
 

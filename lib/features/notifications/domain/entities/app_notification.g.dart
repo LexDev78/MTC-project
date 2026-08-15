@@ -16,6 +16,7 @@ _$AppNotificationImpl _$$AppNotificationImplFromJson(
   body: json['body'] as String,
   createdAt: DateTime.parse(json['created_at'] as String),
   isRead: json['is_read'] as bool,
+  referenceId: json['reference_id'] as String?,
 );
 
 Map<String, dynamic> _$$AppNotificationImplToJson(
@@ -28,6 +29,7 @@ Map<String, dynamic> _$$AppNotificationImplToJson(
   'body': instance.body,
   'created_at': instance.createdAt.toIso8601String(),
   'is_read': instance.isRead,
+  'reference_id': instance.referenceId,
 };
 
 const _$NotificationTypeEnumMap = {
@@ -37,4 +39,5 @@ const _$NotificationTypeEnumMap = {
   NotificationType.kycDecision: 'kyc_decision',
   NotificationType.payoutDecision: 'payout_decision',
   NotificationType.newReview: 'new_review',
+  NotificationType.orderStatusUpdate: 'order_status_update',
 };

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
-import 'package:mtc_app/features/chat/presentation/providers/chat_providers.dart';
 import 'package:mtc_app/features/favorites/presentation/providers/favorite_providers.dart';
 
 import 'widgets/curved_icon_nav_bar.dart';
@@ -23,7 +22,6 @@ class ClientShell extends ConsumerWidget {
     final cartCount = ref.watch(cartItemCountProvider);
     final favoriteCount =
         ref.watch(favoriteProductIdsProvider).valueOrNull?.length ?? 0;
-    final unreadCount = ref.watch(totalUnreadCountProvider);
 
     return Scaffold(
       body: navigationShell,
@@ -39,11 +37,10 @@ class ClientShell extends ConsumerWidget {
             selectedIcon: Icons.storefront_rounded,
             label: 'Accueil',
           ),
-          NavBarDestination(
-            icon: Icons.favorite_border_rounded,
-            selectedIcon: Icons.favorite_rounded,
-            label: 'Favoris',
-            badgeCount: favoriteCount,
+          const NavBarDestination(
+            icon: Icons.grid_view_outlined,
+            selectedIcon: Icons.grid_view_rounded,
+            label: 'Catalogue',
           ),
           NavBarDestination(
             icon: Icons.shopping_cart_outlined,
@@ -51,16 +48,11 @@ class ClientShell extends ConsumerWidget {
             label: 'Panier',
             badgeCount: cartCount,
           ),
-          const NavBarDestination(
-            icon: Icons.receipt_long_outlined,
-            selectedIcon: Icons.receipt_long_rounded,
-            label: 'Commandes',
-          ),
           NavBarDestination(
-            icon: Icons.chat_bubble_outline_rounded,
-            selectedIcon: Icons.chat_bubble_rounded,
-            label: 'Messages',
-            badgeCount: unreadCount,
+            icon: Icons.favorite_border_rounded,
+            selectedIcon: Icons.favorite_rounded,
+            label: 'Favoris',
+            badgeCount: favoriteCount,
           ),
           const NavBarDestination(
             icon: Icons.person_outline_rounded,

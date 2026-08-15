@@ -10,14 +10,20 @@ void main() {
     }
   });
 
-  test('the forward path allows both adjacent and skipped steps', () {
+  test('the forward path only allows the immediately next step', () {
     expect(isValidTransition(OrderStatus.pending, OrderStatus.confirmed), isTrue);
-    expect(isValidTransition(OrderStatus.pending, OrderStatus.preparing), isTrue);
-    expect(isValidTransition(OrderStatus.pending, OrderStatus.inTransit), isTrue);
-    expect(isValidTransition(OrderStatus.pending, OrderStatus.delivered), isTrue);
+    expect(isValidTransition(OrderStatus.confirmed, OrderStatus.preparing), isTrue);
+    expect(isValidTransition(OrderStatus.preparing, OrderStatus.inTransit), isTrue);
+    expect(isValidTransition(OrderStatus.inTransit, OrderStatus.delivered), isTrue);
+  });
+
+  test('the forward path rejects skipping intermediate steps', () {
+    expect(isValidTransition(OrderStatus.pending, OrderStatus.preparing), isFalse);
+    expect(isValidTransition(OrderStatus.pending, OrderStatus.inTransit), isFalse);
+    expect(isValidTransition(OrderStatus.pending, OrderStatus.delivered), isFalse);
     expect(
       isValidTransition(OrderStatus.confirmed, OrderStatus.delivered),
-      isTrue,
+      isFalse,
     );
   });
 
@@ -60,5 +66,14 @@ void main() {
       expect(isValidTransition(OrderStatus.delivered, target), isFalse);
       expect(isValidTransition(OrderStatus.cancelled, target), isFalse);
     }
+  });
+
+  test('the client may only cancel a still-pending group', () {
+    expect(canClientCancel(OrderStatus.pending), isTrue);
+    expect(canClientCancel(OrderStatus.confirmed), isFalse);
+    expect(canClientCancel(OrderStatus.preparing), isFalse);
+    expect(canClientCancel(OrderStatus.inTransit), isFalse);
+    expect(canClientCancel(OrderStatus.delivered), isFalse);
+    expect(canClientCancel(OrderStatus.cancelled), isFalse);
   });
 }

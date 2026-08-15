@@ -32,7 +32,19 @@ class SupabaseAuthDatasource {
     return _client.auth.signUp(email: email, password: password, data: data);
   }
 
-  Future<void> signOut() => _client.auth.signOut();
+  /// Also tears down the Realtime socket: `signOut` re-authorizes any
+  /// still-joined channels with the anon key rather than closing them
+  /// (`SupabaseClient._handleTokenChanged` in the `supabase` package), so a
+  /// channel that was open at sign-out time is left silently unable to see
+  /// any RLS-protected rows. The next `.stream()` subscription (after this
+  /// sign-out, or after a subsequent sign-in) would keep reusing that
+  /// half-dead channel instead of getting a fresh one. Disconnecting here
+  /// forces every channel to close, so the next `.stream()` call opens a new
+  /// socket + channel from scratch.
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+    await _client.realtime.disconnect();
+  }
 
   Future<Map<String, dynamic>> fetchProfileRow(String userId) {
     return _client.from('profiles').select().eq('id', userId).single();

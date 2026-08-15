@@ -53,7 +53,13 @@ class _OrderDetailBody extends ConsumerWidget {
   ) async {
     final success = await ref
         .read(supplierOrderControllerProvider.notifier)
-        .updateStatus(orderId: view.orderId, groupId: view.myGroup.id, status: status);
+        .updateStatus(
+          orderId: view.orderId,
+          groupId: view.myGroup.id,
+          status: status,
+          clientId: view.clientId,
+          supplierName: view.myGroup.supplierName,
+        );
     if (!success && context.mounted) {
       final error = ref.read(supplierOrderControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +98,13 @@ class _OrderDetailBody extends ConsumerWidget {
 
     final success = await ref
         .read(supplierOrderControllerProvider.notifier)
-        .cancel(orderId: view.orderId, groupId: view.myGroup.id, reason: reason);
+        .cancel(
+          orderId: view.orderId,
+          groupId: view.myGroup.id,
+          reason: reason,
+          clientId: view.clientId,
+          supplierName: view.myGroup.supplierName,
+        );
     if (!success && context.mounted) {
       final error = ref.read(supplierOrderControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(

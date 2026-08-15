@@ -11,11 +11,14 @@ import 'package:mtc_app/features/auth/presentation/screens/splash_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/supplier_legal_type_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:mtc_app/features/cart/presentation/screens/cart_screen.dart';
+import 'package:mtc_app/features/catalog/presentation/screens/catalogue_screen.dart';
+import 'package:mtc_app/features/catalog/presentation/screens/category_products_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/product_detail_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/search_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_form_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_list_screen.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart';
 import 'package:mtc_app/features/comments/presentation/screens/supplier_comment_inbox_screen.dart';
 import 'package:mtc_app/features/ratings/presentation/screens/supplier_review_management_screen.dart';
@@ -175,6 +178,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _fluidPage(state, const SearchScreen()),
       ),
       GoRoute(
+        path: AppRoutes.clientCatalogueCategory,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          CategoryProductsScreen(
+            category: ProductCategory.values.byName(
+              state.pathParameters['category']!,
+            ),
+          ),
+        ),
+      ),
+      // "Commandes"/"Messages" used to be their own client-shell tabs;
+      // they're reached from the Profil screen's menu now instead, so
+      // they're plain pushed routes rather than `StatefulShellBranch`es.
+      GoRoute(
+        path: AppRoutes.clientOrders,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const OrderListScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.clientChat,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const ConversationListScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.clientSupplierProfile,
         pageBuilder: (context, state) => _fluidPage(
           state,
@@ -192,6 +219,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.clientSettings,
         pageBuilder: (context, state) =>
             _fluidPage(state, const SettingsScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.clientNotifications,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const NotificationCenterScreen()),
       ),
       GoRoute(
         path: AppRoutes.clientCheckout,
@@ -488,9 +520,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.clientFavorites,
+                path: AppRoutes.clientCatalogue,
                 pageBuilder: (context, state) =>
-                    _fluidPage(state, const FavoritesScreen()),
+                    _fluidPage(state, const CatalogueScreen()),
               ),
             ],
           ),
@@ -506,18 +538,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.clientOrders,
+                path: AppRoutes.clientFavorites,
                 pageBuilder: (context, state) =>
-                    _fluidPage(state, const OrderListScreen()),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoutes.clientChat,
-                pageBuilder: (context, state) =>
-                    _fluidPage(state, const ConversationListScreen()),
+                    _fluidPage(state, const FavoritesScreen()),
               ),
             ],
           ),

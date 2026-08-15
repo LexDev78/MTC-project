@@ -12,6 +12,8 @@ import '../../domain/entities/fulfillment.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/order_status.dart';
 import '../../domain/entities/payment.dart';
+import '../../domain/order_status_transitions.dart';
+import '../controllers/order_controller.dart';
 import '../providers/order_providers.dart';
 import '../widgets/order_status_stepper.dart';
 
@@ -34,14 +36,53 @@ class OrderDetailScreen extends ConsumerWidget {
   }
 }
 
-class _OrderDetailBody extends StatelessWidget {
+class _OrderDetailBody extends ConsumerWidget {
   const _OrderDetailBody({required this.order});
 
   final Order order;
 
+  Future<void> _cancel(
+    BuildContext context,
+    WidgetRef ref,
+    OrderSupplierGroup group,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Annuler cette commande ?'),
+        content: Text(
+          'Votre commande auprès de ${group.supplierName} sera annulée. '
+          'Cette action est définitive.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Retour'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Annuler la commande'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final success = await ref
+        .read(orderControllerProvider.notifier)
+        .cancel(orderId: order.id, groupId: group.id);
+    if (!success && context.mounted) {
+      final error = ref.read(orderControllerProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final controllerState = ref.watch(orderControllerProvider);
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -135,6 +176,17 @@ class _OrderDetailBody extends StatelessWidget {
                           context.push(AppRoutes.orderReview(order.id)),
                       icon: const Icon(Icons.star_outline_rounded),
                       label: const Text('Laisser un avis'),
+                    ),
+                  if (canClientCancel(group.status))
+                    OutlinedButton.icon(
+                      onPressed: controllerState.isLoading
+                          ? null
+                          : () => _cancel(context, ref, group),
+                      icon: Icon(Icons.cancel_outlined, color: scheme.error),
+                      label: Text(
+                        'Annuler la commande',
+                        style: TextStyle(color: scheme.error),
+                      ),
                     ),
                 ],
               ),

@@ -27,7 +27,11 @@ mixin _$AppNotification {
   String get title => throw _privateConstructorUsedError;
   String get body => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
-  bool get isRead => throw _privateConstructorUsedError;
+  bool get isRead =>
+      throw _privateConstructorUsedError; // What the notification is about — a conversationId for `newMessage`,
+  // an orderId for `newOrder`, null for every other type (see
+  // `NotificationCenterScreen`'s tap handler, the only reader of this).
+  String? get referenceId => throw _privateConstructorUsedError;
 
   /// Serializes this AppNotification to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -54,6 +58,7 @@ abstract class $AppNotificationCopyWith<$Res> {
     String body,
     DateTime createdAt,
     bool isRead,
+    String? referenceId,
   });
 }
 
@@ -79,6 +84,7 @@ class _$AppNotificationCopyWithImpl<$Res, $Val extends AppNotification>
     Object? body = null,
     Object? createdAt = null,
     Object? isRead = null,
+    Object? referenceId = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -110,6 +116,10 @@ class _$AppNotificationCopyWithImpl<$Res, $Val extends AppNotification>
                 ? _value.isRead
                 : isRead // ignore: cast_nullable_to_non_nullable
                       as bool,
+            referenceId: freezed == referenceId
+                ? _value.referenceId
+                : referenceId // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -133,6 +143,7 @@ abstract class _$$AppNotificationImplCopyWith<$Res>
     String body,
     DateTime createdAt,
     bool isRead,
+    String? referenceId,
   });
 }
 
@@ -157,6 +168,7 @@ class __$$AppNotificationImplCopyWithImpl<$Res>
     Object? body = null,
     Object? createdAt = null,
     Object? isRead = null,
+    Object? referenceId = freezed,
   }) {
     return _then(
       _$AppNotificationImpl(
@@ -188,6 +200,10 @@ class __$$AppNotificationImplCopyWithImpl<$Res>
             ? _value.isRead
             : isRead // ignore: cast_nullable_to_non_nullable
                   as bool,
+        referenceId: freezed == referenceId
+            ? _value.referenceId
+            : referenceId // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -204,6 +220,7 @@ class _$AppNotificationImpl implements _AppNotification {
     required this.body,
     required this.createdAt,
     required this.isRead,
+    this.referenceId,
   });
 
   factory _$AppNotificationImpl.fromJson(Map<String, dynamic> json) =>
@@ -223,10 +240,15 @@ class _$AppNotificationImpl implements _AppNotification {
   final DateTime createdAt;
   @override
   final bool isRead;
+  // What the notification is about — a conversationId for `newMessage`,
+  // an orderId for `newOrder`, null for every other type (see
+  // `NotificationCenterScreen`'s tap handler, the only reader of this).
+  @override
+  final String? referenceId;
 
   @override
   String toString() {
-    return 'AppNotification(id: $id, userId: $userId, type: $type, title: $title, body: $body, createdAt: $createdAt, isRead: $isRead)';
+    return 'AppNotification(id: $id, userId: $userId, type: $type, title: $title, body: $body, createdAt: $createdAt, isRead: $isRead, referenceId: $referenceId)';
   }
 
   @override
@@ -241,7 +263,9 @@ class _$AppNotificationImpl implements _AppNotification {
             (identical(other.body, body) || other.body == body) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
-            (identical(other.isRead, isRead) || other.isRead == isRead));
+            (identical(other.isRead, isRead) || other.isRead == isRead) &&
+            (identical(other.referenceId, referenceId) ||
+                other.referenceId == referenceId));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -255,6 +279,7 @@ class _$AppNotificationImpl implements _AppNotification {
     body,
     createdAt,
     isRead,
+    referenceId,
   );
 
   /// Create a copy of AppNotification
@@ -283,6 +308,7 @@ abstract class _AppNotification implements AppNotification {
     required final String body,
     required final DateTime createdAt,
     required final bool isRead,
+    final String? referenceId,
   }) = _$AppNotificationImpl;
 
   factory _AppNotification.fromJson(Map<String, dynamic> json) =
@@ -301,7 +327,11 @@ abstract class _AppNotification implements AppNotification {
   @override
   DateTime get createdAt;
   @override
-  bool get isRead;
+  bool get isRead; // What the notification is about — a conversationId for `newMessage`,
+  // an orderId for `newOrder`, null for every other type (see
+  // `NotificationCenterScreen`'s tap handler, the only reader of this).
+  @override
+  String? get referenceId;
 
   /// Create a copy of AppNotification
   /// with the given fields replaced by the non-null parameter values.

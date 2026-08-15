@@ -36,6 +36,7 @@ class ChatController extends AsyncNotifier<void> {
           type: NotificationType.newMessage,
           title: 'Nouveau message',
           body: preview,
+          referenceId: conversationId,
         );
   }
 

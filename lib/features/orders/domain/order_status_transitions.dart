@@ -11,11 +11,13 @@ const List<OrderStatus> _forwardOrder = [
   OrderStatus.delivered,
 ];
 
-/// Whether a supplier group may move from [from] to [to]: any forward step
-/// along [_forwardOrder] (skipping intermediate steps is allowed — a
-/// self-delivering supplier may jump straight from `pending` to
-/// `inTransit`), or a cancellation from any non-terminal status. Neither
-/// `delivered` nor `cancelled` can transition anywhere else.
+/// Whether a supplier group may move from [from] to [to]: the single next
+/// step along [_forwardOrder] — skipping intermediate steps is *not*
+/// allowed, the supplier must confirm each stage in turn before moving to
+/// the next — or a cancellation from any non-terminal status. Neither
+/// `delivered` nor `cancelled` can transition anywhere else. Mirrored
+/// server-side in `update_order_group_status`
+/// (`supabase/migrations/0010_client_cancel_and_sequential_status.sql`).
 bool isValidTransition(OrderStatus from, OrderStatus to) {
   if (from == to) return false;
   if (from == OrderStatus.delivered || from == OrderStatus.cancelled) {
@@ -26,5 +28,11 @@ bool isValidTransition(OrderStatus from, OrderStatus to) {
   final fromIndex = _forwardOrder.indexOf(from);
   final toIndex = _forwardOrder.indexOf(to);
   if (fromIndex == -1 || toIndex == -1) return false;
-  return toIndex > fromIndex;
+  return toIndex == fromIndex + 1;
 }
+
+/// Whether the client may cancel a supplier group themselves: only while
+/// it's still `pending`, i.e. before the supplier has accepted it. Once
+/// accepted, cancellation is the supplier's call alone (see
+/// [isValidTransition]) — mirrored server-side in the same RPC.
+bool canClientCancel(OrderStatus status) => status == OrderStatus.pending;

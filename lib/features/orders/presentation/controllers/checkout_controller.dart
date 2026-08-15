@@ -216,6 +216,7 @@ class CheckoutController extends AsyncNotifier<Order?> {
           type: NotificationType.newOrder,
           title: 'Nouvelle commande',
           body: '${user.displayName} — ${group.items.length} article(s)',
+          referenceId: order.id,
         );
       }
 

@@ -20,12 +20,14 @@ class SupabaseNotificationRepository implements NotificationRepository {
     required NotificationType type,
     required String title,
     required String body,
+    String? referenceId,
   }) {
     return _datasource.add({
       'user_id': userId,
       'type': _typeToDb(type),
       'title': title,
       'body': body,
+      'reference_id': referenceId,
     });
   }
 
@@ -47,4 +49,5 @@ String _typeToDb(NotificationType type) => switch (type) {
   NotificationType.kycDecision => 'kyc_decision',
   NotificationType.payoutDecision => 'payout_decision',
   NotificationType.newReview => 'new_review',
+  NotificationType.orderStatusUpdate => 'order_status_update',
 };

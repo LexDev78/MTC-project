@@ -31,35 +31,44 @@ Future<void> showProductCommentsModal(
   );
 }
 
-class ProductCommentsModal extends ConsumerWidget {
+class ProductCommentsModal extends ConsumerStatefulWidget {
   const ProductCommentsModal({super.key, required this.productId});
 
   final String productId;
 
-  Future<void> _submit(WidgetRef ref, String text) async {
+  @override
+  ConsumerState<ProductCommentsModal> createState() => _ProductCommentsModalState();
+}
+
+class _ProductCommentsModalState extends ConsumerState<ProductCommentsModal> {
+  // Null when no reply row is open. While a reply is open the pinned
+  // composer below is hidden, so only one text input is ever on screen.
+  String? _replyingToId;
+
+  Future<void> _submit(String text) async {
     await ref
         .read(commentControllerProvider.notifier)
-        .addComment(productId: productId, text: text);
+        .addComment(productId: widget.productId, text: text);
   }
 
-  Future<void> _submitImage(WidgetRef ref, XFile image) async {
+  Future<void> _submitImage(XFile image) async {
     await ref
         .read(commentControllerProvider.notifier)
-        .addImageComment(productId: productId, image: image);
+        .addImageComment(productId: widget.productId, image: image);
   }
 
-  Future<void> _submitVoice(WidgetRef ref, String voicePath, int duration) async {
+  Future<void> _submitVoice(String voicePath, int duration) async {
     await ref
         .read(commentControllerProvider.notifier)
         .addVoiceComment(
-          productId: productId,
+          productId: widget.productId,
           voicePath: voicePath,
           durationSeconds: duration,
         );
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
       minChildSize: 0.5,
@@ -75,19 +84,25 @@ class ProductCommentsModal extends ConsumerWidget {
               child: SingleChildScrollView(
                 controller: scrollController,
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: ProductCommentsSection(productId: productId),
+                child: ProductCommentsSection(
+                  productId: widget.productId,
+                  replyingToId: _replyingToId,
+                  onReplyingChanged: (id) => setState(() => _replyingToId = id),
+                ),
               ),
             ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              child: CommentComposer(
-                hintText: 'Ajouter un commentaire...',
-                onSend: (text) => _submit(ref, text),
-                onSendImage: (path) => _submitImage(ref, path),
-                onSendVoice: (path, duration) => _submitVoice(ref, path, duration),
+            if (_replyingToId == null) ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: CommentComposer(
+                  hintText: 'Ajouter un commentaire...',
+                  onSend: _submit,
+                  onSendImage: _submitImage,
+                  onSendVoice: _submitVoice,
+                ),
               ),
-            ),
+            ],
           ],
         );
       },

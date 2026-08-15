@@ -17,39 +17,39 @@ import 'product_comment_tile.dart';
 /// pinned to the bottom of the sheet instead of scrolling away with the
 /// thread. Kept distinct from `features/ratings` (post-purchase supplier
 /// reviews).
-class ProductCommentsSection extends ConsumerStatefulWidget {
-  const ProductCommentsSection({super.key, required this.productId});
+///
+/// [replyingToId]/[onReplyingChanged] are owned by [ProductCommentsModal] so
+/// it can hide its pinned composer while a reply row is open — otherwise two
+/// text inputs (the pinned one and the inline reply one) would be visible at
+/// once.
+class ProductCommentsSection extends ConsumerWidget {
+  const ProductCommentsSection({
+    super.key,
+    required this.productId,
+    required this.replyingToId,
+    required this.onReplyingChanged,
+  });
 
   final String productId;
+  final String? replyingToId;
+  final ValueChanged<String?> onReplyingChanged;
 
-  @override
-  ConsumerState<ProductCommentsSection> createState() =>
-      _ProductCommentsSectionState();
-}
-
-class _ProductCommentsSectionState
-    extends ConsumerState<ProductCommentsSection> {
-  String? _replyingToId;
-
-  Future<void> _submitReply(String parentId, String text) async {
+  Future<void> _submitReply(WidgetRef ref, String parentId, String text) async {
     final ok = await ref
         .read(commentControllerProvider.notifier)
-        .addComment(productId: widget.productId, text: text, parentId: parentId);
-    if (ok) setState(() => _replyingToId = null);
+        .addComment(productId: productId, text: text, parentId: parentId);
+    if (ok) onReplyingChanged(null);
   }
 
-  Future<void> _submitReplyImage(String parentId, XFile image) async {
+  Future<void> _submitReplyImage(WidgetRef ref, String parentId, XFile image) async {
     final ok = await ref
         .read(commentControllerProvider.notifier)
-        .addImageComment(
-          productId: widget.productId,
-          image: image,
-          parentId: parentId,
-        );
-    if (ok) setState(() => _replyingToId = null);
+        .addImageComment(productId: productId, image: image, parentId: parentId);
+    if (ok) onReplyingChanged(null);
   }
 
   Future<void> _submitReplyVoice(
+    WidgetRef ref,
     String parentId,
     String voicePath,
     int duration,
@@ -57,29 +57,27 @@ class _ProductCommentsSectionState
     final ok = await ref
         .read(commentControllerProvider.notifier)
         .addVoiceComment(
-          productId: widget.productId,
+          productId: productId,
           voicePath: voicePath,
           durationSeconds: duration,
           parentId: parentId,
         );
-    if (ok) setState(() => _replyingToId = null);
+    if (ok) onReplyingChanged(null);
   }
 
   void _toggleReply(String commentId) {
-    setState(() {
-      _replyingToId = _replyingToId == commentId ? null : commentId;
-    });
+    onReplyingChanged(replyingToId == commentId ? null : commentId);
   }
 
-  void _toggleLike(String commentId) {
+  void _toggleLike(WidgetRef ref, String commentId) {
     ref.read(commentControllerProvider.notifier).toggleLike(commentId);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final currentUserId = ref.watch(currentUserProvider).valueOrNull?.id;
-    final commentsAsync = ref.watch(productCommentsProvider(widget.productId));
+    final commentsAsync = ref.watch(productCommentsProvider(productId));
 
     return commentsAsync.when(
       loading: () => const Padding(
@@ -111,18 +109,22 @@ class _ProductCommentsSectionState
                 comment: comment,
                 replies: comments.where((c) => c.parentId == comment.id).toList()
                   ..sort((a, b) => a.createdAt.compareTo(b.createdAt)),
-                isReplying: _replyingToId == comment.id,
+                isReplying: replyingToId == comment.id,
                 onToggleReply: () => _toggleReply(comment.id),
-                onToggleLike: _toggleLike,
+                onToggleLike: (id) => _toggleLike(ref, id),
                 currentUserId: currentUserId,
-                replyComposer: CommentComposer(
-                  key: ValueKey('reply-${comment.id}'),
-                  hintText: 'Répondre...',
-                  onSend: (text) => _submitReply(comment.id, text),
-                  onSendImage: (path) => _submitReplyImage(comment.id, path),
-                  onSendVoice: (path, duration) =>
-                      _submitReplyVoice(comment.id, path, duration),
-                ),
+                replyComposer: replyingToId != comment.id
+                    ? null
+                    : CommentComposer(
+                        key: ValueKey('reply-${comment.id}'),
+                        hintText: 'Répondre...',
+                        autofocus: true,
+                        onSend: (text) => _submitReply(ref, comment.id, text),
+                        onSendImage: (path) =>
+                            _submitReplyImage(ref, comment.id, path),
+                        onSendVoice: (path, duration) =>
+                            _submitReplyVoice(ref, comment.id, path, duration),
+                      ),
               ),
           ],
         );

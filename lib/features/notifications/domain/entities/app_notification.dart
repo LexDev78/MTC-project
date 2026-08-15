@@ -18,7 +18,12 @@ enum NotificationType {
   @JsonValue('payout_decision')
   payoutDecision,
   @JsonValue('new_review')
-  newReview;
+  newReview,
+  // Sent to the CLIENT when a supplier moves their order forward (accepted/
+  // preparing/shipped/delivered) or cancels it — the reverse direction of
+  // [newOrder], which goes to the supplier when the client places one.
+  @JsonValue('order_status_update')
+  orderStatusUpdate;
 
   String get label => switch (this) {
     NotificationType.newOrder => 'Nouvelle commande',
@@ -27,6 +32,7 @@ enum NotificationType {
     NotificationType.kycDecision => 'Vérification',
     NotificationType.payoutDecision => 'Retrait',
     NotificationType.newReview => 'Nouvel avis',
+    NotificationType.orderStatusUpdate => 'Commande',
   };
 }
 
@@ -46,6 +52,10 @@ class AppNotification with _$AppNotification {
     required String body,
     required DateTime createdAt,
     required bool isRead,
+    // What the notification is about — a conversationId for `newMessage`,
+    // an orderId for `newOrder`, null for every other type (see
+    // `NotificationCenterScreen`'s tap handler, the only reader of this).
+    String? referenceId,
   }) = _AppNotification;
 
   factory AppNotification.fromJson(Map<String, dynamic> json) =>

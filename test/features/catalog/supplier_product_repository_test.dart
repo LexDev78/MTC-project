@@ -203,38 +203,17 @@ void main() {
     () async {
       const supplierId = DemoIds.supplierArtisanatSikasso;
       final asFournisseur2 = await _repositoryAs('fournisseur2');
-      final adminClient = createTestSupabaseClient();
-      await adminClient.auth.signInWithPassword(
-        email: pseudoEmail('admin1'),
-        password: 'password123',
-      );
-      final asAdmin = SupabaseProductRepository(SupabaseProductDatasource(adminClient));
-
-      // ignore: avoid_print
-      print('DIAG admin profile: ${await adminClient.from('profiles').select().eq('id', adminClient.auth.currentUser!.id)}');
+      final asAdmin = await _repositoryAs('admin1');
 
       final before = await asFournisseur2.watchMyProducts(supplierId).first;
       expect(before.every((p) => !p.isSupplierVerified), isTrue);
-
-      final updateResult = await adminClient
-          .from('products')
-          .update({'is_supplier_verified': true})
-          .eq('supplier_id', supplierId)
-          .select();
-      // ignore: avoid_print
-      print('DIAG raw update affected rows: ${updateResult.length}');
 
       await asAdmin.updateSupplierVerification(
         supplierId: supplierId,
         isVerified: true,
       );
 
-      // ignore: avoid_print
-      print('DIAG after-as-admin: ${(await asAdmin.watchMyProducts(supplierId).first).map((p) => p.isSupplierVerified).toList()}');
-
       final after = await asFournisseur2.watchMyProducts(supplierId).first;
-      // ignore: avoid_print
-      print('DIAG after-as-fournisseur2: ${after.map((p) => p.isSupplierVerified).toList()}');
       expect(after.every((p) => p.isSupplierVerified), isTrue);
     },
   );

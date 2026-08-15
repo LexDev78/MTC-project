@@ -7,14 +7,16 @@ storage, stratégie de tests, séquence des 12 lots), est dans
 `/Users/solomon/.claude/plans/purrfect-swimming-fog.md` — **le lire en
 premier** si le contexte ci-dessous ne suffit pas.
 
-**État au 2026-08-14** : **Lots 0 à 10 terminés.** Toutes les 14 features
-métier tournent sur le vrai backend Postgres, tous les chemins de
-fichiers sont de vrais chemins Storage, et **la suite de tests widget est
-désormais migrée vers `integration_test`** — les 16 tests bloqués par
-`FakeAsync` depuis le Lot 3 tournent enfin, et ont révélé plusieurs vrais
-bugs applicatifs (détail ci-dessous) invisibles jusqu'ici. Reste
-uniquement le nettoyage final (Lot 11). Reprendre au Lot 11 (Nettoyage
-final).
+**État au 2026-08-14** : **Migration terminée — Lots 0 à 11 tous
+complets.** Toutes les 14 features métier tournent sur le vrai backend
+Postgres (Auth/sessions réelles, RLS partout, Storage pour tous les
+fichiers), la suite de tests widget est migrée vers `integration_test`,
+et **le dernier code mort de l'ancien backend simulé (26 fichiers
+`in_memory_*`, la session en clair dans `SharedPreferences`) est
+supprimé.** Il ne reste plus de branche "fausses données" nulle part dans
+`lib/` — seul `tracking/` (simulation live volontairement hors schéma,
+voir le plan d'origine) garde son implémentation in-memory. Ce fichier
+reste comme référence historique ; aucun lot n'est plus "à faire".
 
 ## Stack locale — infos de connexion
 
@@ -1139,9 +1141,168 @@ Les 16 fichiers d'origine dans `test/` (dupliqués dans
   verts**, de façon reproductible (chaque fichier re-testé plusieurs fois
   après chaque correctif pour écarter la fragilité).
 
-## À faire (Lot 11, détail complet dans le plan original)
+## Fait (Lot 11 — terminé, dernier lot de la migration)
 
-### Lot 11 — Nettoyage final (PROCHAIN)
-- Suppression des 28 fichiers `in_memory_*_datasource.dart`/
-  `in_memory_*_repository.dart` ; audit `shared_preferences` restant ;
-  clôture de ce fichier.
+### Suppression des 26 fichiers `in_memory_*` (28 − 2 : `tracking/` exempté)
+Sur les 28 fichiers `in_memory_*_datasource.dart`/`in_memory_*_repository.dart`
+que comptait le projet, **26 sont supprimés** : `auth`, `cart`, `catalog`,
+`chat`, `comments`, `favorites`, `notifications`, `orders`, `profile`,
+`ratings`, `supplier_finance`, `supplier_onboarding`, `suppliers` (13
+features × 2 fichiers chacune). **`tracking/` garde ses 2 fichiers**
+(`InMemoryTrackingDatasource`/`InMemoryTrackingRepository`, toujours
+câblés dans `tracking_providers.dart`) — conformément au plan d'origine,
+qui exempte explicitement cette feature : c'est une simulation de
+livraison en temps réel, jamais persistée, délibérément hors du schéma
+Postgres.
+
+Avec la suppression de `in_memory_auth_repository.dart` disparaît aussi
+le **dernier vestige de l'ancienne session en clair** : ce fichier
+gardait la session dans `SharedPreferences` sous la clé `mtc_session_key`
+— le mécanisme que la vraie authentification Supabase (Lot 3) a
+remplacé. Audit complet de `shared_preferences` dans `lib/` : plus aucun
+usage lié à l'auth nulle part — seul `ThemeModeController`
+(`lib/app/theme/theme_mode_controller.dart`) l'utilise encore, pour la
+préférence de thème clair/sombre/système, un usage non-sensible à
+garder tel quel (exactement ce que le plan prévoyait de conserver).
+
+### 4 tests unitaires dépendaient encore des fakes in-memory — portés, pas supprimés
+Avant suppression, un grep a trouvé 4 fichiers de test qui instanciaient
+directement `InMemoryXxxRepository` comme un double de test rapide (pas
+comme code applicatif) : `test/features/catalog/product_repository_test.dart`,
+`test/features/catalog/supplier_product_repository_test.dart`,
+`test/features/orders/supplier_order_repository_test.dart`,
+`test/features/supplier_onboarding/supplier_kyc_repository_test.dart`.
+Plutôt que de perdre leur couverture (règles de visibilité catalogue,
+brouillon/activation produit, ajustement de stock avec ledger, machine à
+états KYC complète), les 4 sont **portés vers le vrai backend Supabase**
+(tag `integration`, même harnais `resetAndSeed()` que le reste de la
+suite depuis le Lot 3) plutôt que supprimés :
+- Lecture catalogue (`product_repository_test.dart`) : simple session
+  anonyme, comme un vrai visiteur non connecté.
+- Écritures scopées à un fournisseur (`supplier_product_repository_test.dart`,
+  `supplier_order_repository_test.dart`) : signature réelle du compte
+  propriétaire (`fournisseur1`/Bogolan Bamako, `fournisseur7`/Matériaux
+  Koutiala, `fournisseur8`/Tissus Mopti) plutôt qu'un objet repository nu
+  — la RLS exige une vraie session, pas juste un paramètre `supplierId`.
+- KYC (`supplier_kyc_repository_test.dart`) : chaque test crée un compte
+  fournisseur **fraîchement inscrit** (`signUpSupplierTiers`) plutôt que
+  de réutiliser les fixtures seed (Artisanat Sikasso/Fruits Niono, déjà
+  couvertes bout-en-bout par `kyc_review_flow_test.dart`/
+  `supplier_kyc_flow_test.dart`) — isolation complète entre les 14 tests
+  de ce fichier, aucun état partagé.
+
+### Deux vrais bugs supplémentaires trouvés en portant ces tests
+- **`lib/features/catalog/data/datasources/supabase_product_datasource.dart`,
+  `updateSupplierVerification`** — bug fonctionnel réel, jamais détecté
+  avant faute de test qui vérifiait ce niveau précis : un `update
+  products set is_supplier_verified = ... where supplier_id = ...` brut
+  côté client. Diagnostiqué par une requête directe en base
+  (`docker exec ... psql`) : la policy RLS `products_update_verification_staff`
+  (`using (is_staff())`) autorise bien l'UPDATE pour un compte staff,
+  mais Postgres exige *aussi* que la ligne soit visible via une policy
+  SELECT pour que l'UPDATE puisse seulement la localiser — et `products`
+  n'a **aucune** policy SELECT pour le staff (seulement
+  `products_select_public`, propriétaire ou produit déjà actif+vérifié).
+  Résultat : cet appel affectait silencieusement **0 ligne**, à chaque
+  fois, pour tout le monde — `KycReviewController.approve()` faisait donc
+  bien passer le compte et la fiche fournisseur en "vérifié", mais
+  **les produits du fournisseur restaient invisibles au catalogue
+  indéfiniment**, même après une approbation KYC réussie. Aucun test
+  existant ne vérifiait ce niveau précis (`kyc_review_flow_test.dart` ne
+  contrôle que le compte/la fiche, jamais les produits) — trouvé
+  uniquement grâce à ce portage. Corrigé avec le même remède que
+  `update_order_group_status`/`set_order_voice_message` (Lots 5/9) : une
+  fonction RPC `security definer`
+  (`supabase/migrations/0009_lot11_supplier_verification_rpc.sql`,
+  `set_products_supplier_verification`), qui s'affranchit de la
+  visibilité RLS de l'appelant avec son propre garde-fou `is_staff()`
+  explicite.
+- **Comptes seed mal identifiés en portant `supplier_order_repository_test.dart`** —
+  pas un bug applicatif, une erreur de lecture du seed : `fournisseur6`
+  correspond à "Alimentation Ségou", pas "Matériaux Koutiala"
+  (`fournisseur7`) — confondus une première fois à cause d'un
+  chevauchement de contexte `grep`. Corrigé par une relecture séquentielle
+  complète du bloc `insert into auth.users`. Egalement corrigé : le
+  fixture Bogolan Bamako a en réalité 2 commandes seedées
+  (`order-awa-delivered` + `seed-order-1`, ce dernier ajouté dans un lot
+  ultérieur pour d'autres tests), pas 1 comme le supposait l'ancien test
+  in-memory — assertion élargie en conséquence plutôt que la valeur
+  d'origine simplement recopiée.
+
+### Suite finale
+- `dart run build_runner build --delete-conflicting-outputs` : propre,
+  0 sortie (rien à régénérer après suppression de code mort).
+- `flutter analyze` (projet entier) : aucun souci.
+- `flutter test --exclude-tags integration` : **27/27 verts** (59 − 32,
+  les 4 fichiers portés vers `integration` représentant 32 tests).
+- `flutter test --tags integration --concurrency=1` : **95/95 verts**
+  (63 précédents + 32 nouvellement portés).
+- `integration_test/` (16 fichiers widget, macOS desktop) : déjà validé
+  16/16 au Lot 10, non re-touché par ce lot.
+
+### Fin de la migration
+Plus aucune donnée applicative ne vit dans une variable Dart : chaque
+feature métier lit/écrit exclusivement contre Postgres via Supabase,
+avec de vraies sessions (JWT, refresh, persistance native
+`supabase_flutter`) et une Row Level Security qui applique — pas
+seulement documente — les règles de confidentialité (un fournisseur ne
+voit que ses propres commandes/produits/KYC, un client ne voit que les
+siens, le staff a l'accès élevé strictement nécessaire). Les 12 lots du
+plan d'origine sont tous complets.
+
+## Post-migration — durcissement (hors plan d'origine, pas un "lot")
+
+Après la fin des 12 lots, une session de durcissement a corrigé quatre
+points trouvés en usage réel de l'app contre le vrai backend (pas des
+lots planifiés — pas de nettoyage supplémentaire à faire ici, juste de
+la doc de référence) :
+
+- **Reconnexion Realtime avec backoff**
+  (`lib/core/utils/realtime_retry.dart`, `withRealtimeRetry`) —
+  `SupabaseStreamBuilder` ferme son contrôleur à la première erreur
+  (websocket coupé, requête qui arrive pendant une restauration de
+  session avec un token pas encore rafraîchi) au lieu de réessayer, ce
+  qui bloquait silencieusement un fil de chat ou une liste de commandes
+  jusqu'au rechargement complet de l'app. Tous les flux Realtime
+  (`orders`, `chat`) sont désormais enveloppés : resouscription à chaque
+  erreur avec backoff exponentiel (2s → 30s max), réinitialisé après
+  chaque émission réussie — un backoff fixe aurait spammé le serveur
+  tant que la cause (ex. token expiré pas encore rafraîchi) persiste.
+- **Fermeture du socket Realtime à la déconnexion**
+  (`supabase_auth_datasource.dart`, `signOut`) — `signOut()` seul
+  ré-autorise les canaux encore ouverts avec la clé anon au lieu de les
+  fermer (comportement du package `supabase`), laissant un canal
+  ouvert avant déconnexion incapable de voir la moindre ligne protégée
+  par RLS ensuite. `signOut()` appelle maintenant aussi
+  `_client.realtime.disconnect()`, forçant chaque `.stream()` suivant à
+  ouvrir un socket + canal neuf.
+- **Annulation client + transitions séquentielles obligatoires**
+  (`order_status_transitions.dart` : `canClientCancel`,
+  `isValidTransition` désormais strict à l'étape suivante immédiate ;
+  `order_controller.dart` nouveau ; `order_detail_screen.dart` ; RPC
+  `update_order_group_status` réécrite dans
+  `supabase/migrations/0010_client_cancel_and_sequential_status.sql`)
+  — deux règles métier manquantes : (1) le client peut désormais annuler
+  lui-même son groupe tant qu'il est encore `pending` (avant, seul le
+  fournisseur avait un chemin d'écriture) ; (2) un fournisseur ne peut
+  plus sauter d'étape (`pending` → `in_transit` directement) — chaque
+  étape doit être confirmée dans l'ordre. Les deux règles sont dupliquées
+  côté Dart (UI + tests unitaires) et côté RPC `security definer`
+  (source de vérité RLS), en miroir exact comme le reste du projet.
+- **Un seul champ de saisie visible à la fois dans les commentaires**
+  (`comment_composer.dart`, `product_comment_tile.dart`,
+  `product_comments_modal.dart`, `product_comments_section.dart`) —
+  le composeur épinglé en bas de la feuille et un composeur de réponse
+  inline pouvaient être visibles simultanément ; l'état `replyingToId`
+  est remonté du `State` de la section vers celui de la modal, qui
+  masque désormais le composeur épinglé tant qu'une réponse est ouverte
+  (autofocus sur le composeur de réponse à l'ouverture).
+
+### Vérification
+- `supabase db reset` (applique la migration 0010) : propre.
+- `flutter analyze` : aucun souci.
+- `flutter test --exclude-tags integration` : verts.
+- `flutter test --tags integration --concurrency=1` : **95/95 verts**,
+  y compris les nouveaux cas d'annulation client / transition stricte
+  dans `order_status_transition_test.dart` et
+  `supplier_order_repository_test.dart`.

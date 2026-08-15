@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mtc_app/core/utils/id_generator.dart';
+import 'package:mtc_app/core/utils/realtime_retry.dart';
 
 /// Raw `chat_conversations`/`chat_messages` I/O — no `ChatConversation`/
 /// `ChatMessage` entity knowledge here. Unlike every other Lot 4-7
@@ -21,45 +22,51 @@ class SupabaseChatDatasource {
   final SupabaseClient _client;
 
   Stream<List<Map<String, dynamic>>> watchConversationsForUser(String clientId) {
-    return _client
-        .from('chat_conversations')
-        .stream(primaryKey: ['id'])
-        .eq('client_id', clientId)
-        .asyncMap(
-          (_) => _client
-              .from('chat_conversations')
-              .select()
-              .eq('client_id', clientId)
-              .order('last_message_at', ascending: false),
-        );
+    return withRealtimeRetry(
+      () => _client
+          .from('chat_conversations')
+          .stream(primaryKey: ['id'])
+          .eq('client_id', clientId)
+          .asyncMap(
+            (_) => _client
+                .from('chat_conversations')
+                .select()
+                .eq('client_id', clientId)
+                .order('last_message_at', ascending: false),
+          ),
+    );
   }
 
   Stream<List<Map<String, dynamic>>> watchConversationsForSupplier(String supplierId) {
-    return _client
-        .from('chat_conversations')
-        .stream(primaryKey: ['id'])
-        .eq('supplier_id', supplierId)
-        .asyncMap(
-          (_) => _client
-              .from('chat_conversations')
-              .select()
-              .eq('supplier_id', supplierId)
-              .order('last_message_at', ascending: false),
-        );
+    return withRealtimeRetry(
+      () => _client
+          .from('chat_conversations')
+          .stream(primaryKey: ['id'])
+          .eq('supplier_id', supplierId)
+          .asyncMap(
+            (_) => _client
+                .from('chat_conversations')
+                .select()
+                .eq('supplier_id', supplierId)
+                .order('last_message_at', ascending: false),
+          ),
+    );
   }
 
   Stream<List<Map<String, dynamic>>> watchMessages(String conversationId) {
-    return _client
-        .from('chat_messages')
-        .stream(primaryKey: ['id'])
-        .eq('conversation_id', conversationId)
-        .asyncMap(
-          (_) => _client
-              .from('chat_messages')
-              .select()
-              .eq('conversation_id', conversationId)
-              .order('sent_at', ascending: true),
-        );
+    return withRealtimeRetry(
+      () => _client
+          .from('chat_messages')
+          .stream(primaryKey: ['id'])
+          .eq('conversation_id', conversationId)
+          .asyncMap(
+            (_) => _client
+                .from('chat_messages')
+                .select()
+                .eq('conversation_id', conversationId)
+                .order('sent_at', ascending: true),
+          ),
+    );
   }
 
   Future<Map<String, dynamic>> getConversationById(String conversationId) {

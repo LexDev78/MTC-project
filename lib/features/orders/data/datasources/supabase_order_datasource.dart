@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:mtc_app/core/utils/realtime_retry.dart';
+
 /// Raw `orders`/`order_supplier_groups`/`order_items` I/O — no `Order`
 /// entity knowledge here (see `SupabaseOrderRepository`, which maps rows
 /// via `Order.fromJson`, Lot 2). Unlike the other Lot 4/5 datasources,
@@ -31,38 +33,46 @@ class SupabaseOrderDatasource {
   }
 
   Stream<List<Map<String, dynamic>>> watchOrdersForUser(String userId) {
-    return _client
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .eq('client_id', userId)
-        .asyncMap((_) => _fetchOrders(clientId: userId));
+    return withRealtimeRetry(
+      () => _client
+          .from('orders')
+          .stream(primaryKey: ['id'])
+          .eq('client_id', userId)
+          .asyncMap((_) => _fetchOrders(clientId: userId)),
+    );
   }
 
   Stream<Map<String, dynamic>> watchOrderById(String orderId) {
-    return _client
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .eq('id', orderId)
-        .asyncMap(
-          (_) => _client.from('orders').select(_nestedSelect).eq('id', orderId).single(),
-        );
+    return withRealtimeRetry(
+      () => _client
+          .from('orders')
+          .stream(primaryKey: ['id'])
+          .eq('id', orderId)
+          .asyncMap(
+            (_) => _client.from('orders').select(_nestedSelect).eq('id', orderId).single(),
+          ),
+    );
   }
 
   /// RLS on `orders` (`orders_select_visible`) already only lets a
   /// supplier session see orders where they have a group at all — no
   /// extra filtering needed to scope this to "my" orders.
   Stream<List<Map<String, dynamic>>> watchOrdersForSupplier(String supplierId) {
-    return _client
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .asyncMap((_) => _fetchOrders());
+    return withRealtimeRetry(
+      () => _client
+          .from('orders')
+          .stream(primaryKey: ['id'])
+          .asyncMap((_) => _fetchOrders()),
+    );
   }
 
   Stream<List<Map<String, dynamic>>> watchAllOrders() {
-    return _client
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .asyncMap((_) => _fetchOrders());
+    return withRealtimeRetry(
+      () => _client
+          .from('orders')
+          .stream(primaryKey: ['id'])
+          .asyncMap((_) => _fetchOrders()),
+    );
   }
 
   Future<String> placeOrder(Map<String, dynamic> params) async {

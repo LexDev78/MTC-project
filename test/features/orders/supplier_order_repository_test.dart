@@ -38,8 +38,13 @@ void main() {
       final bogolanOrders = await (await _repositoryAs('fournisseur1'))
           .watchOrdersForSupplier(DemoIds.supplierBogolanBamako)
           .first;
-      expect(bogolanOrders, hasLength(1));
-      expect(bogolanOrders.single.id, 'order-awa-delivered');
+      // Bogolan Bamako has two seeded orders: `order-awa-delivered` and the
+      // standalone `seed-order-1` fixture (used elsewhere for cart/checkout
+      // tests).
+      expect(
+        bogolanOrders.map((o) => o.id).toSet(),
+        {'order-awa-delivered', 'seed-order-1'},
+      );
 
       final materiauxOrders = await (await _repositoryAs('fournisseur7'))
           .watchOrdersForSupplier(DemoIds.supplierMateriauxKoutiala)

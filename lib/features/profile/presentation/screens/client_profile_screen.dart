@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/widgets/animated_count_badge.dart';
 
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
+import '../../../notifications/presentation/providers/notification_providers.dart';
 
 class ClientProfileScreen extends ConsumerWidget {
   const ClientProfileScreen({super.key});
@@ -14,6 +17,10 @@ class ClientProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider).valueOrNull;
     final scheme = Theme.of(context).colorScheme;
+    final unreadCount = ref.watch(totalUnreadCountProvider);
+    final unreadNotificationCount = user == null
+        ? 0
+        : ref.watch(unreadNotificationCountProvider(user.id));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profil')),
@@ -46,6 +53,30 @@ class ClientProfileScreen extends ConsumerWidget {
           ],
           const SizedBox(height: AppSpacing.xl),
           const Divider(),
+          ListTile(
+            leading: const Icon(Icons.receipt_long_outlined),
+            title: const Text('Mes commandes'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push(AppRoutes.clientOrders),
+          ),
+          ListTile(
+            leading: AnimatedCountBadge(
+              count: unreadCount,
+              child: const Icon(Icons.chat_bubble_outline_rounded),
+            ),
+            title: const Text('Messages'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push(AppRoutes.clientChat),
+          ),
+          ListTile(
+            leading: AnimatedCountBadge(
+              count: unreadNotificationCount,
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            title: const Text('Notifications'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push(AppRoutes.clientNotifications),
+          ),
           ListTile(
             leading: const Icon(Icons.location_on_outlined),
             title: const Text('Mes adresses'),

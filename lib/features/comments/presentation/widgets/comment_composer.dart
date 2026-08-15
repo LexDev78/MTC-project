@@ -18,12 +18,14 @@ class CommentComposer extends StatefulWidget {
     required this.onSend,
     required this.onSendImage,
     required this.onSendVoice,
+    this.autofocus = false,
   });
 
   final String hintText;
   final void Function(String text) onSend;
   final void Function(XFile image) onSendImage;
   final void Function(String voicePath, int durationSeconds) onSendVoice;
+  final bool autofocus;
 
   @override
   State<CommentComposer> createState() => _CommentComposerState();
@@ -31,6 +33,7 @@ class CommentComposer extends StatefulWidget {
 
 class _CommentComposerState extends State<CommentComposer> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
   final _recorder = AudioRecorder();
   Timer? _recordTimer;
   bool _isRecording = false;
@@ -39,6 +42,7 @@ class _CommentComposerState extends State<CommentComposer> {
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     _recordTimer?.cancel();
     _recorder.dispose();
     super.dispose();
@@ -49,6 +53,7 @@ class _CommentComposerState extends State<CommentComposer> {
     if (text.isEmpty) return;
     widget.onSend(text);
     _controller.clear();
+    _focusNode.unfocus();
   }
 
   void _showAccessDeniedSnackBar(String message) {
@@ -97,6 +102,7 @@ class _CommentComposerState extends State<CommentComposer> {
     final path = await _recorder.stop();
     final duration = _recordSeconds;
     if (!mounted) return;
+    _focusNode.unfocus();
     setState(() {
       _isRecording = false;
       _recordSeconds = 0;
@@ -132,6 +138,8 @@ class _CommentComposerState extends State<CommentComposer> {
         Expanded(
           child: TextField(
             controller: _controller,
+            focusNode: _focusNode,
+            autofocus: widget.autofocus,
             textInputAction: TextInputAction.send,
             onSubmitted: (_) => _submit(),
             onChanged: (_) => setState(() {}),

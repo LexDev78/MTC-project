@@ -24,6 +24,22 @@ extension ProductCategoryIcon on ProductCategory {
   };
 }
 
+/// One representative bundled photo per category, used by the Catalogue
+/// tab's category tiles (`CatalogueScreen`) — `null` for [autre], which has
+/// no sample photos of its own, falling back to its tinted icon there.
+extension ProductCategoryImage on ProductCategory {
+  String? get imageAsset => switch (this) {
+    ProductCategory.textilesBogolan => 'assets/images/products/textiles/fabric.jpg',
+    ProductCategory.artisanat => 'assets/images/products/artisanat/mask.jpg',
+    ProductCategory.electronique =>
+      'assets/images/products/electronique/smartphone.jpg',
+    ProductCategory.alimentation => 'assets/images/products/alimentation/rice.jpg',
+    ProductCategory.materiauxConstruction =>
+      'assets/images/products/materiaux/steel.jpg',
+    ProductCategory.autre => null,
+  };
+}
+
 class ProductCard extends ConsumerWidget {
   const ProductCard({super.key, required this.product, this.overlay});
 

@@ -6,6 +6,7 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/animated_count_badge.dart';
 import 'package:mtc_app/core/widgets/screen_idle_detector.dart';
+import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
@@ -13,6 +14,7 @@ import 'package:mtc_app/features/catalog/presentation/screens/catalog_tab_screen
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
     show ProductCategoryIcon;
 import 'package:mtc_app/features/catalog/presentation/widgets/product_filter_sheet.dart';
+import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 
 import 'widgets/promo_hero_banner.dart';
 
@@ -38,6 +40,18 @@ class _ClientHomeScreenState extends ConsumerState<ClientHomeScreen>
       // The category button reflects whichever tab is active, so it needs
       // to rebuild on every swipe/tap, not just when a category is picked.
       ..addListener(() => setState(() {}));
+    // Accueil is the client shell's landing branch and stays mounted (via
+    // the `IndexedStack`) for the whole logged-in session, so the header
+    // bell's badge — `notificationsProvider`, not autoDispose, no Realtime
+    // on that table — would otherwise only ever reflect whatever was true
+    // the very first time this screen built. One fresh fetch per app open
+    // keeps that badge honest without needing a live subscription; see
+    // `NotificationCenterScreen`'s `initState` for the same fix on the
+    // actual notification list.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userId = ref.read(currentUserProvider).valueOrNull?.id;
+      if (userId != null) ref.invalidate(notificationsProvider(userId));
+    });
   }
 
   @override
@@ -67,6 +81,12 @@ class _ClientHomeScreenState extends ConsumerState<ClientHomeScreen>
   @override
   Widget build(BuildContext context) {
     final cartCount = ref.watch(cartItemCountProvider);
+    final currentUserId = ref.watch(
+      currentUserProvider.select((u) => u.valueOrNull?.id),
+    );
+    final unreadNotificationCount = currentUserId == null
+        ? 0
+        : ref.watch(unreadNotificationCountProvider(currentUserId));
     final selectedCategory = ref.watch(
       catalogCategoryProvider(_activeSupplierType),
     );
@@ -82,7 +102,10 @@ class _ClientHomeScreenState extends ConsumerState<ClientHomeScreen>
           title: _HomeHeader(
             onSearchTap: () => context.push(AppRoutes.clientSearch),
             onCartTap: () => context.go(AppRoutes.clientCart),
+            onNotificationsTap: () =>
+                context.push(AppRoutes.clientNotifications),
             cartCount: cartCount,
+            notificationCount: unreadNotificationCount,
           ),
           bottom: TabBar(
             controller: _tabController,
@@ -140,12 +163,16 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.onSearchTap,
     required this.onCartTap,
+    required this.onNotificationsTap,
     required this.cartCount,
+    required this.notificationCount,
   });
 
   final VoidCallback onSearchTap;
   final VoidCallback onCartTap;
+  final VoidCallback onNotificationsTap;
   final int cartCount;
+  final int notificationCount;
 
   @override
   Widget build(BuildContext context) {
@@ -165,15 +192,35 @@ class _HomeHeader extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(child: _SearchBar(onTap: onSearchTap)),
         const SizedBox(width: AppSpacing.sm),
-        _CartButton(count: cartCount, onTap: onCartTap),
+        // Bell sits immediately to the left of the cart — the two most
+        // frequent "check something" actions grouped together, mirroring
+        // the supplier dashboard's bell placement.
+        _HeaderIconButton(
+          icon: Icons.notifications_outlined,
+          count: notificationCount,
+          onTap: onNotificationsTap,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        _HeaderIconButton(
+          icon: Icons.shopping_cart_outlined,
+          count: cartCount,
+          onTap: onCartTap,
+        ),
       ],
     );
   }
 }
 
-class _CartButton extends StatelessWidget {
-  const _CartButton({required this.count, required this.onTap});
+/// A circular icon button with a live count badge — used for both the cart
+/// and notifications bell in [_HomeHeader], identical styling.
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.count,
+    required this.onTap,
+  });
 
+  final IconData icon;
   final int count;
   final VoidCallback onTap;
 
@@ -194,11 +241,7 @@ class _CartButton extends StatelessWidget {
         child: Center(
           child: AnimatedCountBadge(
             count: count,
-            child: Icon(
-              Icons.shopping_cart_outlined,
-              color: scheme.onSurface,
-              size: 20,
-            ),
+            child: Icon(icon, color: scheme.onSurface, size: 20),
           ),
         ),
       ),

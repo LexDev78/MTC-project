@@ -32,7 +32,8 @@ class ProductCommentTile extends StatelessWidget {
 
   /// Built by the parent so it can own the [TextEditingController] and
   /// submit logic while staying scoped to this one comment's reply slot.
-  final Widget replyComposer;
+  /// Null unless [isReplying] is true.
+  final Widget? replyComposer;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +68,7 @@ class ProductCommentTile extends StatelessWidget {
                 onToggleLike: () => onToggleLike(reply.id),
               ),
             ),
-          if (isReplying)
+          if (isReplying && replyComposer != null)
             Padding(
               padding: const EdgeInsets.only(left: AppSpacing.lg, top: 4),
               child: replyComposer,

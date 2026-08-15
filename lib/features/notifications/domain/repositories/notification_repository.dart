@@ -8,6 +8,7 @@ abstract interface class NotificationRepository {
     required NotificationType type,
     required String title,
     required String body,
+    String? referenceId,
   });
 
   Future<void> markRead(String notificationId);
