@@ -44,6 +44,7 @@ _$ProductImpl _$$ProductImplFromJson(Map<String, dynamic> json) =>
           ProductStatus.active,
       lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt(),
       compareAtPriceFcfa: (json['compare_at_price_fcfa'] as num?)?.toInt(),
+      viewCount: (json['view_count'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$$ProductImplToJson(_$ProductImpl instance) =>
@@ -72,6 +73,7 @@ Map<String, dynamic> _$$ProductImplToJson(_$ProductImpl instance) =>
       'status': _$ProductStatusEnumMap[instance.status]!,
       'low_stock_threshold': instance.lowStockThreshold,
       'compare_at_price_fcfa': instance.compareAtPriceFcfa,
+      'view_count': instance.viewCount,
     };
 
 const _$SupplierTypeEnumMap = {

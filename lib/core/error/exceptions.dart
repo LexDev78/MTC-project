@@ -1,6 +1,6 @@
-/// Typed exceptions thrown by data-layer sources (in-memory today, Firebase
-/// later). Controllers catch these and, where a distinct user-facing message
-/// matters, map them to a [Failure] via `mapExceptionToFailure`.
+/// Typed exceptions thrown by data-layer sources — controllers surface these
+/// directly (typically via `AsyncValue.guard`, read back off `state.error`
+/// in the UI), no separate `Failure` mapping layer.
 sealed class AppException implements Exception {
   const AppException(this.message);
 

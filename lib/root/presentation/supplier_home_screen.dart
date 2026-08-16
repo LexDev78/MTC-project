@@ -8,6 +8,12 @@ import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product.dart';
+import 'package:mtc_app/features/catalog/domain/repositories/product_repository.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/supplier_product_providers.dart';
+import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
+    show ProductCategoryIcon, ProductImage;
 import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/supplier_onboarding/presentation/providers/supplier_kyc_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
@@ -29,11 +35,11 @@ class SupplierHomeScreen extends ConsumerWidget {
         title: const Text('Tableau de bord'),
         actions: [if (supplierId != null) _NotificationBellButton(supplierId: supplierId)],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: switch (user) {
-          SupplierTiersUser() => _TiersHome(user: user),
-          SupplierPrincipalUser() => _PrincipalHome(user: user),
+          SupplierTiersUser() => _TiersHome(user: user, supplierId: supplierId),
+          SupplierPrincipalUser() => _PrincipalHome(user: user, supplierId: supplierId),
           _ => const SizedBox.shrink(),
         },
       ),
@@ -42,9 +48,10 @@ class SupplierHomeScreen extends ConsumerWidget {
 }
 
 class _TiersHome extends StatelessWidget {
-  const _TiersHome({required this.user});
+  const _TiersHome({required this.user, required this.supplierId});
 
   final SupplierTiersUser user;
+  final String? supplierId;
 
   @override
   Widget build(BuildContext context) {
@@ -69,15 +76,20 @@ class _TiersHome extends StatelessWidget {
             onPressed: () => context.push(AppRoutes.supplierOnboarding),
           ),
         ],
+        if (supplierId != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _MyProductsSection(supplierId: supplierId!),
+        ],
       ],
     );
   }
 }
 
 class _PrincipalHome extends ConsumerWidget {
-  const _PrincipalHome({required this.user});
+  const _PrincipalHome({required this.user, required this.supplierId});
 
   final SupplierPrincipalUser user;
+  final String? supplierId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -96,6 +108,14 @@ class _PrincipalHome extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         const _KycQueueButton(),
+        // MTC staff also manage the shared "MTC Officiel" storefront's own
+        // products, via the same `operatingSupplierIdProvider` resolution
+        // as a fournisseur tiers (see that provider's doc comment) — same
+        // section, same data source, just reached from the staff home.
+        if (supplierId != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _MyProductsSection(supplierId: supplierId!),
+        ],
       ],
     );
   }
@@ -170,6 +190,166 @@ class _KycQueueButton extends ConsumerWidget {
         queue.isEmpty
             ? 'Vérification des fournisseurs'
             : 'Vérification des fournisseurs (${queue.length})',
+      ),
+    );
+  }
+}
+
+/// The operating supplier's own products as tappable stat cards — every
+/// status/verification state included (`myProductsProvider`, unlike the
+/// client-facing catalog), each showing views/likes/orders/stock and
+/// pushing to the same product form screen `SupplierProductListScreen`'s
+/// own tile does, for a quick glance without leaving the dashboard.
+class _MyProductsSection extends ConsumerWidget {
+  const _MyProductsSection({required this.supplierId});
+
+  final String supplierId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final productsAsync = ref.watch(myProductsProvider(supplierId));
+    final statsAsync = ref.watch(productStatsProvider(supplierId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Mes produits', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        productsAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (_, _) => const SizedBox.shrink(),
+          data: (products) {
+            if (products.isEmpty) {
+              return const MtcEmptyState(
+                icon: Icons.inventory_2_outlined,
+                title: 'Aucun produit pour le moment',
+              );
+            }
+            // `.valueOrNull` — stats are a `FutureProvider` fetched once
+            // per dashboard visit, not blocking the cards themselves: they
+            // just show 0 for an instant while that request is in flight,
+            // rather than holding up the whole list/stock/price info.
+            final stats = statsAsync.valueOrNull ?? const {};
+            return Column(
+              children: [
+                for (final product in products)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: _ProductStatCard(
+                      product: product,
+                      stats: stats[product.id],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProductStatCard extends ConsumerWidget {
+  const _ProductStatCard({required this.product, required this.stats});
+
+  final Product product;
+  final ProductStats? stats;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final lowStock =
+        product.lowStockThreshold != null &&
+        product.stockQuantity <= product.lowStockThreshold!;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push(
+          '${ref.read(supplierRoutePrefixProvider)}/products/form',
+          extra: product,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    child: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: ProductImage(
+                        imageUrl: product.imageUrls.isEmpty
+                            ? null
+                            : product.imageUrls.first,
+                        icon: product.category.icon,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        CurrencyText(
+                          product.priceFcfa,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: scheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  RoleBadge(
+                    label: '${product.viewCount} vues',
+                    color: scheme.onSurfaceVariant,
+                    icon: Icons.visibility_outlined,
+                  ),
+                  RoleBadge(
+                    label: "${stats?.favoriteCount ?? 0} j'aime",
+                    color: scheme.onSurfaceVariant,
+                    icon: Icons.favorite_outline,
+                  ),
+                  RoleBadge(
+                    label: '${stats?.orderCount ?? 0} commandes',
+                    color: scheme.onSurfaceVariant,
+                    icon: Icons.shopping_bag_outlined,
+                  ),
+                  RoleBadge(
+                    label: '${product.stockQuantity} en stock',
+                    color: lowStock ? scheme.error : scheme.onSurfaceVariant,
+                    icon: Icons.inventory_2_outlined,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

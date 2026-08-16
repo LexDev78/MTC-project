@@ -151,6 +151,25 @@ class SupabaseProductRepository implements ProductRepository {
       isVerified: isVerified,
     );
   }
+
+  @override
+  Future<void> incrementViewCount(String productId) {
+    return _datasource.incrementViewCount(productId);
+  }
+
+  @override
+  Future<Map<String, ProductStats>> fetchProductStats(String supplierId) async {
+    final rows = await _datasource.fetchSupplierProductStats(supplierId);
+    return {
+      for (final row in rows)
+        // `count(*)` comes back as Postgres `bigint` — `num`, not
+        // guaranteed `int`, depending on how it round-trips through JSON.
+        row['product_id'] as String: (
+          favoriteCount: (row['favorite_count'] as num).toInt(),
+          orderCount: (row['order_count'] as num).toInt(),
+        ),
+    };
+  }
 }
 
 /// `StockMovementReason.manualAdjustment`'s `@JsonValue` lives on the enum

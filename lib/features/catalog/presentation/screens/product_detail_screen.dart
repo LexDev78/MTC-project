@@ -68,6 +68,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   /// "Ajouter au panier" animation has somewhere on screen to land on.
   final GlobalKey _cartIconKey = GlobalKey();
 
+  @override
+  void initState() {
+    super.initState();
+    // Once per visit to this screen, not once per rebuild — `initState`
+    // rather than `build`, and fired off `widget.productId` directly
+    // rather than waiting on `productDetailProvider` to resolve, since the
+    // count doesn't need the full product loaded first. Fire-and-forget:
+    // a failed view-count bump shouldn't block or error the actual page.
+    unawaited(
+      ref.read(productRepositoryProvider).incrementViewCount(widget.productId),
+    );
+  }
+
   /// Sends [quantity] small cartons flying from [sourceCenter] (the "Ajouter
   /// au panier" button, at the moment it was tapped) to the AppBar's cart
   /// icon. Purely decorative — the real cart mutation already happened by

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,11 +18,24 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Without this, every keystroke tears down the previous Postgres `ilike`
+  /// query and fires a new one mid-word — wasted DB load and flickering
+  /// results. 300ms is long enough to absorb normal typing speed, short
+  /// enough that the results still feel immediate once you pause.
+  void _onQueryChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(globalSearchQueryProvider.notifier).state = value;
+    });
   }
 
   @override
@@ -36,8 +51,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             hintText: 'Rechercher un produit, un fournisseur...',
             border: InputBorder.none,
           ),
-          onChanged: (value) =>
-              ref.read(globalSearchQueryProvider.notifier).state = value,
+          onChanged: _onQueryChanged,
         ),
       ),
       body: AsyncValueWidget(

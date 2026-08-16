@@ -16,12 +16,6 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
   return SupabaseProductRepository(ref.watch(productDatasourceProvider));
 });
 
-/// Search text, isolated per [SupplierType] tab so typing in one catalog
-/// tab never affects the other.
-final catalogQueryProvider = StateProvider.family<String, SupplierType>(
-  (ref, type) => '',
-);
-
 /// Selected category filter, isolated per [SupplierType] tab.
 final catalogCategoryProvider =
     StateProvider.family<ProductCategory?, SupplierType>((ref, type) => null);
@@ -123,7 +117,6 @@ final productListProvider = StreamProvider.family<List<Product>, SupplierType>((
   type,
 ) {
   final repository = ref.watch(productRepositoryProvider);
-  final query = ref.watch(catalogQueryProvider(type));
   final category = ref.watch(catalogCategoryProvider(type));
   final minPrice = ref.watch(catalogMinPriceProvider(type));
   final maxPrice = ref.watch(catalogMaxPriceProvider(type));
@@ -133,11 +126,7 @@ final productListProvider = StreamProvider.family<List<Product>, SupplierType>((
   final selectedRegions = ref.watch(catalogSelectedRegionsProvider(type));
 
   return repository
-      .watchProducts(
-        supplierType: type,
-        category: category,
-        query: query.isEmpty ? null : query,
-      )
+      .watchProducts(supplierType: type, category: category)
       .map((products) {
         var filtered = products.where((p) {
           if (minPrice != null && p.priceFcfa < minPrice) return false;
@@ -284,4 +273,16 @@ final globalSearchResultsProvider = StreamProvider<List<Product>>((ref) {
   final query = ref.watch(globalSearchQueryProvider).trim();
   if (query.isEmpty) return Stream.value(const []);
   return ref.watch(productRepositoryProvider).watchProducts(query: query);
+});
+
+/// Per-product favorite/order counts for the supplier dashboard's product
+/// cards — fetched once per screen visit (`FutureProvider`, not a stream)
+/// like the notification center's "next visit" refresh, not a live
+/// subscription: view/like/order counts are analytics-ish, not
+/// action-critical, so they don't need second-by-second updates.
+final productStatsProvider = FutureProvider.family<Map<String, ProductStats>, String>((
+  ref,
+  supplierId,
+) {
+  return ref.watch(productRepositoryProvider).fetchProductStats(supplierId);
 });

@@ -69,9 +69,14 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(messagesProvider(widget.conversationId));
     final conversation = ref.watch(conversationProvider(widget.conversationId));
-    final currentUser = ref.watch(currentUserProvider).valueOrNull;
-    final currentUserId = currentUser?.id;
-    final isClient = currentUser is ClientUser;
+    // `.select()` a `(id, isClient)` record rather than the whole `AppUser`
+    // — this screen only ever needs those two facts, and a bare watch would
+    // rebuild the entire message list on any re-emission of the user stream.
+    final (currentUserId, isClient) = ref.watch(
+      currentUserProvider.select(
+        (u) => (u.valueOrNull?.id, u.valueOrNull is ClientUser),
+      ),
+    );
 
     ref.listen(messagesProvider(widget.conversationId), (previous, next) {
       if (next.hasValue) _scrollToBottom();

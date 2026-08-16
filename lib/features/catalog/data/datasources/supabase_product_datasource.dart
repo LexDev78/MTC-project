@@ -179,4 +179,26 @@ class SupabaseProductDatasource {
     );
     _notify();
   }
+
+  /// Fire-and-forget: no `_notify()` here on purpose — a view isn't a
+  /// state change either side's own UI needs to react to live (the
+  /// viewer isn't watching this product's stats, and the supplier's
+  /// dashboard already re-fetches stats on its own visit, see
+  /// `fetchSupplierProductStats`).
+  Future<void> incrementViewCount(String productId) {
+    return _client.rpc(
+      'increment_product_view',
+      params: {'p_product_id': productId},
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> fetchSupplierProductStats(
+    String supplierId,
+  ) async {
+    final rows = await _client.rpc(
+      'get_supplier_product_stats',
+      params: {'p_supplier_id': supplierId},
+    );
+    return (rows as List).cast<Map<String, dynamic>>();
+  }
 }

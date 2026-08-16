@@ -80,6 +80,11 @@ mixin _$Product {
   /// scheduled/rule-based promotion engine.
   int? get compareAtPriceFcfa => throw _privateConstructorUsedError;
 
+  /// Bumped by [ProductRepository.incrementViewCount] once per client
+  /// visit to the product's detail page — shown on the supplier
+  /// dashboard, not client-facing anywhere.
+  int get viewCount => throw _privateConstructorUsedError;
+
   /// Serializes this Product to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -119,6 +124,7 @@ abstract class $ProductCopyWith<$Res> {
     ProductStatus status,
     int? lowStockThreshold,
     int? compareAtPriceFcfa,
+    int viewCount,
   });
 }
 
@@ -161,6 +167,7 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
     Object? status = null,
     Object? lowStockThreshold = freezed,
     Object? compareAtPriceFcfa = freezed,
+    Object? viewCount = null,
   }) {
     return _then(
       _value.copyWith(
@@ -260,6 +267,10 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
                 ? _value.compareAtPriceFcfa
                 : compareAtPriceFcfa // ignore: cast_nullable_to_non_nullable
                       as int?,
+            viewCount: null == viewCount
+                ? _value.viewCount
+                : viewCount // ignore: cast_nullable_to_non_nullable
+                      as int,
           )
           as $Val,
     );
@@ -299,6 +310,7 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
     ProductStatus status,
     int? lowStockThreshold,
     int? compareAtPriceFcfa,
+    int viewCount,
   });
 }
 
@@ -340,6 +352,7 @@ class __$$ProductImplCopyWithImpl<$Res>
     Object? status = null,
     Object? lowStockThreshold = freezed,
     Object? compareAtPriceFcfa = freezed,
+    Object? viewCount = null,
   }) {
     return _then(
       _$ProductImpl(
@@ -439,6 +452,10 @@ class __$$ProductImplCopyWithImpl<$Res>
             ? _value.compareAtPriceFcfa
             : compareAtPriceFcfa // ignore: cast_nullable_to_non_nullable
                   as int?,
+        viewCount: null == viewCount
+            ? _value.viewCount
+            : viewCount // ignore: cast_nullable_to_non_nullable
+                  as int,
       ),
     );
   }
@@ -472,6 +489,7 @@ class _$ProductImpl implements _Product {
     this.status = ProductStatus.active,
     this.lowStockThreshold,
     this.compareAtPriceFcfa,
+    this.viewCount = 0,
   }) : _imageUrls = imageUrls,
        _sizes = sizes,
        _colors = colors;
@@ -589,9 +607,16 @@ class _$ProductImpl implements _Product {
   @override
   final int? compareAtPriceFcfa;
 
+  /// Bumped by [ProductRepository.incrementViewCount] once per client
+  /// visit to the product's detail page — shown on the supplier
+  /// dashboard, not client-facing anywhere.
+  @override
+  @JsonKey()
+  final int viewCount;
+
   @override
   String toString() {
-    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, weightKg: $weightKg, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region, status: $status, lowStockThreshold: $lowStockThreshold, compareAtPriceFcfa: $compareAtPriceFcfa)';
+    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, weightKg: $weightKg, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region, status: $status, lowStockThreshold: $lowStockThreshold, compareAtPriceFcfa: $compareAtPriceFcfa, viewCount: $viewCount)';
   }
 
   @override
@@ -641,7 +666,9 @@ class _$ProductImpl implements _Product {
             (identical(other.lowStockThreshold, lowStockThreshold) ||
                 other.lowStockThreshold == lowStockThreshold) &&
             (identical(other.compareAtPriceFcfa, compareAtPriceFcfa) ||
-                other.compareAtPriceFcfa == compareAtPriceFcfa));
+                other.compareAtPriceFcfa == compareAtPriceFcfa) &&
+            (identical(other.viewCount, viewCount) ||
+                other.viewCount == viewCount));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -672,6 +699,7 @@ class _$ProductImpl implements _Product {
     status,
     lowStockThreshold,
     compareAtPriceFcfa,
+    viewCount,
   ]);
 
   /// Create a copy of Product
@@ -714,6 +742,7 @@ abstract class _Product implements Product {
     final ProductStatus status,
     final int? lowStockThreshold,
     final int? compareAtPriceFcfa,
+    final int viewCount,
   }) = _$ProductImpl;
 
   factory _Product.fromJson(Map<String, dynamic> json) = _$ProductImpl.fromJson;
@@ -800,6 +829,12 @@ abstract class _Product implements Product {
   /// scheduled/rule-based promotion engine.
   @override
   int? get compareAtPriceFcfa;
+
+  /// Bumped by [ProductRepository.incrementViewCount] once per client
+  /// visit to the product's detail page — shown on the supplier
+  /// dashboard, not client-facing anywhere.
+  @override
+  int get viewCount;
 
   /// Create a copy of Product
   /// with the given fields replaced by the non-null parameter values.

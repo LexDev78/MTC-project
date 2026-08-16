@@ -229,6 +229,11 @@ class _ImageAttachment extends StatelessWidget {
             path: path,
             bucket: 'chat-attachments',
             signed: true,
+            // Matches the fixed 200x200 SizedBox above at ~2x — avoids
+            // decoding the original upload's full resolution for this
+            // bubble thumbnail, on every message in a scrolling thread.
+            cacheWidth: 400,
+            cacheHeight: 400,
             errorBuilder: (context, error, stackTrace) => Container(
               color: Colors.black12,
               alignment: Alignment.center,

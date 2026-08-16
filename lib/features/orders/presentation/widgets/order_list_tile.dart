@@ -16,7 +16,8 @@ class OrderListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final supplierNames = order.supplierGroups
         .map((g) => g.supplierName)
         .join(', ');
@@ -37,7 +38,7 @@ class OrderListTile extends StatelessWidget {
                       supplierNames,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: theme.textTheme.titleSmall,
                     ),
                   ),
                   _StatusBadge(status: order.status),
@@ -46,16 +47,16 @@ class OrderListTile extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 DateFormatter.formatDate(order.placedAt),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               CurrencyText(
                 order.totalFcfa,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),

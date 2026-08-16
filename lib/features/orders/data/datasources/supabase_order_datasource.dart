@@ -55,13 +55,21 @@ class SupabaseOrderDatasource {
   }
 
   /// RLS on `orders` (`orders_select_visible`) already only lets a
-  /// supplier session see orders where they have a group at all — no
-  /// extra filtering needed to scope this to "my" orders.
+  /// supplier session see orders where they have a group at all — the
+  /// refetch itself needs no extra filtering to scope its *results* to
+  /// "my" orders. But the *trigger* for that refetch does: watching
+  /// `orders` directly (no `supplier_id` column there) would mean any
+  /// change to ANY order from ANY client re-runs this supplier's full
+  /// nested fetch. Watching `order_supplier_groups` instead — which does
+  /// have `supplier_id` — narrows that to only this supplier's own groups
+  /// actually changing (a new order routed to them, one of their groups'
+  /// status updated), while the refetch itself is unchanged.
   Stream<List<Map<String, dynamic>>> watchOrdersForSupplier(String supplierId) {
     return withRealtimeRetry(
       () => _client
-          .from('orders')
+          .from('order_supplier_groups')
           .stream(primaryKey: ['id'])
+          .eq('supplier_id', supplierId)
           .asyncMap((_) => _fetchOrders()),
     );
   }

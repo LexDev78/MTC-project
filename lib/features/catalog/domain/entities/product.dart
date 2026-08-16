@@ -67,6 +67,11 @@ class Product with _$Product {
     /// when set and higher than it — a plain "barré" price, not a
     /// scheduled/rule-based promotion engine.
     int? compareAtPriceFcfa,
+
+    /// Bumped by [ProductRepository.incrementViewCount] once per client
+    /// visit to the product's detail page — shown on the supplier
+    /// dashboard, not client-facing anywhere.
+    @Default(0) int viewCount,
   }) = _Product;
 
   factory Product.fromJson(Map<String, dynamic> json) =>

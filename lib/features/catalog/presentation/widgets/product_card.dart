@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -86,12 +88,7 @@ class ProductCard extends ConsumerWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    ProductImage(
-                      imageUrl: product.imageUrls.isEmpty
-                          ? null
-                          : product.imageUrls.first,
-                      icon: product.category.icon,
-                    ),
+                    _CardImage(product: product),
                     if (overlay != null)
                       Positioned(top: 0, right: 0, child: overlay!),
                     if (product.stockQuantity > 0)
@@ -228,6 +225,74 @@ class _QuickAddToCartButton extends ConsumerWidget {
   }
 }
 
+/// The card's photo slot — a single [ProductImage] when [Product.imageUrls]
+/// has 0 or 1 entries, otherwise a `PageView` that auto-advances through
+/// all of them every 4s (still swipeable by hand too), so a multi-photo
+/// listing gets noticed while just scrolling past instead of only on its
+/// detail page. Mirrors `ProductDetailScreen`'s own gallery auto-advance
+/// (`_ProductDetailContentState._startIdleAutoScroll`) — same interval,
+/// same curve — just without that screen's fullscreen-viewer pause/thumbnail
+/// strip, neither of which make sense at card size.
+class _CardImage extends StatefulWidget {
+  const _CardImage({required this.product});
+
+  final Product product;
+
+  @override
+  State<_CardImage> createState() => _CardImageState();
+}
+
+class _CardImageState extends State<_CardImage> {
+  final _pageController = PageController();
+  Timer? _autoScrollTimer;
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.product.imageUrls.length > 1) _startAutoScroll();
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_pageController.hasClients) return;
+      final next = (_page + 1) % widget.product.imageUrls.length;
+      _pageController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final images = widget.product.imageUrls;
+    if (images.length <= 1) {
+      return ProductImage(
+        imageUrl: images.isEmpty ? null : images.first,
+        icon: widget.product.category.icon,
+      );
+    }
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: images.length,
+      onPageChanged: (index) => _page = index,
+      itemBuilder: (context, index) => ProductImage(
+        imageUrl: images[index],
+        icon: widget.product.category.icon,
+      ),
+    );
+  }
+}
+
 /// Shows the product's first photo, falling back to a tinted category icon
 /// when no asset is available or the asset fails to load (kept resilient
 /// since [Product.imageUrls] is allowed to be empty in the data model).
@@ -245,10 +310,16 @@ class ProductImage extends StatelessWidget {
       return _fallback(scheme);
     }
 
+    // Grid/list thumbnail, never shown larger than a couple hundred logical
+    // pixels wide — decoding at that size instead of whatever resolution
+    // the source photo actually is avoids allocating a full-size bitmap for
+    // every card, on every scroll, across every catalog/search/favorites
+    // grid in the app (the single most-rendered image widget here).
     return ResolvedImage(
       path: imageUrl!,
       bucket: 'product-images',
       errorBuilder: (context, error, stackTrace) => _fallback(scheme),
+      cacheWidth: 400,
     );
   }
 

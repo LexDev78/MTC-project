@@ -21,6 +21,8 @@ class ResolvedImage extends ConsumerWidget {
     this.fit = BoxFit.cover,
     this.errorBuilder,
     this.signed = false,
+    this.cacheWidth,
+    this.cacheHeight,
   });
 
   final String path;
@@ -30,6 +32,15 @@ class ResolvedImage extends ConsumerWidget {
   /// Whether [bucket] is private and [path] needs a signed URL rather than
   /// a plain public one.
   final bool signed;
+
+  /// Decode target size in physical pixels, forwarded straight to
+  /// `Image.asset`/`Image.network` — set these on any call site rendered at
+  /// a small, repeated size (grid/list thumbnails) so the image decoder
+  /// doesn't allocate a full-resolution bitmap just to downscale it for
+  /// display. `null` (the default) keeps the previous full-resolution
+  /// behavior, e.g. for a single hero/detail image worth full quality.
+  final int? cacheWidth;
+  final int? cacheHeight;
 
   /// Defaults to a generic broken-image icon — pass this to show something
   /// more specific instead (e.g. `ProductImage`'s category icon fallback).
@@ -46,12 +57,24 @@ class ResolvedImage extends ConsumerWidget {
         );
 
     if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: fit, errorBuilder: onError);
+      return Image.asset(
+        path,
+        fit: fit,
+        errorBuilder: onError,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+      );
     }
     final client = ref.watch(supabaseClientProvider);
     if (!signed) {
       final url = client.storage.from(bucket).getPublicUrl(path);
-      return Image.network(url, fit: fit, errorBuilder: onError);
+      return Image.network(
+        url,
+        fit: fit,
+        errorBuilder: onError,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+      );
     }
     return FutureBuilder<String>(
       future: client.storage.from(bucket).createSignedUrl(path, 3600),
@@ -61,7 +84,13 @@ class ResolvedImage extends ConsumerWidget {
             color: Theme.of(context).colorScheme.surfaceContainerHigh,
           );
         }
-        return Image.network(snapshot.data!, fit: fit, errorBuilder: onError);
+        return Image.network(
+          snapshot.data!,
+          fit: fit,
+          errorBuilder: onError,
+          cacheWidth: cacheWidth,
+          cacheHeight: cacheHeight,
+        );
       },
     );
   }

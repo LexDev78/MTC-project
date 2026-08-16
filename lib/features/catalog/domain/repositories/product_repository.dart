@@ -3,6 +3,13 @@ import '../entities/product_category.dart';
 import '../entities/product_status.dart';
 import '../entities/stock_movement.dart';
 
+/// A product's favorite ("j'aime") and order counts, aggregated
+/// server-side — see [ProductRepository.fetchProductStats]. Neither figure
+/// lives on [Product] itself (unlike [Product.viewCount]): both come from
+/// separate tables (`favorites`, `order_items`), so a plain value bag
+/// keyed by product id is enough — no need for a full domain entity.
+typedef ProductStats = ({int favoriteCount, int orderCount});
+
 abstract interface class ProductRepository {
   Stream<List<Product>> watchProducts({
     SupplierType? supplierType,
@@ -86,4 +93,15 @@ abstract interface class ProductRepository {
     required String supplierId,
     required bool isVerified,
   });
+
+  /// Bumps [Product.viewCount] by one — called once per client visit to
+  /// `ProductDetailScreen`. No RLS write path exists for an arbitrary
+  /// client to touch another supplier's product row directly, so this
+  /// goes through a `security definer` RPC (`0014_product_stats.sql`).
+  Future<void> incrementViewCount(String productId);
+
+  /// Favorite/order counts for every one of [supplierId]'s products, keyed
+  /// by product id — powers the supplier dashboard's product cards. One
+  /// aggregate RPC call rather than N queries/subscriptions.
+  Future<Map<String, ProductStats>> fetchProductStats(String supplierId);
 }

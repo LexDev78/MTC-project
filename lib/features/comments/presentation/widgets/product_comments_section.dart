@@ -76,7 +76,11 @@ class ProductCommentsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final currentUserId = ref.watch(currentUserProvider).valueOrNull?.id;
+    // `.select()` — only the id is used below, so a reply/like elsewhere in
+    // the app shouldn't re-run this whole thread's build.
+    final currentUserId = ref.watch(
+      currentUserProvider.select((u) => u.valueOrNull?.id),
+    );
     final commentsAsync = ref.watch(productCommentsProvider(productId));
 
     return commentsAsync.when(
@@ -88,6 +92,19 @@ class ProductCommentsSection extends ConsumerWidget {
       data: (comments) {
         final topLevel = comments.where((c) => !c.isReply).toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        // One pass to group replies by parent instead of re-scanning the
+        // full comment list per top-level comment below (was O(n²) on
+        // threads with many replies).
+        final repliesByParent = <String, List<ProductComment>>{};
+        for (final comment in comments) {
+          final parentId = comment.parentId;
+          if (parentId != null) {
+            (repliesByParent[parentId] ??= []).add(comment);
+          }
+        }
+        for (final replies in repliesByParent.values) {
+          replies.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        }
 
         if (topLevel.isEmpty) {
           return Padding(
@@ -107,8 +124,7 @@ class ProductCommentsSection extends ConsumerWidget {
               ProductCommentTile(
                 key: ValueKey(comment.id),
                 comment: comment,
-                replies: comments.where((c) => c.parentId == comment.id).toList()
-                  ..sort((a, b) => a.createdAt.compareTo(b.createdAt)),
+                replies: repliesByParent[comment.id] ?? const [],
                 isReplying: replyingToId == comment.id,
                 onToggleReply: () => _toggleReply(comment.id),
                 onToggleLike: (id) => _toggleLike(ref, id),

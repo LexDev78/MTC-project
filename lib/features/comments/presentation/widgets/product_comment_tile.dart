@@ -264,6 +264,11 @@ class _ImageAttachment extends StatelessWidget {
           child: ResolvedImage(
             path: path,
             bucket: 'comment-attachments',
+            // Matches the fixed 180x180 SizedBox above at ~2x, comfortably
+            // covering standard device pixel ratios without decoding the
+            // original upload's full resolution for this thumbnail.
+            cacheWidth: 360,
+            cacheHeight: 360,
             errorBuilder: (context, error, stackTrace) => Container(
               color: Colors.black12,
               alignment: Alignment.center,

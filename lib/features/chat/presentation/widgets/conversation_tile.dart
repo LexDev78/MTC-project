@@ -29,7 +29,15 @@ class ConversationTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final hasUnread = unreadCount > 0;
-    final isClient = ref.watch(currentUserProvider).valueOrNull is ClientUser;
+    // `.select()`, not a bare watch — this tile is instantiated once per
+    // row in a scrolling conversation list, and only ever needs the
+    // client-vs-supplier distinction, not the whole `AppUser`. A bare watch
+    // would rebuild every visible row on any re-emission of the user
+    // stream (e.g. Supabase replaying auth events to each subscriber — see
+    // the same reasoning in `chat_providers.dart`'s `conversationsProvider`).
+    final isClient = ref.watch(
+      currentUserProvider.select((u) => u.valueOrNull is ClientUser),
+    );
     final title = isClient
         ? conversation.supplierName
         : conversation.clientDisplayNameSnapshot;
