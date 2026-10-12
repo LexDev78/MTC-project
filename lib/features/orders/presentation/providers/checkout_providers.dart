@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/core/mock_data/malian_locations.dart';
@@ -7,6 +6,7 @@ import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/domain/entities/cart_item.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_pricing.dart';
 import 'package:mtc_app/features/catalog/domain/promotion_pricing.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
@@ -110,8 +110,15 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
   final cartItems = buyNowItem != null
       ? [buyNowItem]
       : await ref.watch(cartItemsProvider.future);
-  final productRepository = ref.watch(productRepositoryProvider);
   final destination = _destination(ref);
+
+  // Une seule lecture pour tout le panier (`fetch_pricing_inputs`, `0068`),
+  // là où cet écran appelait `getById` par article — une requête imbriquée
+  // chacune, ramenant caractéristiques, options et variantes dont il n'a
+  // aucun usage ici.
+  final pricing = await ref
+      .watch(productRepositoryProvider)
+      .fetchPricing(cartItems.map((i) => i.productId).toSet().toList());
 
   final bySupplier = <String, List<CartItem>>{};
   for (final item in cartItems) {
@@ -120,39 +127,38 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
 
   final groups = <CheckoutGroupView>[];
   for (final entry in bySupplier.entries) {
-    final products = await Future.wait(
-      entry.value.map((i) => productRepository.getById(i.productId)),
-    );
-    final allowsSelf = products.every((p) => p.allowsSelfDelivery);
-    final allowsMtc = products.every((p) => p.allowsMtcDelivery);
-    final categories = products.map((p) => p.category).toSet();
+    // Un article dont le produit a disparu entre la mise au panier et le
+    // paiement : on l'écarte du calcul plutôt que de faire échouer tout
+    // l'écran.
+    final lines = [
+      for (final item in entry.value)
+        if (pricing[item.productId] case final p?) (item: item, pricing: p),
+    ];
+    if (lines.isEmpty) continue;
+
+    final allowsSelf = lines.every((l) => l.pricing.allowsSelfDelivery);
+    final allowsMtc = lines.every((l) => l.pricing.allowsMtcDelivery);
+    final categories = lines.map((l) => l.pricing.category).toSet();
     var totalWeightKg = 0.0;
-    for (var i = 0; i < products.length; i++) {
-      totalWeightKg += products[i].weightKg * entry.value[i].quantity;
+    for (final line in lines) {
+      totalWeightKg += line.pricing.weightKg * line.item.quantity;
     }
     // Mêmes remises qu'au panier, et surtout mêmes que celles que
     // `place_order` appliquera : le sous-total annoncé ici est celui qui
     // sera facturé, pas la somme des prix figés à la mise au panier.
     var subtotal = 0;
-    for (var i = 0; i < products.length; i++) {
-      final item = entry.value[i];
-      final product = products[i];
-      final base =
-          product.variants
-              .firstWhereOrNull((v) => v.id == item.variantId)
-              ?.priceFcfa ??
-          product.priceFcfa;
+    for (final line in lines) {
       subtotal +=
           effectiveUnitPriceFcfa(
-            basePriceFcfa: base,
-            promotions: product.promotions,
-            quantity: item.quantity,
+            basePriceFcfa: line.pricing.basePriceFor(line.item.variantId),
+            promotions: line.pricing.promotions,
+            quantity: line.item.quantity,
           ) *
-          item.quantity;
+          line.item.quantity;
     }
     final fee = allowsMtc
         ? _mtcDeliveryFeeFor(
-            supplierCity: products.first.city,
+            supplierCity: lines.first.pricing.city,
             destination: destination,
             totalWeightKg: totalWeightKg,
             categories: categories,
@@ -161,9 +167,9 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
 
     groups.add((
       supplierId: entry.key,
-      supplierName: products.first.supplierName,
-      supplierCity: products.first.city,
-      items: entry.value,
+      supplierName: lines.first.pricing.supplierName,
+      supplierCity: lines.first.pricing.city,
+      items: [for (final line in lines) line.item],
       allowsSelfDelivery: allowsSelf,
       allowsMtcDelivery: allowsMtc,
       categories: categories,

@@ -66,8 +66,6 @@ class _OrderDetailBody extends ConsumerWidget {
           orderId: view.orderId,
           groupId: view.myGroup.id,
           status: status,
-          clientId: view.clientId,
-          supplierName: view.myGroup.supplierName,
         );
     if (!success && context.mounted) {
       final error = ref.read(supplierOrderControllerProvider).error;
@@ -111,8 +109,6 @@ class _OrderDetailBody extends ConsumerWidget {
           orderId: view.orderId,
           groupId: view.myGroup.id,
           reason: reason,
-          clientId: view.clientId,
-          supplierName: view.myGroup.supplierName,
         );
     if (!success && context.mounted) {
       final error = ref.read(supplierOrderControllerProvider).error;

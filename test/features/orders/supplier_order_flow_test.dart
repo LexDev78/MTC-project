@@ -129,8 +129,6 @@ void main() {
         orderId: DemoIds.orderMoussaIntransit,
         groupId: DemoIds.groupMoussaIntransit1,
         reason: 'Camion en panne, impossible de livrer à temps.',
-        clientId: DemoIds.clientMoussa,
-        supplierName: 'Matériaux Koutiala',
       );
       expect(success, isTrue);
 

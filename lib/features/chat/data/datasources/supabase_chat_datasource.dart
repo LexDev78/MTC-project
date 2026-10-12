@@ -96,7 +96,7 @@ class SupabaseChatDatasource {
         .from('chat_conversations')
         .update({
           'last_message_preview': preview,
-          'last_message_at': DateTime.now().toIso8601String(),
+          'last_message_at': DateTime.now().toUtc().toIso8601String(),
           if (isFromClient)
             'unread_count_supplier': (conversation['unread_count_supplier'] as int) + 1
           else

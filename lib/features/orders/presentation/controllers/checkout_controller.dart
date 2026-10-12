@@ -9,8 +9,6 @@ import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
 
 import '../../domain/entities/fulfillment.dart';
@@ -225,17 +223,10 @@ class CheckoutController extends AsyncNotifier<Order?> {
         }
       }
 
-      final notificationRepository = ref.read(notificationRepositoryProvider);
-      for (final group in order.supplierGroups) {
-        await notificationRepository.add(
-          userId: group.supplierId,
-          type: NotificationType.newOrder,
-          title: 'Nouvelle commande',
-          body: '${user.displayName} — ${group.items.length} article(s)',
-          referenceId: order.id,
-        );
-      }
-
+      // Les fournisseurs sont prévenus par `place_order` lui-même
+      // (`0065`), dans la transaction qui crée la commande. L'app ne les
+      // notifie plus : un compte connecté n'a d'ailleurs plus le droit
+      // d'insérer une notification (`0064`).
       return order;
     });
 

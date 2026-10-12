@@ -4,11 +4,13 @@ import '../entities/review.dart';
 abstract interface class ReviewRepository {
   Stream<List<Review>> watchForSupplier(String supplierId);
 
+  /// Dépose l'avis, et avec lui la moyenne du fournisseur, sa recopie sur
+  /// ses produits et la notification — toutes faites côté serveur
+  /// (`submit_review`, `0063`). Ni `clientId` ni `supplierId` ne sont
+  /// transmis : le serveur les déduit de la commande et de l'appelant.
   Future<void> submitReview({
     required String orderId,
     required String supplierGroupId,
-    required String clientId,
-    required String supplierId,
     required int stars,
     required String comment,
     List<String> imagePaths,

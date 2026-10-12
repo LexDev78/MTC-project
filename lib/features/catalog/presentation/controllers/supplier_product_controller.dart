@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 
@@ -148,22 +146,12 @@ class SupplierProductController extends AsyncNotifier<void> {
         note: note,
       );
 
-      // `updated.stockQuantity` is correct whether this was a product- or
-      // variant-level correction: the aggregate trigger
-      // (`0018_product_variants.sql`) already folds a variant's stock back
-      // into the product's own `stock_quantity` before this re-fetch runs.
-      final updated = await productRepository.getById(productId);
-      final threshold = updated.lowStockThreshold;
-      if (threshold != null && updated.stockQuantity <= threshold) {
-        await ref
-            .read(notificationRepositoryProvider)
-            .add(
-              userId: updated.supplierId,
-              type: NotificationType.lowStock,
-              title: 'Stock faible',
-              body: '${updated.name} : ${updated.stockQuantity} en stock',
-            );
-      }
+      // L'alerte de stock faible est posée par le déclencheur
+      // `products_notify_low_stock` (`0064`), qui voit la nouvelle quantité
+      // de la ligne. Elle couvre donc aussi les **ventes**, là où ce
+      // contrôle ne valait que pour une correction manuelle — et elle
+      // économise la relecture complète du produit qu'il fallait faire ici
+      // juste pour connaître le stock résultant.
     });
     return !state.hasError;
   }

@@ -161,7 +161,7 @@ class SupabaseSupplierKycDatasource {
         .from('supplier_kyc')
         .update({
           'consent_accepted': true,
-          'consent_accepted_at': DateTime.now().toIso8601String(),
+          'consent_accepted_at': DateTime.now().toUtc().toIso8601String(),
           'consent_policy_version': policyVersion,
         })
         .eq('supplier_id', supplierId);
@@ -173,7 +173,7 @@ class SupabaseSupplierKycDatasource {
         .from('supplier_kyc')
         .update({
           'status': 'submitted',
-          'submitted_at': DateTime.now().toIso8601String(),
+          'submitted_at': DateTime.now().toUtc().toIso8601String(),
           'rejection_reason': null,
         })
         .eq('supplier_id', supplierId);
@@ -193,7 +193,7 @@ class SupabaseSupplierKycDatasource {
         .from('supplier_kyc')
         .update({
           'status': 'approved',
-          'reviewed_at': DateTime.now().toIso8601String(),
+          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
           'reviewed_by_staff_id': staffId,
           'rejection_reason': null,
         })
@@ -210,7 +210,7 @@ class SupabaseSupplierKycDatasource {
         .from('supplier_kyc')
         .update({
           'status': 'rejected',
-          'reviewed_at': DateTime.now().toIso8601String(),
+          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
           'reviewed_by_staff_id': staffId,
           'rejection_reason': reason,
         })

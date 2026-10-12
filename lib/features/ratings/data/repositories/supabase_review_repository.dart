@@ -21,23 +21,19 @@ class SupabaseReviewRepository implements ReviewRepository {
   Future<void> submitReview({
     required String orderId,
     required String supplierGroupId,
-    required String clientId,
-    required String supplierId,
     required int stars,
     required String comment,
     List<String> imagePaths = const [],
     String? videoPath,
   }) {
-    return _datasource.submitReview({
-      'order_id': orderId,
-      'supplier_group_id': supplierGroupId,
-      'client_id': clientId,
-      'supplier_id': supplierId,
-      'stars': stars,
-      'comment': comment,
-      'image_paths': imagePaths,
-      'video_path': videoPath,
-    });
+    return _datasource.submitReview(
+      orderId: orderId,
+      supplierGroupId: supplierGroupId,
+      stars: stars,
+      comment: comment,
+      imagePaths: imagePaths,
+      videoPath: videoPath,
+    );
   }
 
   @override

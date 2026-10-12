@@ -224,6 +224,31 @@ Future<List<Map<String, dynamic>>> fetchStockMovementsAsAdmin(
 /// to read the result back. Not a substitute for
 /// `NotificationRepository.watchForUser`, which real code and most tests
 /// should keep going through.
+/// Pose une notification sans passer par une session cliente.
+///
+/// Depuis `0064`, une session cliente n'a plus le droit d'en insérer : elles
+/// sont produites par l'événement qui les justifie. Les tests qui vérifient
+/// l'**affichage** et le marquage comme lu ont pourtant besoin d'en créer,
+/// d'où cette RPC réservée à `service_role`.
+Future<void> insertNotificationAsAdmin({
+  required String userId,
+  required String type,
+  required String title,
+  required String body,
+  String? referenceId,
+}) async {
+  await _adminClient.rpc(
+    'test_insert_notification',
+    params: {
+      'p_user_id': userId,
+      'p_type': type,
+      'p_title': title,
+      'p_body': body,
+      'p_reference_id': referenceId,
+    },
+  );
+}
+
 Future<List<Map<String, dynamic>>> fetchNotificationsForUserAsAdmin(
   String userId,
 ) async {

@@ -95,7 +95,11 @@ class SupabaseOrderRepository implements OrderRepository {
         'p_fulfillment_method': _fulfillmentMethodToDb(fulfillmentMethod),
         'p_courier_phone': courierPhone,
         'p_alternate_phone': alternatePhone,
-        'p_delivery_date': deliveryDate?.toIso8601String(),
+        // En UTC comme toutes les autres dates envoyées : stockée telle
+        // quelle et relue en local, la journée choisie reste la même. Une
+        // date locale sérialisée sans décalage serait relue comme de l'UTC,
+        // et le créneau se déplacerait du fuseau de l'appareil.
+        'p_delivery_date': deliveryDate?.toUtc().toIso8601String(),
         'p_delivery_time_slot_label': deliveryTimeSlotLabel,
         'p_is_priority': isPriority,
         'p_priority_fee_fcfa': priorityFeeFcfa,

@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
 import 'package:mtc_app/features/notifications/presentation/controllers/notification_controller.dart';
 import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 
@@ -46,24 +45,25 @@ void main() {
     () async {
       await login('client1');
       final repo = container.read(notificationRepositoryProvider);
-      // Inserting a notification for someone else is allowed (any signed-in
-      // account can notify any other, `notifications_insert_authenticated`)
-      // — only reading someone else's back is restricted.
-      await repo.add(
+      // Les fixtures passent par le harnais : une session cliente ne peut
+      // plus insérer de notification (`0064` — elles sont produites par
+      // l'événement qui les justifie). Ce test porte sur la **lecture**,
+      // c'est-à-dire sur ce que chacun voit de ce qui a été posé.
+      await insertNotificationAsAdmin(
         userId: DemoIds.clientAwa,
-        type: NotificationType.newOrder,
+        type: 'new_order',
         title: 'A1',
         body: 'first',
       );
-      await repo.add(
+      await insertNotificationAsAdmin(
         userId: DemoIds.clientMoussa,
-        type: NotificationType.newOrder,
+        type: 'new_order',
         title: 'B1',
         body: 'other user',
       );
-      await repo.add(
+      await insertNotificationAsAdmin(
         userId: DemoIds.clientAwa,
-        type: NotificationType.lowStock,
+        type: 'low_stock',
         title: 'A2',
         body: 'second',
       );
@@ -85,21 +85,21 @@ void main() {
     () async {
       await login('client1');
       final repo = container.read(notificationRepositoryProvider);
-      await repo.add(
+      await insertNotificationAsAdmin(
         userId: DemoIds.clientAwa,
-        type: NotificationType.newOrder,
+        type: 'new_order',
         title: 'A1',
         body: 'x',
       );
-      await repo.add(
+      await insertNotificationAsAdmin(
         userId: DemoIds.clientAwa,
-        type: NotificationType.newOrder,
+        type: 'new_order',
         title: 'A2',
         body: 'y',
       );
-      await repo.add(
+      await insertNotificationAsAdmin(
         userId: DemoIds.clientMoussa,
-        type: NotificationType.newOrder,
+        type: 'new_order',
         title: 'B1',
         body: 'z',
       );

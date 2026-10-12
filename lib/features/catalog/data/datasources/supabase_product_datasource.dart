@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/utils/realtime_retry.dart';
+import 'package:mtc_app/core/utils/stream_debounce.dart';
 
 import '../../domain/entities/product_category.dart';
 
@@ -19,6 +20,20 @@ String categoryToDb(ProductCategory category) => switch (category) {
   ProductCategory.alimentation => 'alimentation',
   ProductCategory.materiauxConstruction => 'materiaux_construction',
   ProductCategory.autre => 'autre',
+};
+
+/// Le chemin inverse, pour les lectures qui ne passent pas par
+/// `Product.fromJson` — `fetch_pricing_inputs` (`0068`) renvoie un objet
+/// taillé pour le calcul de prix, pas une ligne de `products`. Une valeur
+/// inconnue retombe sur `autre` plutôt que de faire échouer tout un panier
+/// pour une catégorie ajoutée en base et pas encore dans l'app.
+ProductCategory categoryFromDb(String value) => switch (value) {
+  'textiles_bogolan' => ProductCategory.textilesBogolan,
+  'artisanat' => ProductCategory.artisanat,
+  'electronique' => ProductCategory.electronique,
+  'alimentation' => ProductCategory.alimentation,
+  'materiaux_construction' => ProductCategory.materiauxConstruction,
+  _ => ProductCategory.autre,
 };
 
 /// Raw `products`/`stock_movements` table I/O — no `Product` entity
@@ -63,8 +78,15 @@ class SupabaseProductDatasource {
   /// a given session's subscription can even see change, and the narrower
   /// filtering (category/search/supplier) still happens in the real fetch
   /// this triggers.
+  ///
+  /// Les rafales sont regroupées (`debounceTriggers`) : c'est un flux
+  /// **global**, donc un fournisseur qui enregistre huit variantes réveillait
+  /// huit rechargements complets du catalogue sur chaque appareil connecté,
+  /// pour aboutir au même affichage que le dernier.
   Stream<void> get _productRealtimeTrigger =>
-      withRealtimeRetry(() => _client.from('products').stream(primaryKey: ['id'])).map((_) {});
+      withRealtimeRetry(() => _client.from('products').stream(primaryKey: ['id']))
+          .map((_) {})
+          .debounceTriggers();
 
   /// Only `getById` embeds this — list queries (`watchProducts`,
   /// `watchMyProducts`) stay cheap, the two new scalar aggregate columns
@@ -307,5 +329,22 @@ class SupabaseProductDatasource {
   Future<void> deletePromotion(String id) async {
     await _client.from('product_promotions').delete().eq('id', id);
     _notify();
+  }
+
+  /// Les données de prix de plusieurs produits, en un appel
+  /// (`fetch_pricing_inputs`, `0068`).
+  ///
+  /// Remplace autant d'appels à [getById] qu'il y a de lignes au panier.
+  /// `getById` ramène tout l'arbre caractéristiques/variantes/options, utile
+  /// à une fiche produit, inutile à un prix unitaire.
+  Future<Map<String, dynamic>> fetchPricingInputs(
+    List<String> productIds,
+  ) async {
+    if (productIds.isEmpty) return const {};
+    final result = await _client.rpc(
+      'fetch_pricing_inputs',
+      params: {'p_product_ids': productIds},
+    );
+    return Map<String, dynamic>.from(result as Map);
   }
 }

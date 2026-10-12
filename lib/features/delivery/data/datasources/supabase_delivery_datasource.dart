@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mtc_app/core/utils/realtime_retry.dart';
+import 'package:mtc_app/core/utils/stream_debounce.dart';
 
 /// I/O brut des courses (`deliveries`, `0046_couriers_and_deliveries.sql`).
 ///
@@ -51,10 +52,17 @@ class SupabaseDeliveryDatasource {
   /// ces deux cas — le flux sert de déclencheur, le `select` ci-dessus fait
   /// le tri.
   Stream<List<Map<String, dynamic>>> watchForCourier(String courierId) {
+    // Rafales regroupées : le flux n'a pas de filtre (voir ci-dessus), donc
+    // chaque course créée ou avancée **ailleurs** déclenchait la lecture
+    // imbriquée complète de ce livreur.
     return withRealtimeRetry(
       () => _client
           .from('deliveries')
           .stream(primaryKey: ['id'])
+          .map((_) {})
+          // Front montant : ce flux **est** la liste affichée, donc son
+          // premier événement ne doit pas attendre la fenêtre.
+          .debounceTriggers(leading: true)
           .asyncMap((_) => _fetchForCourier(courierId)),
     );
   }
@@ -234,7 +242,7 @@ class SupabaseDeliveryDatasource {
           'is_online': isOnline,
           if (latitude != null) 'last_latitude': latitude,
           if (longitude != null) 'last_longitude': longitude,
-          if (latitude != null) 'last_position_at': DateTime.now().toIso8601String(),
+          if (latitude != null) 'last_position_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', courierId);
   }

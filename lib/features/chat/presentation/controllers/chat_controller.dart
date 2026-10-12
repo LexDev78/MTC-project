@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -6,7 +5,6 @@ import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
 import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 
 import '../../domain/entities/chat.dart';
@@ -16,39 +14,11 @@ class ChatController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  /// Notifies whichever side didn't just send the message — resolves the
-  /// conversation fresh via `ChatRepository.getConversationById` rather
-  /// than trusting a presentation-layer provider to already be warm.
-  ///
-  /// The message itself is already sent by the time `sendMessage` calls
-  /// this — swallowing failures here (recipient lookup or the notification
-  /// write) keeps a delivery hiccup from surfacing as a failed send.
-  Future<void> _notifyRecipient({
-    required String conversationId,
-    required String senderId,
-    required String preview,
-  }) async {
-    try {
-      final conversation = await ref
-          .read(chatRepositoryProvider)
-          .getConversationById(conversationId);
-      final recipientId = senderId == conversation.clientId
-          ? conversation.supplierId
-          : conversation.clientId;
-      await ref
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: recipientId,
-            type: NotificationType.newMessage,
-            title: 'Nouveau message',
-            body: preview,
-            referenceId: conversationId,
-          );
-    } catch (e) {
-      debugPrint('ChatController._notifyRecipient failed (ignored): $e');
-    }
-  }
-
+  // Le destinataire est prévenu par le déclencheur `chat_messages_notify`
+  // (`0064`), qui compose le même aperçu (texte, sinon pièce jointe) depuis
+  // la ligne insérée. Cette classe le faisait en un second appel, dont
+  // l'échec était avalé en silence : un message pouvait donc partir sans
+  // notification, sans que personne ne le sache.
   Future<void> sendMessage({
     required String conversationId,
     required String text,
@@ -78,12 +48,6 @@ class ChatController extends AsyncNotifier<void> {
           productVariantId: productVariantId,
           productVariantNameSnapshot: productVariantNameSnapshot,
         );
-    final trimmed = text.trim();
-    await _notifyRecipient(
-      conversationId: conversationId,
-      senderId: userId,
-      preview: trimmed.isNotEmpty ? trimmed : '📦 $productNameSnapshot',
-    );
   }
 
   Future<void> sendImage({
@@ -119,11 +83,6 @@ class ChatController extends AsyncNotifier<void> {
           productVariantId: productVariantId,
           productVariantNameSnapshot: productVariantNameSnapshot,
         );
-    await _notifyRecipient(
-      conversationId: conversationId,
-      senderId: userId,
-      preview: '📷 Photo',
-    );
   }
 
   /// Sends a voice note — carries the same pending-product snapshot as a
@@ -166,11 +125,6 @@ class ChatController extends AsyncNotifier<void> {
           productVariantId: productVariantId,
           productVariantNameSnapshot: productVariantNameSnapshot,
         );
-    await _notifyRecipient(
-      conversationId: conversationId,
-      senderId: userId,
-      preview: '🎤 Message vocal',
-    );
   }
 
   /// Starts (or resumes) a conversation with a supplier. Returns the

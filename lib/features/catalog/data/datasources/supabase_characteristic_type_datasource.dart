@@ -59,7 +59,7 @@ class SupabaseCharacteristicTypeDatasource {
         .from('product_characteristic_types')
         .update({
           'status': 'approved',
-          'reviewed_at': DateTime.now().toIso8601String(),
+          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
           'reviewed_by_staff_id': staffId,
           'rejection_reason': null,
         })
@@ -76,7 +76,7 @@ class SupabaseCharacteristicTypeDatasource {
         .from('product_characteristic_types')
         .update({
           'status': 'rejected',
-          'reviewed_at': DateTime.now().toIso8601String(),
+          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
           'reviewed_by_staff_id': staffId,
           'rejection_reason': reason,
         })

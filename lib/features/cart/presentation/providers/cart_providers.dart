@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_pricing.dart';
 import 'package:mtc_app/features/catalog/domain/promotion_pricing.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 
@@ -32,6 +33,34 @@ final cartItemsProvider = StreamProvider<List<CartItem>>((ref) {
   return ref.watch(cartRepositoryProvider).watchCart(userId);
 });
 
+/// Les données de prix de tous les produits du panier, en **une** lecture
+/// (`fetch_pricing_inputs`, `0068`).
+///
+/// La clé est la liste d'identifiants réduite à une chaîne, et non
+/// l'ensemble lui-même : `select` compare par `==`, et deux `Set` de même
+/// contenu ne sont pas égaux en Dart — la lecture repartirait à chaque
+/// changement de quantité, alors que seules les lignes concernées changent
+/// et qu'aucun prix de base n'en dépend.
+final cartPricingProvider = FutureProvider<Map<String, ProductPricing>>((
+  ref,
+) async {
+  final key = ref.watch(
+    cartItemsProvider.select((value) {
+      final ids =
+          (value.valueOrNull ?? const <CartItem>[])
+              .map((item) => item.productId)
+              .toSet()
+              .toList()
+            ..sort();
+      return ids.join(',');
+    }),
+  );
+  if (key.isEmpty) return const {};
+  return ref
+      .watch(productRepositoryProvider)
+      .fetchPricing(key.split(','));
+});
+
 /// Le prix unitaire réellement dû pour une ligne, remises comprises.
 ///
 /// Part du prix **courant** du produit (ou de sa variante) et non du prix
@@ -47,19 +76,12 @@ final cartLineUnitPriceProvider = Provider.family<int, String>((ref, itemId) {
   final item = items.firstWhereOrNull((i) => i.id == itemId);
   if (item == null) return 0;
 
-  final product = ref
-      .watch(productDetailProvider(item.productId))
-      .valueOrNull;
-  if (product == null) return item.unitPriceFcfaSnapshot;
+  final pricing = ref.watch(cartPricingProvider).valueOrNull?[item.productId];
+  if (pricing == null) return item.unitPriceFcfaSnapshot;
 
-  final base =
-      product.variants
-          .firstWhereOrNull((v) => v.id == item.variantId)
-          ?.priceFcfa ??
-      product.priceFcfa;
   return effectiveUnitPriceFcfa(
-    basePriceFcfa: base,
-    promotions: product.promotions,
+    basePriceFcfa: pricing.basePriceFor(item.variantId),
+    promotions: pricing.promotions,
     quantity: item.quantity,
   );
 });
@@ -73,16 +95,10 @@ final cartLineCompareAtPriceProvider = Provider.family<int?, String>((
   final items = ref.watch(cartItemsProvider).valueOrNull ?? const <CartItem>[];
   final item = items.firstWhereOrNull((i) => i.id == itemId);
   if (item == null) return null;
-  final product = ref
-      .watch(productDetailProvider(item.productId))
-      .valueOrNull;
-  if (product == null) return null;
+  final pricing = ref.watch(cartPricingProvider).valueOrNull?[item.productId];
+  if (pricing == null) return null;
 
-  final base =
-      product.variants
-          .firstWhereOrNull((v) => v.id == item.variantId)
-          ?.priceFcfa ??
-      product.priceFcfa;
+  final base = pricing.basePriceFor(item.variantId);
   final effective = ref.watch(cartLineUnitPriceProvider(itemId));
   return effective < base ? base : null;
 });

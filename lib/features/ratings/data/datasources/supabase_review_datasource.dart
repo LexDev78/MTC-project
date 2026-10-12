@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:mtc_app/core/utils/id_generator.dart';
 
 /// Raw `reviews` I/O — no `Review` entity knowledge here. No Realtime (out
 /// of scope, same "notify after my own write" shape as Lot 4's
@@ -34,9 +33,35 @@ class SupabaseReviewDatasource {
     );
   }
 
-  Future<void> submitReview(Map<String, dynamic> row) async {
-    await _client.from('reviews').insert({'id': IdGenerator.next(), ...row});
+  /// Dépose l'avis par `submit_review` (`0063`) et non par un `insert`.
+  ///
+  /// Trois écritures accompagnaient l'avis : la moyenne du fournisseur, sa
+  /// recopie sur ses produits, et la notification. Les faire depuis la
+  /// session du client obligeait à lui ouvrir `suppliers` et `products` en
+  /// écriture — ce qui laissait un client ayant laissé un avis renommer la
+  /// boutique, changer ses numéros, la fermer, ou fixer sa note. Tout se
+  /// fait désormais dans une transaction côté serveur.
+  Future<String> submitReview({
+    required String orderId,
+    required String supplierGroupId,
+    required int stars,
+    required String comment,
+    List<String> imagePaths = const [],
+    String? videoPath,
+  }) async {
+    final id = await _client.rpc(
+      'submit_review',
+      params: {
+        'p_order_id': orderId,
+        'p_supplier_group_id': supplierGroupId,
+        'p_stars': stars,
+        'p_comment': comment,
+        'p_image_paths': imagePaths,
+        'p_video_path': videoPath,
+      },
+    );
     _notify();
+    return id as String;
   }
 
   Future<bool> hasReview({
@@ -64,7 +89,7 @@ class SupabaseReviewDatasource {
         .from('reviews')
         .update({
           'supplier_reply': reply,
-          'supplier_replied_at': DateTime.now().toIso8601String(),
+          'supplier_replied_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', reviewId);
     _notify();

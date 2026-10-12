@@ -1,6 +1,7 @@
 import '../entities/product.dart';
 import '../entities/product_category.dart';
 import '../entities/product_characteristic.dart';
+import '../entities/product_pricing.dart';
 import '../entities/product_status.dart';
 import '../entities/product_variant.dart';
 import '../entities/promotion.dart';
@@ -120,6 +121,10 @@ abstract interface class ProductRepository {
   /// by product id — powers the supplier dashboard's product cards. One
   /// aggregate RPC call rather than N queries/subscriptions.
   Future<Map<String, ProductStats>> fetchProductStats(String supplierId);
+
+  /// Ce qu'il faut de plusieurs produits pour calculer des prix, en une
+  /// lecture — voir [ProductPricing].
+  Future<Map<String, ProductPricing>> fetchPricing(List<String> productIds);
 
   /// Pose une remise sur un produit. Le fournisseur propriétaire est
   /// déterminé côté serveur depuis le produit, pas transmis d'ici — un

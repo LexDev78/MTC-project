@@ -1,11 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
-import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../providers/review_providers.dart';
 
@@ -22,48 +19,30 @@ class ReviewController extends AsyncNotifier<void> {
     List<String> imagePaths = const [],
     String? videoPath,
   }) async {
-    final userId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (userId == null) return false;
-
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await ref
+    state = await AsyncValue.guard(
+      () => ref
           .read(reviewRepositoryProvider)
           .submitReview(
             orderId: orderId,
             supplierGroupId: supplierGroupId,
-            clientId: userId,
-            supplierId: supplierId,
             stars: stars,
             comment: comment,
             imagePaths: imagePaths,
             videoPath: videoPath,
-          );
+          ),
+    );
+    if (state.hasError) return false;
 
-      // Fold the new rating into the supplier, then propagate it to every
-      // one of their products (Product.ratingAverage is a denormalized
-      // copy so catalog sorting never needs a supplier join).
-      final updated = await ref
-          .read(supplierRepositoryProvider)
-          .recordReview(supplierId: supplierId, stars: stars);
-      await ref
-          .read(productRepositoryProvider)
-          .updateSupplierRating(
-            supplierId: supplierId,
-            ratingAverage: updated.average,
-            ratingCount: updated.count,
-          );
-      await ref
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: supplierId,
-            type: NotificationType.newReview,
-            title: 'Nouvel avis',
-            body: '$stars★ — $comment',
-          );
-    });
-
-    return !state.hasError;
+    // La moyenne du fournisseur, sa recopie sur ses produits et la
+    // notification sont écrites par `submit_review` (`0063`). L'app ne les
+    // produit plus — elle doit en revanche oublier ce qu'elle a en cache,
+    // puisque ces lignes ont changé sans passer par elle.
+    ref.invalidate(supplierDetailProvider(supplierId));
+    ref.invalidate(productDetailProvider);
+    ref.invalidate(productReviewsProvider);
+    ref.invalidate(productReviewSummaryProvider);
+    return true;
   }
 
   Future<bool> replyToReview({

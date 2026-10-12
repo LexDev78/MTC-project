@@ -5,6 +5,7 @@ import '../../domain/entities/product_category.dart';
 import '../../domain/entities/product_characteristic.dart';
 import '../../domain/entities/product_status.dart';
 import '../../domain/entities/product_variant.dart';
+import '../../domain/entities/product_pricing.dart';
 import '../../domain/entities/promotion.dart';
 import '../../domain/entities/stock_movement.dart';
 import '../../domain/repositories/product_repository.dart';
@@ -222,6 +223,17 @@ class SupabaseProductRepository implements ProductRepository {
   }
 
   @override
+  Future<Map<String, ProductPricing>> fetchPricing(
+    List<String> productIds,
+  ) async {
+    final rows = await _datasource.fetchPricingInputs(productIds);
+    return {
+      for (final entry in rows.entries)
+        entry.key: _pricingFromJson(entry.value as Map<String, dynamic>),
+    };
+  }
+
+  @override
   Future<void> createPromotion({
     required String productId,
     required PromotionKind kind,
@@ -298,3 +310,32 @@ String _stockReasonToDb(StockMovementReason reason) => switch (reason) {
   StockMovementReason.returned => 'returned',
   StockMovementReason.correction => 'correction',
 };
+
+/// Assemblage à la main de `fetch_pricing_inputs` (`0068`) : les variantes
+/// y sont une table indexée par identifiant, ce que `json_serializable` ne
+/// produit pas naturellement, et la promotion a déjà son `fromJson`.
+ProductPricing _pricingFromJson(Map<String, dynamic> json) {
+  return ProductPricing(
+    priceFcfa: (json['price_fcfa'] as num).toInt(),
+    stockQuantity: (json['stock_quantity'] as num?)?.toInt() ?? 0,
+    weightKg: (json['weight_kg'] as num?)?.toDouble() ?? 0,
+    category: categoryFromDb(json['category'] as String),
+    city: json['city'] as String? ?? '',
+    supplierId: json['supplier_id'] as String,
+    supplierName: json['supplier_name'] as String? ?? '',
+    allowsSelfDelivery: json['allows_self_delivery'] as bool? ?? true,
+    allowsMtcDelivery: json['allows_mtc_delivery'] as bool? ?? true,
+    variants: {
+      for (final entry in (json['variants'] as Map).entries)
+        entry.key as String: VariantPricing(
+          priceFcfa: ((entry.value as Map)['price_fcfa'] as num).toInt(),
+          stockQuantity:
+              ((entry.value as Map)['stock_quantity'] as num?)?.toInt() ?? 0,
+        ),
+    },
+    promotions: [
+      for (final row in (json['promotions'] as List))
+        Promotion.fromJson(Map<String, dynamic>.from(row as Map)),
+    ],
+  );
+}

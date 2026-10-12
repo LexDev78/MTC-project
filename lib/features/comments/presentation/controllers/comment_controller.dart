@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -8,8 +7,6 @@ import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/product_comment.dart';
@@ -19,58 +16,11 @@ class CommentController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  /// Notifies whoever should hear about this comment — the product's
-  /// supplier for a fresh top-level question, or the original commenter for
-  /// a reply to them (this app's comments are flat one-level, see
-  /// `ProductComment`'s doc comment, so a reply's parent is always the
-  /// top-level comment). Never notifies the author about their own comment
-  /// (a supplier replying to their own earlier comment, if that ever
-  /// happens, or the rare case a lookup resolves back to the same user).
-  /// The comment itself is already posted by the time `addComment` calls
-  /// this — swallowing failures here (parent lookup or the notification
-  /// write) keeps a delivery hiccup from surfacing as a failed post.
-  Future<void> _notifyAboutComment({
-    required String productId,
-    required String supplierId,
-    required String authorId,
-    required String text,
-    String? parentId,
-  }) async {
-    try {
-      final preview = text.isEmpty ? 'Nouveau commentaire' : text;
-      String? recipientId;
-      if (parentId == null) {
-        recipientId = supplierId;
-      } else {
-        final comments = await ref
-            .read(productCommentRepositoryProvider)
-            .watchForProduct(productId)
-            .first;
-        ProductComment? parent;
-        for (final comment in comments) {
-          if (comment.id == parentId) {
-            parent = comment;
-            break;
-          }
-        }
-        recipientId = parent?.authorId;
-      }
-      if (recipientId == null || recipientId == authorId) return;
-
-      await ref
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: recipientId,
-            type: NotificationType.newComment,
-            title: 'Nouveau commentaire',
-            body: preview,
-            referenceId: productId,
-          );
-    } catch (e) {
-      debugPrint('CommentController._notifyAboutComment failed (ignored): $e');
-    }
-  }
-
+  // Le destinataire — le vendeur pour une question, l'auteur cité pour une
+  // réponse — est prévenu par le déclencheur `product_comments_notify`
+  // (`0064`), qui lit le même parent que cette classe allait rechercher.
+  // Elle le faisait en un second appel dont l'échec était avalé : un
+  // commentaire pouvait rester sans notification sans que rien ne le dise.
   Future<bool> addComment({
     required String productId,
     required String text,
@@ -94,13 +44,6 @@ class CommentController extends AsyncNotifier<void> {
             text: trimmed,
             parentId: parentId,
           );
-      await _notifyAboutComment(
-        productId: productId,
-        supplierId: product.supplierId,
-        authorId: user.id,
-        text: trimmed,
-        parentId: parentId,
-      );
     });
 
     return !state.hasError;
@@ -144,13 +87,6 @@ class CommentController extends AsyncNotifier<void> {
             attachmentType: CommentAttachmentType.image,
             attachmentPath: path,
           );
-      await _notifyAboutComment(
-        productId: productId,
-        supplierId: product.supplierId,
-        authorId: user.id,
-        text: '📷 Photo',
-        parentId: parentId,
-      );
     });
 
     return !state.hasError;
@@ -190,13 +126,6 @@ class CommentController extends AsyncNotifier<void> {
             attachmentPath: path,
             voiceDurationSeconds: durationSeconds,
           );
-      await _notifyAboutComment(
-        productId: productId,
-        supplierId: product.supplierId,
-        authorId: user.id,
-        text: '🎤 Message vocal',
-        parentId: parentId,
-      );
     });
 
     return !state.hasError;

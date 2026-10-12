@@ -41,7 +41,6 @@ void main() {
   // Deuxième commande livrée d'Awa Traoré, portant le même produit et
   // encore sans avis : de quoi en déposer un avec des photos.
   const unreviewedGroupId = 'efbd44fe-a725-533d-ba6c-a9c867b161cb';
-  const supplier1Id = 'b7eb8585-4091-5b6f-83f7-5d70724e97a3';
 
   setUp(resetAndSeed);
 
@@ -208,11 +207,11 @@ void main() {
       // Les médias accompagnent l'avis dès son dépôt : `reviews` n'ouvre
       // aucune mise à jour au client (seul le vendeur répond), donc une
       // photo ajoutée après coup n'existe pas.
+      // Ni `clientId` ni `supplierId` : le serveur les déduit de la
+      // commande et de l'appelant (`submit_review`, `0063`).
       await asClient.submitReview(
         orderId: orderRow['order_id'] as String,
         supplierGroupId: unreviewedGroupId,
-        clientId: client1Id,
-        supplierId: supplier1Id,
         stars: 4,
         comment: 'Conforme, voici le tissu reçu.',
         imagePaths: ['$client1Id/recu.jpg'],

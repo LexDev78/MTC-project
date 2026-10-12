@@ -10,7 +10,7 @@ class SupabaseDeviceTokenDatasource {
   final SupabaseClient _client;
 
   Future<void> upsert({required String userId, required String fcmToken}) async {
-    final now = DateTime.now().toIso8601String();
+    final now = DateTime.now().toUtc().toIso8601String();
     await _client
         .from('device_tokens')
         .upsert({
