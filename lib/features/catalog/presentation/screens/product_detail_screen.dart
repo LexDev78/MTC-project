@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_shadows.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/utils/currency_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/domain/entities/cart_item.dart';
@@ -26,8 +27,10 @@ import 'package:mtc_app/features/orders/presentation/providers/checkout_provider
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_characteristic.dart';
 import '../../domain/entities/product_variant.dart';
+import '../../domain/promotion_pricing.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/fullscreen_image_viewer.dart';
+import '../widgets/promotion_badge.dart';
 import '../widgets/variant_video_player.dart';
 import '../widgets/product_card.dart'
     show ProductCard, ProductCategoryIcon, ProductImage;
@@ -455,7 +458,6 @@ class _ProductDetailContentState
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
-    final scheme = Theme.of(context).colorScheme;
 
     ref.listen(_selectedVariantIdProvider(product.id), (previous, next) {
       if (previous == next) return;
@@ -554,13 +556,10 @@ class _ProductDetailContentState
               Row(
                 children: [
                   Expanded(
-                    child: CurrencyText(
-                      selectedVariant?.priceFcfa ?? product.priceFcfa,
-                      compareAtAmountFcfa: product.compareAtPriceFcfa,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: _PromotionalPrice(
+                      product: product,
+                      basePriceFcfa:
+                          selectedVariant?.priceFcfa ?? product.priceFcfa,
                     ),
                   ),
                   if (resolvedStock > 0)
@@ -569,6 +568,10 @@ class _ProductDetailContentState
                       stockQuantity: resolvedStock,
                     ),
                 ],
+              ),
+              _NextQuantityStepHint(
+                product: product,
+                basePriceFcfa: selectedVariant?.priceFcfa ?? product.priceFcfa,
               ),
               if (product.hasVariants) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -1526,6 +1529,112 @@ class _DeliveryRow extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Le prix de la fiche, remise appliquée pour la quantité choisie.
+///
+/// La quantité compte : une remise « dès 10 pièces » ne doit pas s'afficher
+/// à 1, sinon la fiche annonce un prix que le panier démentira. Le prix
+/// barré est alors le prix plein, et non `compare_at_price_fcfa` — ce
+/// dernier est un prix barré décoratif, antérieur aux promotions.
+class _PromotionalPrice extends ConsumerWidget {
+  const _PromotionalPrice({
+    required this.product,
+    required this.basePriceFcfa,
+  });
+
+  final Product product;
+  final int basePriceFcfa;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final quantity = ref.watch(_selectedQuantityProvider(product.id));
+    final style = Theme.of(context).textTheme.titleLarge?.copyWith(
+      color: scheme.primary,
+      fontWeight: FontWeight.bold,
+    );
+
+    final promotion = bestPromotionFor(
+      promotions: product.promotions,
+      basePriceFcfa: basePriceFcfa,
+      quantity: quantity,
+    );
+    if (promotion == null) {
+      return CurrencyText(
+        basePriceFcfa,
+        compareAtAmountFcfa: product.compareAtPriceFcfa,
+        style: style,
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: CurrencyText(
+            priceUnderPromotion(
+              basePriceFcfa: basePriceFcfa,
+              promotion: promotion,
+            ),
+            compareAtAmountFcfa: basePriceFcfa,
+            style: style,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        PromotionBadge(promotion: promotion),
+      ],
+    );
+  }
+}
+
+/// « Encore 3 pour -20% » : une remise sur quantité que personne ne voit ne
+/// fait pas vendre une unité de plus.
+class _NextQuantityStepHint extends ConsumerWidget {
+  const _NextQuantityStepHint({
+    required this.product,
+    required this.basePriceFcfa,
+  });
+
+  final Product product;
+  final int basePriceFcfa;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final quantity = ref.watch(_selectedQuantityProvider(product.id));
+    final step = nextQuantityStep(
+      promotions: product.promotions,
+      basePriceFcfa: basePriceFcfa,
+      quantity: quantity,
+    );
+    if (step == null) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+    final price = priceUnderPromotion(
+      basePriceFcfa: basePriceFcfa,
+      promotion: step.promotion,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Row(
+        children: [
+          Icon(Icons.trending_down_rounded, size: 16, color: scheme.tertiary),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              'Encore ${step.unitsMissing} '
+              '${step.unitsMissing > 1 ? 'unités' : 'unité'} pour '
+              '${CurrencyFormatter.formatFcfa(price)} l\'unité',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: scheme.tertiary,
+              ),
+            ),
           ),
         ],
       ),

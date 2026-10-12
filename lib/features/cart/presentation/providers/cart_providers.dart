@@ -1,7 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:collection/collection.dart';
+
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/catalog/domain/promotion_pricing.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 
 import '../../data/datasources/supabase_cart_datasource.dart';
 import '../../data/repositories/supabase_cart_repository.dart';
@@ -28,11 +32,67 @@ final cartItemsProvider = StreamProvider<List<CartItem>>((ref) {
   return ref.watch(cartRepositoryProvider).watchCart(userId);
 });
 
+/// Le prix unitaire réellement dû pour une ligne, remises comprises.
+///
+/// Part du prix **courant** du produit (ou de sa variante) et non du prix
+/// figé à l'ajout : une remise qui commence après la mise au panier doit en
+/// faire baisser le montant, et une remise qui finit doit le faire remonter.
+/// C'est de toute façon ce que `place_order` facturera — afficher le prix
+/// figé ferait annoncer un total que la commande démentirait.
+///
+/// Tant que le produit n'est pas chargé, on retombe sur le prix figé : il est
+/// faux au plus de quelques francs, là où zéro serait absurde.
+final cartLineUnitPriceProvider = Provider.family<int, String>((ref, itemId) {
+  final items = ref.watch(cartItemsProvider).valueOrNull ?? const <CartItem>[];
+  final item = items.firstWhereOrNull((i) => i.id == itemId);
+  if (item == null) return 0;
+
+  final product = ref
+      .watch(productDetailProvider(item.productId))
+      .valueOrNull;
+  if (product == null) return item.unitPriceFcfaSnapshot;
+
+  final base =
+      product.variants
+          .firstWhereOrNull((v) => v.id == item.variantId)
+          ?.priceFcfa ??
+      product.priceFcfa;
+  return effectiveUnitPriceFcfa(
+    basePriceFcfa: base,
+    promotions: product.promotions,
+    quantity: item.quantity,
+  );
+});
+
+/// Le prix plein de la ligne, pour l'afficher barré — `null` quand il n'y a
+/// pas de remise.
+final cartLineCompareAtPriceProvider = Provider.family<int?, String>((
+  ref,
+  itemId,
+) {
+  final items = ref.watch(cartItemsProvider).valueOrNull ?? const <CartItem>[];
+  final item = items.firstWhereOrNull((i) => i.id == itemId);
+  if (item == null) return null;
+  final product = ref
+      .watch(productDetailProvider(item.productId))
+      .valueOrNull;
+  if (product == null) return null;
+
+  final base =
+      product.variants
+          .firstWhereOrNull((v) => v.id == item.variantId)
+          ?.priceFcfa ??
+      product.priceFcfa;
+  final effective = ref.watch(cartLineUnitPriceProvider(itemId));
+  return effective < base ? base : null;
+});
+
 final cartTotalFcfaProvider = Provider<int>((ref) {
   final items = ref.watch(cartItemsProvider).valueOrNull ?? const <CartItem>[];
   return items.fold(
     0,
-    (sum, item) => sum + item.unitPriceFcfaSnapshot * item.quantity,
+    (sum, item) =>
+        sum + ref.watch(cartLineUnitPriceProvider(item.id)) * item.quantity,
   );
 });
 

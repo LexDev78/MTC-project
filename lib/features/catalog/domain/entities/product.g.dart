@@ -44,6 +44,11 @@ _$ProductImpl _$$ProductImplFromJson(Map<String, dynamic> json) =>
           ProductStatus.active,
       lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt(),
       compareAtPriceFcfa: (json['compare_at_price_fcfa'] as num?)?.toInt(),
+      promotions:
+          (json['promotions'] as List<dynamic>?)
+              ?.map((e) => Promotion.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
       viewCount: (json['view_count'] as num?)?.toInt() ?? 0,
       hasVariants: json['has_variants'] as bool? ?? false,
       maxPriceFcfa: (json['max_price_fcfa'] as num?)?.toInt(),
@@ -89,6 +94,7 @@ Map<String, dynamic> _$$ProductImplToJson(_$ProductImpl instance) =>
       'status': _$ProductStatusEnumMap[instance.status]!,
       'low_stock_threshold': instance.lowStockThreshold,
       'compare_at_price_fcfa': instance.compareAtPriceFcfa,
+      'promotions': instance.promotions,
       'view_count': instance.viewCount,
       'has_variants': instance.hasVariants,
       'max_price_fcfa': instance.maxPriceFcfa,

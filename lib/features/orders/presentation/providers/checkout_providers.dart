@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/core/mock_data/malian_locations.dart';
@@ -6,6 +7,7 @@ import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/domain/entities/cart_item.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
+import 'package:mtc_app/features/catalog/domain/promotion_pricing.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
@@ -128,10 +130,26 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
     for (var i = 0; i < products.length; i++) {
       totalWeightKg += products[i].weightKg * entry.value[i].quantity;
     }
-    final subtotal = entry.value.fold<int>(
-      0,
-      (sum, i) => sum + i.unitPriceFcfaSnapshot * i.quantity,
-    );
+    // Mêmes remises qu'au panier, et surtout mêmes que celles que
+    // `place_order` appliquera : le sous-total annoncé ici est celui qui
+    // sera facturé, pas la somme des prix figés à la mise au panier.
+    var subtotal = 0;
+    for (var i = 0; i < products.length; i++) {
+      final item = entry.value[i];
+      final product = products[i];
+      final base =
+          product.variants
+              .firstWhereOrNull((v) => v.id == item.variantId)
+              ?.priceFcfa ??
+          product.priceFcfa;
+      subtotal +=
+          effectiveUnitPriceFcfa(
+            basePriceFcfa: base,
+            promotions: product.promotions,
+            quantity: item.quantity,
+          ) *
+          item.quantity;
+    }
     final fee = allowsMtc
         ? _mtcDeliveryFeeFor(
             supplierCity: products.first.city,

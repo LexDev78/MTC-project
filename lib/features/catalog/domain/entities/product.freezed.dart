@@ -75,10 +75,19 @@ mixin _$Product {
   /// electronics vs. locally-milled rice).
   int? get lowStockThreshold => throw _privateConstructorUsedError;
 
-  /// The pre-discount price, shown struck through next to [priceFcfa]
-  /// when set and higher than it — a plain "barré" price, not a
-  /// scheduled/rule-based promotion engine.
+  /// Prix barré saisi à la main, antérieur aux promotions (`0062`) : une
+  /// valeur décorative, sans date ni condition. Les remises réelles
+  /// passent par [promotions] ; celui-ci reste pour les produits qui le
+  /// portaient déjà.
   int? get compareAtPriceFcfa => throw _privateConstructorUsedError;
+
+  /// Remises en vigueur ou programmées sur ce produit, telles que la base
+  /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+  /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+  /// promotion qui commence demain doit être visible du fournisseur, et
+  /// filtrer côté requête obligerait à redemander la liste à chaque
+  /// changement d'heure.
+  List<Promotion> get promotions => throw _privateConstructorUsedError;
 
   /// Bumped by [ProductRepository.incrementViewCount] once per client
   /// visit to the product's detail page — shown on the supplier
@@ -154,6 +163,7 @@ abstract class $ProductCopyWith<$Res> {
     ProductStatus status,
     int? lowStockThreshold,
     int? compareAtPriceFcfa,
+    List<Promotion> promotions,
     int viewCount,
     bool hasVariants,
     int? maxPriceFcfa,
@@ -202,6 +212,7 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
     Object? status = null,
     Object? lowStockThreshold = freezed,
     Object? compareAtPriceFcfa = freezed,
+    Object? promotions = null,
     Object? viewCount = null,
     Object? hasVariants = null,
     Object? maxPriceFcfa = freezed,
@@ -307,6 +318,10 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
                 ? _value.compareAtPriceFcfa
                 : compareAtPriceFcfa // ignore: cast_nullable_to_non_nullable
                       as int?,
+            promotions: null == promotions
+                ? _value.promotions
+                : promotions // ignore: cast_nullable_to_non_nullable
+                      as List<Promotion>,
             viewCount: null == viewCount
                 ? _value.viewCount
                 : viewCount // ignore: cast_nullable_to_non_nullable
@@ -370,6 +385,7 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
     ProductStatus status,
     int? lowStockThreshold,
     int? compareAtPriceFcfa,
+    List<Promotion> promotions,
     int viewCount,
     bool hasVariants,
     int? maxPriceFcfa,
@@ -417,6 +433,7 @@ class __$$ProductImplCopyWithImpl<$Res>
     Object? status = null,
     Object? lowStockThreshold = freezed,
     Object? compareAtPriceFcfa = freezed,
+    Object? promotions = null,
     Object? viewCount = null,
     Object? hasVariants = null,
     Object? maxPriceFcfa = freezed,
@@ -522,6 +539,10 @@ class __$$ProductImplCopyWithImpl<$Res>
             ? _value.compareAtPriceFcfa
             : compareAtPriceFcfa // ignore: cast_nullable_to_non_nullable
                   as int?,
+        promotions: null == promotions
+            ? _value._promotions
+            : promotions // ignore: cast_nullable_to_non_nullable
+                  as List<Promotion>,
         viewCount: null == viewCount
             ? _value.viewCount
             : viewCount // ignore: cast_nullable_to_non_nullable
@@ -579,6 +600,7 @@ class _$ProductImpl implements _Product {
     this.status = ProductStatus.active,
     this.lowStockThreshold,
     this.compareAtPriceFcfa,
+    final List<Promotion> promotions = const [],
     this.viewCount = 0,
     this.hasVariants = false,
     this.maxPriceFcfa,
@@ -588,6 +610,7 @@ class _$ProductImpl implements _Product {
   }) : _imageUrls = imageUrls,
        _sizes = sizes,
        _colors = colors,
+       _promotions = promotions,
        _characteristics = characteristics,
        _variants = variants;
 
@@ -698,11 +721,34 @@ class _$ProductImpl implements _Product {
   @override
   final int? lowStockThreshold;
 
-  /// The pre-discount price, shown struck through next to [priceFcfa]
-  /// when set and higher than it — a plain "barré" price, not a
-  /// scheduled/rule-based promotion engine.
+  /// Prix barré saisi à la main, antérieur aux promotions (`0062`) : une
+  /// valeur décorative, sans date ni condition. Les remises réelles
+  /// passent par [promotions] ; celui-ci reste pour les produits qui le
+  /// portaient déjà.
   @override
   final int? compareAtPriceFcfa;
+
+  /// Remises en vigueur ou programmées sur ce produit, telles que la base
+  /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+  /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+  /// promotion qui commence demain doit être visible du fournisseur, et
+  /// filtrer côté requête obligerait à redemander la liste à chaque
+  /// changement d'heure.
+  final List<Promotion> _promotions;
+
+  /// Remises en vigueur ou programmées sur ce produit, telles que la base
+  /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+  /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+  /// promotion qui commence demain doit être visible du fournisseur, et
+  /// filtrer côté requête obligerait à redemander la liste à chaque
+  /// changement d'heure.
+  @override
+  @JsonKey()
+  List<Promotion> get promotions {
+    if (_promotions is EqualUnmodifiableListView) return _promotions;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_promotions);
+  }
 
   /// Bumped by [ProductRepository.incrementViewCount] once per client
   /// visit to the product's detail page — shown on the supplier
@@ -769,7 +815,7 @@ class _$ProductImpl implements _Product {
 
   @override
   String toString() {
-    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, weightKg: $weightKg, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region, status: $status, lowStockThreshold: $lowStockThreshold, compareAtPriceFcfa: $compareAtPriceFcfa, viewCount: $viewCount, hasVariants: $hasVariants, maxPriceFcfa: $maxPriceFcfa, variantCount: $variantCount, characteristics: $characteristics, variants: $variants)';
+    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, weightKg: $weightKg, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region, status: $status, lowStockThreshold: $lowStockThreshold, compareAtPriceFcfa: $compareAtPriceFcfa, promotions: $promotions, viewCount: $viewCount, hasVariants: $hasVariants, maxPriceFcfa: $maxPriceFcfa, variantCount: $variantCount, characteristics: $characteristics, variants: $variants)';
   }
 
   @override
@@ -820,6 +866,10 @@ class _$ProductImpl implements _Product {
                 other.lowStockThreshold == lowStockThreshold) &&
             (identical(other.compareAtPriceFcfa, compareAtPriceFcfa) ||
                 other.compareAtPriceFcfa == compareAtPriceFcfa) &&
+            const DeepCollectionEquality().equals(
+              other._promotions,
+              _promotions,
+            ) &&
             (identical(other.viewCount, viewCount) ||
                 other.viewCount == viewCount) &&
             (identical(other.hasVariants, hasVariants) ||
@@ -863,6 +913,7 @@ class _$ProductImpl implements _Product {
     status,
     lowStockThreshold,
     compareAtPriceFcfa,
+    const DeepCollectionEquality().hash(_promotions),
     viewCount,
     hasVariants,
     maxPriceFcfa,
@@ -911,6 +962,7 @@ abstract class _Product implements Product {
     final ProductStatus status,
     final int? lowStockThreshold,
     final int? compareAtPriceFcfa,
+    final List<Promotion> promotions,
     final int viewCount,
     final bool hasVariants,
     final int? maxPriceFcfa,
@@ -998,11 +1050,21 @@ abstract class _Product implements Product {
   @override
   int? get lowStockThreshold;
 
-  /// The pre-discount price, shown struck through next to [priceFcfa]
-  /// when set and higher than it — a plain "barré" price, not a
-  /// scheduled/rule-based promotion engine.
+  /// Prix barré saisi à la main, antérieur aux promotions (`0062`) : une
+  /// valeur décorative, sans date ni condition. Les remises réelles
+  /// passent par [promotions] ; celui-ci reste pour les produits qui le
+  /// portaient déjà.
   @override
   int? get compareAtPriceFcfa;
+
+  /// Remises en vigueur ou programmées sur ce produit, telles que la base
+  /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+  /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+  /// promotion qui commence demain doit être visible du fournisseur, et
+  /// filtrer côté requête obligerait à redemander la liste à chaque
+  /// changement d'heure.
+  @override
+  List<Promotion> get promotions;
 
   /// Bumped by [ProductRepository.incrementViewCount] once per client
   /// visit to the product's detail page — shown on the supplier

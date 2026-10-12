@@ -13,6 +13,7 @@ import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
 
 import '../../domain/entities/cart_item.dart';
 import '../controllers/cart_controller.dart';
+import '../providers/cart_providers.dart';
 
 class CartLineItem extends ConsumerWidget {
   const CartLineItem({super.key, required this.item});
@@ -80,7 +81,10 @@ class CartLineItem extends ConsumerWidget {
                   ),
                 const SizedBox(height: 2),
                 CurrencyText(
-                  item.unitPriceFcfaSnapshot,
+                  ref.watch(cartLineUnitPriceProvider(item.id)),
+                  compareAtAmountFcfa: ref.watch(
+                    cartLineCompareAtPriceProvider(item.id),
+                  ),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

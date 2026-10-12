@@ -11,6 +11,9 @@ import '../../domain/entities/product_status.dart';
 import '../../domain/entities/stock_movement.dart';
 import '../controllers/supplier_product_controller.dart';
 import '../providers/catalog_providers.dart';
+import '../../domain/entities/promotion.dart';
+import '../widgets/promotion_badge.dart';
+import 'supplier_promotions_sheet.dart';
 import 'supplier_variant_manager_screen.dart';
 
 /// Create/edit form, reached from `SupplierProductListScreen` — `product`
@@ -574,6 +577,31 @@ class _SupplierProductFormScreenState
                       ),
                     ),
                   ),
+                const Divider(height: AppSpacing.xl),
+                Text(
+                  'Promotions',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                // Même logique que les variantes : une remise désigne un
+                // produit, donc il faut qu'il existe. Dans une feuille à
+                // part et non ici, parce qu'on ne retouche pas ses
+                // promotions au même moment qu'on corrige un libellé.
+                if (_isEditing)
+                  _PromotionsEntry(product: _currentProduct ?? widget.product!)
+                else
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        'Vous pourrez proposer des remises (sur la quantité, '
+                        'sur une période…) une fois le produit créé.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: AppSpacing.xl),
                 if (!_isComposingVariant)
                   MtcPrimaryButton(
@@ -638,3 +666,62 @@ class _AggregateField extends StatelessWidget {
   }
 }
 
+/// L'accès aux promotions depuis le formulaire : ce qui est en cours, et un
+/// bouton pour gérer.
+///
+/// Résume au lieu de lister : le formulaire sert à décrire le produit, et
+/// une liste de remises au milieu en ferait perdre le fil.
+class _PromotionsEntry extends StatelessWidget {
+  const _PromotionsEntry({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final running = [
+      for (final promotion in product.promotions)
+        if (promotion.isRunningAt()) promotion,
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (running.isEmpty)
+              Text(
+                'Aucune promotion en cours.',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              )
+            else
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  for (final promotion in running)
+                    PromotionBadge(promotion: promotion),
+                ],
+              ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                showDragHandle: true,
+                builder: (_) => SupplierPromotionsSheet(productId: product.id),
+              ),
+              icon: const Icon(Icons.local_offer_outlined),
+              label: Text(
+                product.promotions.isEmpty
+                    ? 'Créer une promotion'
+                    : 'Gérer les promotions (${product.promotions.length})',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

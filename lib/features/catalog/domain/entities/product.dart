@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'product_category.dart';
 import 'product_characteristic.dart';
+import 'promotion.dart';
 import 'product_status.dart';
 import 'product_variant.dart';
 
@@ -65,10 +66,19 @@ class Product with _$Product {
     /// electronics vs. locally-milled rice).
     int? lowStockThreshold,
 
-    /// The pre-discount price, shown struck through next to [priceFcfa]
-    /// when set and higher than it — a plain "barré" price, not a
-    /// scheduled/rule-based promotion engine.
+    /// Prix barré saisi à la main, antérieur aux promotions (`0062`) : une
+    /// valeur décorative, sans date ni condition. Les remises réelles
+    /// passent par [promotions] ; celui-ci reste pour les produits qui le
+    /// portaient déjà.
     int? compareAtPriceFcfa,
+
+    /// Remises en vigueur ou programmées sur ce produit, telles que la base
+    /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+    /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+    /// promotion qui commence demain doit être visible du fournisseur, et
+    /// filtrer côté requête obligerait à redemander la liste à chaque
+    /// changement d'heure.
+    @Default([]) List<Promotion> promotions,
 
     /// Bumped by [ProductRepository.incrementViewCount] once per client
     /// visit to the product's detail page — shown on the supplier

@@ -14,6 +14,9 @@ import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.d
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 
 import '../../domain/entities/product.dart';
+import '../../domain/entities/promotion.dart';
+import '../../domain/promotion_pricing.dart';
+import 'promotion_badge.dart';
 import '../../domain/entities/product_category.dart';
 
 extension ProductCategoryIcon on ProductCategory {
@@ -92,6 +95,18 @@ class ProductCard extends ConsumerWidget {
                     _CardImage(product: product),
                     if (overlay != null)
                       Positioned(top: 0, right: 0, child: overlay!),
+                    // En haut à gauche : le coin droit est déjà pris par les
+                    // surcouches d'état (rupture, statut) et le bas droit par
+                    // l'ajout rapide.
+                    if (_runningPromotion(product) case final promotion?)
+                      Positioned(
+                        top: AppSpacing.xs,
+                        left: AppSpacing.xs,
+                        child: PromotionBadge(
+                          promotion: promotion,
+                          compact: true,
+                        ),
+                      ),
                     if (product.stockQuantity > 0)
                       Positioned(
                         bottom: AppSpacing.xs,
@@ -156,6 +171,33 @@ class ProductCard extends ConsumerWidget {
   }
 }
 
+/// La remise à annoncer sur la vignette, s'il y en a une.
+///
+/// Prend la meilleure remise **en cours**, conditions de quantité comprises
+/// : une vignette doit annoncer un « dès 10 pièces » (c'est ce qui donne
+/// envie d'ouvrir la fiche), là où le prix affiché, lui, reste celui d'une
+/// unité.
+Promotion? _runningPromotion(Product product) {
+  Promotion? best;
+  for (final promotion in product.promotions) {
+    if (!promotion.isRunningAt()) continue;
+    final price = priceUnderPromotion(
+      basePriceFcfa: product.priceFcfa,
+      promotion: promotion,
+    );
+    if (price >= product.priceFcfa) continue;
+    if (best == null ||
+        price <
+            priceUnderPromotion(
+              basePriceFcfa: product.priceFcfa,
+              promotion: best,
+            )) {
+      best = promotion;
+    }
+  }
+  return best;
+}
+
 /// The price row on a catalog card — a plain [CurrencyText] for a
 /// variant-less product or one whose variants all share the same price,
 /// "À partir de X FCFA" when they don't (both `priceFcfa`/`maxPriceFcfa`
@@ -182,9 +224,28 @@ class _PriceLine extends StatelessWidget {
     if (product.hasVariants && maxPrice != null && maxPrice != product.priceFcfa) {
       return Text('À partir de ${CurrencyFormatter.formatFcfa(product.priceFcfa)}', style: style);
     }
+
+    // La vignette montre le prix pour **une** unité : une remise « dès 10 »
+    // ne s'affiche donc pas ici, sinon le prix annoncé ne serait pas celui
+    // qu'un client obtient en ajoutant l'article.
+    final promotion = bestPromotionFor(
+      promotions: product.promotions,
+      basePriceFcfa: product.priceFcfa,
+      quantity: 1,
+    );
+    if (promotion == null) {
+      return CurrencyText(
+        product.priceFcfa,
+        compareAtAmountFcfa: product.compareAtPriceFcfa,
+        style: style,
+      );
+    }
     return CurrencyText(
-      product.priceFcfa,
-      compareAtAmountFcfa: product.compareAtPriceFcfa,
+      priceUnderPromotion(
+        basePriceFcfa: product.priceFcfa,
+        promotion: promotion,
+      ),
+      compareAtAmountFcfa: product.priceFcfa,
       style: style,
     );
   }

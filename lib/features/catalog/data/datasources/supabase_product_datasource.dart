@@ -80,8 +80,14 @@ class SupabaseProductDatasource {
   // many-to-many bridge between `product_characteristics` and
   // `product_characteristic_options`, making the direct one-to-many path
   // ambiguous without this.
+  /// Les promotions voyagent avec le produit, y compris dans les listes :
+  /// une vignette sans son badge de remise afficherait un prix que le
+  /// panier démentirait aussitôt. L'imbrication est plate et minuscule, là
+  /// où une seconde requête par vignette ne l'aurait pas été.
+  static const _listSelect = '*, promotions:product_promotions(*)';
+
   static const _nestedSelect =
-      '*, '
+      '*, promotions:product_promotions(*), '
       'characteristics:product_characteristics(*, type:product_characteristic_types(*), '
       'options:product_characteristic_options!product_characteristic_options_characteristic_id_fkey(*)), '
       'variants:product_variants(*, variant_options:product_variant_options(characteristic_id, option_id))';
@@ -100,7 +106,7 @@ class SupabaseProductDatasource {
     return _watch(() async {
       var builder = _client
           .from('products')
-          .select()
+          .select(_listSelect)
           .eq('status', 'active')
           .eq('is_supplier_verified', true);
       if (supplierType == 'tiers') builder = builder.eq('supplier_type', 'tiers');
@@ -139,7 +145,7 @@ class SupabaseProductDatasource {
     return _watch(
       () => _client
           .from('products')
-          .select()
+          .select(_listSelect)
           .eq('supplier_id', supplierId)
           .order('created_at', ascending: false),
       extraTriggers: _productRealtimeTrigger,
@@ -280,5 +286,26 @@ class SupabaseProductDatasource {
       params: {'p_supplier_id': supplierId},
     );
     return (rows as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Promotions (`product_promotions`, `0062`).
+  ///
+  /// `supplier_id` n'est jamais transmis : un trigger le pose depuis le
+  /// produit et refuse un produit qui n'appartient pas à l'appelant
+  /// (`stamp_promotion_supplier`). L'envoyer d'ici laisserait croire que
+  /// l'app décide à qui appartient la remise.
+  Future<void> addPromotion(Map<String, dynamic> row) async {
+    await _client.from('product_promotions').insert(row);
+    _notify();
+  }
+
+  Future<void> updatePromotion(String id, Map<String, dynamic> patch) async {
+    await _client.from('product_promotions').update(patch).eq('id', id);
+    _notify();
+  }
+
+  Future<void> deletePromotion(String id) async {
+    await _client.from('product_promotions').delete().eq('id', id);
+    _notify();
   }
 }

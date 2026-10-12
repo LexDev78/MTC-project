@@ -5,6 +5,7 @@ import '../../domain/entities/product_category.dart';
 import '../../domain/entities/product_characteristic.dart';
 import '../../domain/entities/product_status.dart';
 import '../../domain/entities/product_variant.dart';
+import '../../domain/entities/promotion.dart';
 import '../../domain/entities/stock_movement.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../datasources/supabase_product_datasource.dart';
@@ -219,20 +220,69 @@ class SupabaseProductRepository implements ProductRepository {
         ),
     };
   }
+
+  @override
+  Future<void> createPromotion({
+    required String productId,
+    required PromotionKind kind,
+    required int value,
+    int minQuantity = 1,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? label,
+  }) {
+    return _datasource.addPromotion({
+      'product_id': productId,
+      'kind': switch (kind) {
+        PromotionKind.percentage => 'percentage',
+        PromotionKind.fixedAmount => 'fixed_amount',
+      },
+      'value': value,
+      'min_quantity': minQuantity,
+      // `toUtc()` avant de sérialiser : `toIso8601String()` sur une date
+      // locale ne porte aucun décalage, et Postgres lit alors la valeur
+      // comme de l'UTC. La fenêtre d'une promotion se déplacerait du
+      // décalage de l'appareil — invisible au Mali (UTC+0 toute l'année),
+      // faux partout ailleurs, y compris sur la machine qui exécute les
+      // tests.
+      'starts_at': startsAt?.toUtc().toIso8601String(),
+      'ends_at': endsAt?.toUtc().toIso8601String(),
+      'label': label,
+    });
+  }
+
+  @override
+  Future<void> setPromotionActive({
+    required String id,
+    required bool isActive,
+  }) {
+    return _datasource.updatePromotion(id, {'is_active': isActive});
+  }
+
+  @override
+  Future<void> deletePromotion(String id) => _datasource.deletePromotion(id);
 }
 
-/// `Product.toJson()` includes 5 keys that don't belong in a
-/// create/update payload to `products`: [characteristics]/[variants] are
-/// relationship data from `getById`'s nested select, not real columns at
-/// all — sending them makes PostgREST reject the whole request. `has_variants`/
-/// `max_price_fcfa`/`variant_count` ARE real columns, but they're
-/// exclusively trigger-maintained (`0018_product_variants.sql`) — writing
-/// whatever value happened to be on the in-memory [Product] risks
-/// clobbering a fresher aggregate with a stale one if a variant's stock/price
-/// changed between this product being fetched and this write.
+/// `Product.toJson()` includes 6 keys that don't belong in a
+/// create/update payload to `products` :
+/// [characteristics]/[variants]/[promotions] are relationship data from the
+/// nested selects, not real columns at all — sending them makes PostgREST
+/// reject the whole request. `has_variants`/`max_price_fcfa`/`variant_count`
+/// ARE real columns, but they're exclusively trigger-maintained
+/// (`0018_product_variants.sql`) — writing whatever value happened to be on
+/// the in-memory [Product] risks clobbering a fresher aggregate with a stale
+/// one if a variant's stock/price changed between this product being fetched
+/// and this write.
+///
+/// Les promotions ont rejoint cette liste avec `0062` : elles arrivent
+/// désormais dans **toutes** les lectures de produit, listes comprises, donc
+/// elles repartaient dans chaque écriture. L'erreur était claire
+/// (« Could not find the 'promotions' column ») mais elle tombait sur les
+/// écritures de produit, loin de la promotion qu'on venait d'ajouter.
 Map<String, dynamic> _stripComputedFields(Map<String, dynamic> fields) => fields
   ..remove('characteristics')
   ..remove('variants')
+  ..remove('promotions')
   ..remove('has_variants')
   ..remove('max_price_fcfa')
   ..remove('variant_count');

@@ -10,6 +10,7 @@ import 'package:mtc_app/features/suppliers/presentation/providers/operating_supp
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_status.dart';
+import '../../domain/entities/promotion.dart';
 import '../providers/supplier_product_providers.dart';
 import 'supplier_stock_adjust_sheet.dart';
 
@@ -212,6 +213,20 @@ class _SupplierProductTile extends ConsumerWidget {
                           color: _statusColor(product.status, scheme),
                           icon: Icons.circle,
                         ),
+                        // Les remises en cours, s'il y en a : le fournisseur
+                        // doit voir d'un coup d'œil lesquels de ses produits
+                        // sont en promotion, sans ouvrir chaque fiche.
+                        for (final promotion in product.promotions)
+                          if (promotion.isRunningAt())
+                            RoleBadge(
+                              label: switch (promotion.kind) {
+                                PromotionKind.percentage => '-${promotion.value}%',
+                                PromotionKind.fixedAmount =>
+                                  '-${promotion.value} F',
+                              },
+                              color: scheme.error,
+                              icon: Icons.local_offer_outlined,
+                            ),
                         RoleBadge(
                           label: [
                             if (isLowStock)
