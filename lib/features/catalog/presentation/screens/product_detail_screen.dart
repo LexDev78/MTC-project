@@ -18,6 +18,7 @@ import 'package:mtc_app/features/chat/presentation/controllers/chat_controller.d
 import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart'
     show ChatProductAttachment;
 import 'package:mtc_app/features/comments/presentation/providers/comment_providers.dart';
+import 'package:mtc_app/features/ratings/presentation/widgets/product_reviews_section.dart';
 import 'package:mtc_app/features/comments/presentation/widgets/product_comments_modal.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
 import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
@@ -606,6 +607,11 @@ class _ProductDetailContentState
               ),
               const Divider(height: AppSpacing.xl),
               _CommentsEntryRow(productId: product.id),
+              const Divider(height: AppSpacing.xl),
+              // Les avis sont dans la page, les commentaires derrière une
+              // ligne : un avis se lit avant d'acheter, une question se
+              // consulte quand on en a une.
+              ProductReviewsSection(productId: product.id),
             ],
           ),
         ),

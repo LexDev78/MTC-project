@@ -69,4 +69,64 @@ class SupabaseReviewDatasource {
         .eq('id', reviewId);
     _notify();
   }
+
+  /// Avis des acheteurs d'un produit, commentaires compris
+  /// (`fetch_product_reviews`, `0061`).
+  ///
+  /// Une RPC et non un `select` : le rattachement d'un avis à un produit
+  /// passe par `order_items`, que ni un visiteur sans compte ni un autre
+  /// client ne peut lire. La fonction est `security definer` et ne renvoie
+  /// rien de la commande elle-même.
+  Future<List<Map<String, dynamic>>> fetchProductReviews({
+    required String productId,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc(
+      'fetch_product_reviews',
+      params: {
+        'p_product_id': productId,
+        'p_limit': limit,
+        'p_offset': offset,
+      },
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  Future<Map<String, dynamic>?> fetchProductReviewSummary(
+    String productId,
+  ) async {
+    final rows = await _client.rpc(
+      'fetch_product_review_summary',
+      params: {'p_product_id': productId},
+    );
+    final list = List<Map<String, dynamic>>.from(rows as List);
+    return list.isEmpty ? null : list.first;
+  }
+
+  /// Commente un avis.
+  ///
+  /// `author_id` n'est pas transmis : un trigger le pose depuis
+  /// `auth.uid()`, avec le nom affiché et le fait que l'auteur soit ou non
+  /// le vendeur (`stamp_review_comment_author`, `0061`). L'envoyer d'ici
+  /// laisserait croire que l'app décide de qui signe.
+  Future<void> addComment({
+    required String reviewId,
+    required String body,
+    List<String> imagePaths = const [],
+    String? videoPath,
+  }) async {
+    await _client.from('review_comments').insert({
+      'review_id': reviewId,
+      'body': body,
+      'image_paths': imagePaths,
+      'video_path': videoPath,
+    });
+    _notify();
+  }
+
+  Future<void> deleteComment(String commentId) async {
+    await _client.from('review_comments').delete().eq('id', commentId);
+    _notify();
+  }
 }

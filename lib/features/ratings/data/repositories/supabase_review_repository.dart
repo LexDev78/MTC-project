@@ -1,5 +1,6 @@
 import 'package:mtc_app/core/error/exceptions.dart';
 
+import '../../domain/entities/product_review.dart';
 import '../../domain/entities/review.dart';
 import '../../domain/repositories/review_repository.dart';
 import '../datasources/supabase_review_datasource.dart';
@@ -24,6 +25,8 @@ class SupabaseReviewRepository implements ReviewRepository {
     required String supplierId,
     required int stars,
     required String comment,
+    List<String> imagePaths = const [],
+    String? videoPath,
   }) {
     return _datasource.submitReview({
       'order_id': orderId,
@@ -32,8 +35,58 @@ class SupabaseReviewRepository implements ReviewRepository {
       'supplier_id': supplierId,
       'stars': stars,
       'comment': comment,
+      'image_paths': imagePaths,
+      'video_path': videoPath,
     });
   }
+
+  @override
+  Future<List<ProductReview>> fetchProductReviews({
+    required String productId,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final rows = await _datasource.fetchProductReviews(
+      productId: productId,
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map(ProductReview.fromJson).toList();
+  }
+
+  @override
+  Future<ProductReviewSummary> fetchProductReviewSummary(
+    String productId,
+  ) async {
+    final row = await _datasource.fetchProductReviewSummary(productId);
+    if (row == null) {
+      return const ProductReviewSummary(reviewCount: 0, ratingAverage: 0);
+    }
+    return ProductReviewSummary(
+      reviewCount: (row['review_count'] as num?)?.toInt() ?? 0,
+      // `numeric` arrive en chaîne sur le fil : `as num` échouerait.
+      ratingAverage: double.tryParse('${row['rating_average'] ?? 0}') ?? 0,
+    );
+  }
+
+  @override
+  Future<void> addComment({
+    required String reviewId,
+    required String body,
+    List<String> imagePaths = const [],
+    String? videoPath,
+  }) {
+    return _datasource.addComment(
+      reviewId: reviewId,
+      body: body,
+      imagePaths: imagePaths,
+      videoPath: videoPath,
+    );
+  }
+
+  @override
+  Future<void> deleteComment(String commentId) =>
+      _datasource.deleteComment(commentId);
 
   @override
   Future<bool> canReview({

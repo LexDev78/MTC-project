@@ -19,6 +19,8 @@ class ReviewController extends AsyncNotifier<void> {
     required String supplierId,
     required int stars,
     required String comment,
+    List<String> imagePaths = const [],
+    String? videoPath,
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
     if (userId == null) return false;
@@ -34,6 +36,8 @@ class ReviewController extends AsyncNotifier<void> {
             supplierId: supplierId,
             stars: stars,
             comment: comment,
+            imagePaths: imagePaths,
+            videoPath: videoPath,
           );
 
       // Fold the new rating into the supplier, then propagate it to every

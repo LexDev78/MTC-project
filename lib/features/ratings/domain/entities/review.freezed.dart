@@ -30,6 +30,12 @@ mixin _$Review {
   String get comment => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
 
+  /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans
+  /// sa gestion des avis : un reproche illustré se traite autrement qu'un
+  /// reproche décrit.
+  List<String> get imagePaths => throw _privateConstructorUsedError;
+  String? get videoPath => throw _privateConstructorUsedError;
+
   /// The supplier's public reply to this review, if they've written one —
   /// re-calling `ReviewRepository.reply` edits it in place rather than
   /// appending a second one.
@@ -59,6 +65,8 @@ abstract class $ReviewCopyWith<$Res> {
     int stars,
     String comment,
     DateTime createdAt,
+    List<String> imagePaths,
+    String? videoPath,
     String? supplierReply,
     DateTime? supplierRepliedAt,
   });
@@ -87,6 +95,8 @@ class _$ReviewCopyWithImpl<$Res, $Val extends Review>
     Object? stars = null,
     Object? comment = null,
     Object? createdAt = null,
+    Object? imagePaths = null,
+    Object? videoPath = freezed,
     Object? supplierReply = freezed,
     Object? supplierRepliedAt = freezed,
   }) {
@@ -124,6 +134,14 @@ class _$ReviewCopyWithImpl<$Res, $Val extends Review>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
+            imagePaths: null == imagePaths
+                ? _value.imagePaths
+                : imagePaths // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
+            videoPath: freezed == videoPath
+                ? _value.videoPath
+                : videoPath // ignore: cast_nullable_to_non_nullable
+                      as String?,
             supplierReply: freezed == supplierReply
                 ? _value.supplierReply
                 : supplierReply // ignore: cast_nullable_to_non_nullable
@@ -155,6 +173,8 @@ abstract class _$$ReviewImplCopyWith<$Res> implements $ReviewCopyWith<$Res> {
     int stars,
     String comment,
     DateTime createdAt,
+    List<String> imagePaths,
+    String? videoPath,
     String? supplierReply,
     DateTime? supplierRepliedAt,
   });
@@ -182,6 +202,8 @@ class __$$ReviewImplCopyWithImpl<$Res>
     Object? stars = null,
     Object? comment = null,
     Object? createdAt = null,
+    Object? imagePaths = null,
+    Object? videoPath = freezed,
     Object? supplierReply = freezed,
     Object? supplierRepliedAt = freezed,
   }) {
@@ -219,6 +241,14 @@ class __$$ReviewImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
+        imagePaths: null == imagePaths
+            ? _value._imagePaths
+            : imagePaths // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        videoPath: freezed == videoPath
+            ? _value.videoPath
+            : videoPath // ignore: cast_nullable_to_non_nullable
+                  as String?,
         supplierReply: freezed == supplierReply
             ? _value.supplierReply
             : supplierReply // ignore: cast_nullable_to_non_nullable
@@ -244,9 +274,11 @@ class _$ReviewImpl implements _Review {
     required this.stars,
     required this.comment,
     required this.createdAt,
+    final List<String> imagePaths = const [],
+    this.videoPath,
     this.supplierReply,
     this.supplierRepliedAt,
-  });
+  }) : _imagePaths = imagePaths;
 
   factory _$ReviewImpl.fromJson(Map<String, dynamic> json) =>
       _$$ReviewImplFromJson(json);
@@ -268,6 +300,25 @@ class _$ReviewImpl implements _Review {
   @override
   final DateTime createdAt;
 
+  /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans
+  /// sa gestion des avis : un reproche illustré se traite autrement qu'un
+  /// reproche décrit.
+  final List<String> _imagePaths;
+
+  /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans
+  /// sa gestion des avis : un reproche illustré se traite autrement qu'un
+  /// reproche décrit.
+  @override
+  @JsonKey()
+  List<String> get imagePaths {
+    if (_imagePaths is EqualUnmodifiableListView) return _imagePaths;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_imagePaths);
+  }
+
+  @override
+  final String? videoPath;
+
   /// The supplier's public reply to this review, if they've written one —
   /// re-calling `ReviewRepository.reply` edits it in place rather than
   /// appending a second one.
@@ -278,7 +329,7 @@ class _$ReviewImpl implements _Review {
 
   @override
   String toString() {
-    return 'Review(id: $id, orderId: $orderId, supplierGroupId: $supplierGroupId, clientId: $clientId, supplierId: $supplierId, stars: $stars, comment: $comment, createdAt: $createdAt, supplierReply: $supplierReply, supplierRepliedAt: $supplierRepliedAt)';
+    return 'Review(id: $id, orderId: $orderId, supplierGroupId: $supplierGroupId, clientId: $clientId, supplierId: $supplierId, stars: $stars, comment: $comment, createdAt: $createdAt, imagePaths: $imagePaths, videoPath: $videoPath, supplierReply: $supplierReply, supplierRepliedAt: $supplierRepliedAt)';
   }
 
   @override
@@ -298,6 +349,12 @@ class _$ReviewImpl implements _Review {
             (identical(other.comment, comment) || other.comment == comment) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
+            const DeepCollectionEquality().equals(
+              other._imagePaths,
+              _imagePaths,
+            ) &&
+            (identical(other.videoPath, videoPath) ||
+                other.videoPath == videoPath) &&
             (identical(other.supplierReply, supplierReply) ||
                 other.supplierReply == supplierReply) &&
             (identical(other.supplierRepliedAt, supplierRepliedAt) ||
@@ -316,6 +373,8 @@ class _$ReviewImpl implements _Review {
     stars,
     comment,
     createdAt,
+    const DeepCollectionEquality().hash(_imagePaths),
+    videoPath,
     supplierReply,
     supplierRepliedAt,
   );
@@ -344,6 +403,8 @@ abstract class _Review implements Review {
     required final int stars,
     required final String comment,
     required final DateTime createdAt,
+    final List<String> imagePaths,
+    final String? videoPath,
     final String? supplierReply,
     final DateTime? supplierRepliedAt,
   }) = _$ReviewImpl;
@@ -366,6 +427,14 @@ abstract class _Review implements Review {
   String get comment;
   @override
   DateTime get createdAt;
+
+  /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans
+  /// sa gestion des avis : un reproche illustré se traite autrement qu'un
+  /// reproche décrit.
+  @override
+  List<String> get imagePaths;
+  @override
+  String? get videoPath;
 
   /// The supplier's public reply to this review, if they've written one —
   /// re-calling `ReviewRepository.reply` edits it in place rather than

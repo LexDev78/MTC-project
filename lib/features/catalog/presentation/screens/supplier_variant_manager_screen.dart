@@ -1,11 +1,10 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/di/providers.dart';
-import 'package:mtc_app/core/storage/image_upload.dart';
+import 'package:mtc_app/core/storage/media_picker.dart';
 import 'package:mtc_app/core/utils/currency_formatter.dart';
 import 'package:mtc_app/core/utils/id_generator.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -252,50 +251,27 @@ class VariantManagerPanelState extends ConsumerState<VariantManagerPanel> {
     }
   }
 
-  /// Plusieurs photos en une seule fois (`pickMultiImage`).
+  /// Plusieurs photos en une seule fois.
   ///
   /// Une variante en a rarement une seule, et rouvrir la galerie pour chacune
-  /// était l'essentiel du temps passé à en composer une.
-  ///
-  /// Chaque envoi est tenté séparément : sur dix photos sélectionnées, une
-  /// seule trop lourde ne doit pas faire perdre les neuf autres, déjà
-  /// téléversées. Ce qui a échoué est annoncé, le reste est gardé.
+  /// était l'essentiel du temps passé à en composer une. Les règles d'envoi
+  /// (types, plafonds, dossier du propriétaire) vivent dans
+  /// `core/storage/media_picker.dart` : les avis les partagent, et deux
+  /// copies finiraient par diverger.
   Future<List<String>> _pickAndUploadImages() async {
-    final List<XFile> files;
-    try {
-      files = await ImagePicker().pickMultiImage(imageQuality: 85);
-    } catch (_) {
-      _signalerEchecMedia("Impossible d'ouvrir la galerie.");
-      return const [];
-    }
-    if (files.isEmpty) return const [];
-
-    final supplierId = ref.read(operatingSupplierIdProvider);
-    final client = ref.read(supabaseClientProvider);
-    final paths = <String>[];
-    var echecs = 0;
-    for (final file in files) {
-      try {
-        paths.add(
-          await uploadPickedImage(
-            client: client,
-            bucket: 'product-images',
-            folder: supplierId!,
-            file: file,
-          ),
-        );
-      } catch (_) {
-        echecs++;
-      }
-    }
-    if (echecs > 0) {
+    final result = await pickAndUploadImages(
+      client: ref.read(supabaseClientProvider),
+      bucket: 'product-images',
+      folder: ref.read(operatingSupplierIdProvider)!,
+    );
+    if (result.failures > 0) {
       _signalerEchecMedia(
-        echecs == 1
+        result.failures == 1
             ? "Une photo n'a pas pu être ajoutée."
-            : "$echecs photos n'ont pas pu être ajoutées.",
+            : "${result.failures} photos n'ont pas pu être ajoutées.",
       );
     }
-    return paths;
+    return result.paths;
   }
 
   Future<void> _pickComposingVideo() async {
@@ -305,31 +281,12 @@ class VariantManagerPanelState extends ConsumerState<VariantManagerPanel> {
 
   /// Une courte vidéo de présentation, dans le bucket `product-videos`
   /// (`0044_variant_video.sql`).
-  ///
-  /// [maxDuration] est une consigne donnée au sélecteur, pas une garantie :
-  /// selon la plateforme il propose de rogner la vidéo, ou l'ignore pour un
-  /// fichier déjà présent dans la galerie. Ce qui tient vraiment, c'est le
-  /// plafond de 25 Mo du bucket (vérifié aussi côté client dans
-  /// `uploadPickedImage`), qui écarte de fait les longues vidéos.
   Future<String?> _pickAndUploadVideo() async {
     try {
-      final file = await ImagePicker().pickVideo(
-        source: ImageSource.gallery,
-        maxDuration: const Duration(seconds: 30),
-      );
-      if (file == null) return null;
-      final supplierId = ref.read(operatingSupplierIdProvider);
-      return await uploadPickedImage(
+      return await pickAndUploadVideo(
         client: ref.read(supabaseClientProvider),
         bucket: 'product-videos',
-        folder: supplierId!,
-        file: file,
-        // `XFile.mimeType` n'est renseigné que par certaines plateformes :
-        // l'extension est le seul indice fiable, et une vidéo envoyée sans
-        // type (donc `image/jpeg` par défaut) serait refusée par le bucket.
-        contentType: file.name.toLowerCase().endsWith('.mov')
-            ? 'video/quicktime'
-            : 'video/mp4',
+        folder: ref.read(operatingSupplierIdProvider)!,
       );
     } catch (e) {
       _signalerEchecMedia("Impossible d'ajouter cette vidéo. $e");

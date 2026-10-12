@@ -10,13 +10,21 @@ import 'package:mtc_app/core/di/providers.dart';
 ///
 /// Même convention que `ResolvedImage` : l'entité ne stocke qu'un **chemin
 /// d'objet** Storage, résolu en URL au moment de l'affichage — jamais une
-/// URL persistée, qui finirait périmée. Le bucket `product-videos` est
-/// public (`0044_variant_video.sql`), donc `getPublicUrl` suffit, sans
-/// signature.
+/// URL persistée, qui finirait périmée. Les deux buckets concernés
+/// (`product-videos`, `0044` ; `review-media`, `0061`) sont publics, donc
+/// `getPublicUrl` suffit, sans signature.
+///
+/// [bucket] est paramétrable depuis que les avis portent aussi une vidéo :
+/// le lecteur est le même, seule la provenance change.
 class VariantVideoPlayer extends ConsumerStatefulWidget {
-  const VariantVideoPlayer({super.key, required this.videoPath});
+  const VariantVideoPlayer({
+    super.key,
+    required this.videoPath,
+    this.bucket = 'product-videos',
+  });
 
   final String videoPath;
+  final String bucket;
 
   @override
   ConsumerState<VariantVideoPlayer> createState() => _VariantVideoPlayerState();
@@ -36,7 +44,7 @@ class _VariantVideoPlayerState extends ConsumerState<VariantVideoPlayer> {
     final url = ref
         .read(supabaseClientProvider)
         .storage
-        .from('product-videos')
+        .from(widget.bucket)
         .getPublicUrl(widget.videoPath);
     final controller = VideoPlayerController.networkUrl(Uri.parse(url));
     try {
@@ -135,14 +143,18 @@ class _VariantVideoPlayerState extends ConsumerState<VariantVideoPlayer> {
 }
 
 /// Ouvre [videoPath] en plein écran, sur fond noir.
-Future<void> showVariantVideo(BuildContext context, String videoPath) {
+Future<void> showVariantVideo(
+  BuildContext context,
+  String videoPath, {
+  String bucket = 'product-videos',
+}) {
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black,
     useSafeArea: false,
     builder: (_) => Dialog.fullscreen(
       backgroundColor: Colors.black,
-      child: VariantVideoPlayer(videoPath: videoPath),
+      child: VariantVideoPlayer(videoPath: videoPath, bucket: bucket),
     ),
   );
 }

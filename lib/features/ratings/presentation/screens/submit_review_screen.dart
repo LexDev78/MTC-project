@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/core/storage/media_picker.dart';
 import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/orders/domain/entities/order_status.dart';
@@ -10,6 +12,7 @@ import 'package:mtc_app/features/orders/presentation/providers/order_providers.d
 
 import '../controllers/review_controller.dart';
 import '../providers/review_providers.dart';
+import '../widgets/product_reviews_section.dart' show MediaStrip;
 import '../widgets/star_rating_input.dart';
 
 class SubmitReviewScreen extends ConsumerWidget {
@@ -48,6 +51,7 @@ class SubmitReviewScreen extends ConsumerWidget {
                 supplierGroupId: group.id,
                 supplierId: group.supplierId,
                 supplierName: group.supplierName,
+                clientId: order.clientId,
               );
             },
           );
@@ -63,12 +67,17 @@ class _ReviewForm extends ConsumerStatefulWidget {
     required this.supplierGroupId,
     required this.supplierId,
     required this.supplierName,
+    required this.clientId,
   });
 
   final String orderId;
   final String supplierGroupId;
   final String supplierId;
   final String supplierName;
+
+  /// Sert de dossier d'envoi des médias, pas d'identité déclarée : la base
+  /// repose le nom affiché elle-même (`stamp_review_author`, `0061`).
+  final String clientId;
 
   @override
   ConsumerState<_ReviewForm> createState() => _ReviewFormState();
@@ -79,10 +88,67 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
   final _commentController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  /// Photos et vidéo de l'acheteur, déjà téléversées : ce sont des chemins
+  /// Storage, pas des fichiers en attente. L'avis peut donc partir en une
+  /// seule écriture, et un envoi qui échoue ne fait pas perdre le texte.
+  final _images = <String>[];
+  String? _videoPath;
+  bool _uploading = false;
+
   @override
   void dispose() {
     _commentController.dispose();
     super.dispose();
+  }
+
+  void _signal(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Le dossier d'envoi est l'identifiant du client : c'est ce que la policy
+  /// Storage impose et ce que la base revérifie à l'écriture de la ligne
+  /// (`validate_media_paths`, `0061`).
+  Future<void> _addPhotos() async {
+    setState(() => _uploading = true);
+    final result = await pickAndUploadImages(
+      client: ref.read(supabaseClientProvider),
+      bucket: 'review-media',
+      folder: widget.clientId,
+      limit: 6,
+    );
+    if (!mounted) return;
+    setState(() {
+      _uploading = false;
+      _images.addAll(result.paths);
+      if (_images.length > 6) _images.removeRange(6, _images.length);
+    });
+    if (result.failures > 0) {
+      _signal(
+        result.failures == 1
+            ? 'Une photo n\'a pas pu être ajoutée.'
+            : '${result.failures} photos n\'ont pas pu être ajoutées.',
+      );
+    }
+  }
+
+  Future<void> _addVideo() async {
+    setState(() => _uploading = true);
+    try {
+      final path = await pickAndUploadVideo(
+        client: ref.read(supabaseClientProvider),
+        bucket: 'review-media',
+        folder: widget.clientId,
+      );
+      if (!mounted) return;
+      setState(() => _videoPath = path ?? _videoPath);
+    } catch (e) {
+      _signal('Impossible d\'ajouter cette vidéo. $e');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -95,6 +161,8 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
           supplierId: widget.supplierId,
           stars: _stars,
           comment: _commentController.text.trim(),
+          imagePaths: _images,
+          videoPath: _videoPath,
         );
     if (!mounted) return;
     if (success) {
@@ -133,10 +201,40 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
               controller: _commentController,
               validator: Validators.required,
             ),
+            if (_images.isNotEmpty || _videoPath != null)
+              MediaStrip(imagePaths: _images, videoPath: _videoPath),
+            const SizedBox(height: AppSpacing.md),
+            // Une photo d'acheteur vaut plus qu'un paragraphe : c'est la
+            // seule image du produit que le vendeur n'a pas choisie.
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploading || _images.length >= 6
+                        ? null
+                        : _addPhotos,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: Text(
+                      _images.isEmpty ? 'Ajouter des photos' : '${_images.length}/6',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploading ? null : _addVideo,
+                    icon: const Icon(Icons.videocam_outlined),
+                    label: Text(
+                      _videoPath == null ? 'Vidéo' : 'Remplacer la vidéo',
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.xl),
             MtcPrimaryButton(
               label: "Envoyer l'avis",
-              isLoading: reviewState.isLoading,
+              isLoading: reviewState.isLoading || _uploading,
               onPressed: _submit,
             ),
           ],

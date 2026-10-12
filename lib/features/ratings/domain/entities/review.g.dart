@@ -15,6 +15,12 @@ _$ReviewImpl _$$ReviewImplFromJson(Map<String, dynamic> json) => _$ReviewImpl(
   stars: (json['stars'] as num).toInt(),
   comment: json['comment'] as String,
   createdAt: DateTime.parse(json['created_at'] as String),
+  imagePaths:
+      (json['image_paths'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
+  videoPath: json['video_path'] as String?,
   supplierReply: json['supplier_reply'] as String?,
   supplierRepliedAt: json['supplier_replied_at'] == null
       ? null
@@ -31,6 +37,8 @@ Map<String, dynamic> _$$ReviewImplToJson(_$ReviewImpl instance) =>
       'stars': instance.stars,
       'comment': instance.comment,
       'created_at': instance.createdAt.toIso8601String(),
+      'image_paths': instance.imagePaths,
+      'video_path': instance.videoPath,
       'supplier_reply': instance.supplierReply,
       'supplier_replied_at': instance.supplierRepliedAt?.toIso8601String(),
     };

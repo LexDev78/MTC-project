@@ -9,6 +9,7 @@ import 'package:mtc_app/features/suppliers/presentation/providers/operating_supp
 import '../../domain/entities/review.dart';
 import '../controllers/review_controller.dart';
 import '../providers/review_providers.dart';
+import '../widgets/product_reviews_section.dart' show MediaStrip;
 
 /// Every review left on the operating supplier's storefront, with the
 /// ability to write (or edit) a public reply — reached from an action on
@@ -116,6 +117,13 @@ class _ReviewManagementTileState extends ConsumerState<_ReviewManagementTile> {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(review.comment),
+            // Les photos de l'acheteur (`0061`) : un reproche illustré ne se
+            // traite pas comme un reproche décrit, et le vendeur doit voir ce
+            // que voient ses futurs clients.
+            MediaStrip(
+              imagePaths: review.imagePaths,
+              videoPath: review.videoPath,
+            ),
             if (hasReply && !_isReplying) ...[
               const SizedBox(height: AppSpacing.sm),
               Container(

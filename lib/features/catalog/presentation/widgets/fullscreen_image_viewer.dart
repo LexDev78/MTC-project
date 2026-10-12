@@ -10,6 +10,7 @@ Future<void> showFullscreenImageViewer(
   BuildContext context, {
   required List<String> images,
   required int initialIndex,
+  String bucket = 'product-images',
 }) {
   return Navigator.of(context).push(
     PageRouteBuilder<void>(
@@ -21,6 +22,7 @@ Future<void> showFullscreenImageViewer(
         child: _FullscreenImageViewer(
           images: images,
           initialIndex: initialIndex,
+          bucket: bucket,
         ),
       ),
     ),
@@ -31,10 +33,12 @@ class _FullscreenImageViewer extends StatefulWidget {
   const _FullscreenImageViewer({
     required this.images,
     required this.initialIndex,
+    required this.bucket,
   });
 
   final List<String> images;
   final int initialIndex;
+  final String bucket;
 
   @override
   State<_FullscreenImageViewer> createState() =>
@@ -61,7 +65,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
               child: Center(
                 child: ResolvedImage(
                   path: widget.images[index],
-                  bucket: 'product-images',
+                  bucket: widget.bucket,
                   fit: BoxFit.contain,
                 ),
               ),
