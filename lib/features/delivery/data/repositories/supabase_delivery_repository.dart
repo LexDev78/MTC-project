@@ -1,4 +1,5 @@
 import '../../domain/entities/courier_delivery.dart';
+import '../../domain/entities/courier_history.dart';
 import '../../domain/repositories/delivery_repository.dart';
 import '../datasources/supabase_delivery_datasource.dart';
 
@@ -88,6 +89,104 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
       reason: reason,
     );
   }
+
+  @override
+  Future<List<CourierHistoryEntry>> fetchHistory({
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    final rows = await _datasource.fetchHistory(limit: limit, offset: offset);
+    return [
+      for (final row in rows)
+        CourierHistoryEntry(
+          deliveryId: row['delivery_id'] as String,
+          reference: row['reference'] as String,
+          status: DeliveryStatus.fromRow(row['status'] as String),
+          pickupCity: row['pickup_city'] as String? ?? '',
+          dropoffCity: row['dropoff_city'] as String? ?? '',
+          itemCount: (row['item_count'] as num?)?.toInt() ?? 0,
+          deliveryFeeFcfa: (row['delivery_fee_fcfa'] as num?)?.toInt() ?? 0,
+          acceptedAt: _parseDate(row['accepted_at']),
+          pickedUpAt: _parseDate(row['picked_up_at']),
+          deliveredAt: _parseDate(row['delivered_at']),
+          clientStars: (row['client_stars'] as num?)?.toInt(),
+          supplierStars: (row['supplier_stars'] as num?)?.toInt(),
+        ),
+    ];
+  }
+
+  @override
+  Future<CourierStats> fetchStats() async {
+    final row = await _datasource.fetchStats();
+    // Un livreur qui n'a encore rien livré : la RPC agrège sur un ensemble
+    // vide, pas sur rien. Le cas « aucune ligne » reste couvert plutôt que
+    // de laisser passer une exception pour un compteur à zéro.
+    if (row == null) {
+      return const CourierStats(
+        deliveredCount: 0,
+        deliveredFeesFcfa: 0,
+        monthDeliveredCount: 0,
+        monthFeesFcfa: 0,
+        cancelledCount: 0,
+        ratingAverage: 0,
+        ratingCount: 0,
+      );
+    }
+    return CourierStats(
+      deliveredCount: (row['delivered_count'] as num?)?.toInt() ?? 0,
+      deliveredFeesFcfa: (row['delivered_fees_fcfa'] as num?)?.toInt() ?? 0,
+      monthDeliveredCount: (row['month_delivered_count'] as num?)?.toInt() ?? 0,
+      monthFeesFcfa: (row['month_fees_fcfa'] as num?)?.toInt() ?? 0,
+      cancelledCount: (row['cancelled_count'] as num?)?.toInt() ?? 0,
+      // `numeric` revient en chaîne sur le fil : `as num` échouerait.
+      ratingAverage: double.tryParse('${row['rating_average'] ?? 0}') ?? 0,
+      ratingCount: (row['rating_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  @override
+  Future<List<CourierRating>> fetchMyRatings({
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    final rows = await _datasource.fetchMyRatings(limit: limit, offset: offset);
+    return [
+      for (final row in rows)
+        CourierRating(
+          stars: (row['stars'] as num).toInt(),
+          raterRole: CourierRaterRole.fromRow(row['rater_role'] as String),
+          createdAt: DateTime.parse(row['created_at'] as String),
+          deliveryId: row['delivery_id'] as String,
+          comment: row['comment'] as String?,
+        ),
+    ];
+  }
+
+  @override
+  Future<void> rateCourier({
+    required String deliveryId,
+    required int stars,
+    String? comment,
+  }) {
+    return _datasource.rateCourier(
+      deliveryId: deliveryId,
+      stars: stars,
+      comment: comment,
+    );
+  }
+
+  @override
+  Future<MyDeliveryRating?> fetchMyRatingForDelivery(String deliveryId) async {
+    final row = await _datasource.fetchMyRatingForDelivery(deliveryId);
+    if (row == null) return null;
+    return MyDeliveryRating(
+      stars: (row['stars'] as num).toInt(),
+      comment: row['comment'] as String?,
+    );
+  }
+
+  static DateTime? _parseDate(Object? value) =>
+      value == null ? null : DateTime.parse(value as String);
 
   @override
   Future<void> setOnline({

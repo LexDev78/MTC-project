@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/features/delivery/domain/entities/courier_delivery.dart';
 import 'package:mtc_app/features/delivery/presentation/providers/delivery_providers.dart';
+import 'package:mtc_app/features/delivery/presentation/providers/courier_history_providers.dart';
+import 'package:mtc_app/features/delivery/presentation/widgets/courier_rating_sheet.dart';
 import 'package:mtc_app/features/delivery/presentation/widgets/delivery_code_qr.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -322,6 +324,7 @@ class _OrderDetailBody extends ConsumerWidget {
                 if (group.deliveryMode == DeliveryMode.mtcDelivery) ...[
                   const SizedBox(height: AppSpacing.md),
                   _PickupCode(groupId: group.id),
+                  _RateCourierButton(groupId: group.id),
                 ],
               ],
             ),
@@ -375,6 +378,48 @@ class _PickupCode extends ConsumerWidget {
       instruction:
           'À montrer au livreur quand il vient chercher la commande. '
           'Il ne peut pas la récupérer sans ce scan.',
+    );
+  }
+}
+
+/// Noter le livreur qui est venu chercher le colis.
+///
+/// Le fournisseur juge ce qu'il a vu — ponctualité au retrait, soin du colis
+/// — et c'est précisément ce que le client ne peut pas juger. D'où une note
+/// par côté (`rate_courier`, `0059`) plutôt qu'une note unique où l'un des
+/// deux points de vue écraserait l'autre.
+class _RateCourierButton extends ConsumerWidget {
+  const _RateCourierButton({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final delivery = ref.watch(deliveryForGroupProvider(groupId)).valueOrNull;
+    // Avant la remise au client, la course n'est pas finie : noter un livreur
+    // en chemin jugerait une prestation à moitié faite.
+    if (delivery == null || delivery.status != DeliveryStatus.delivered) {
+      return const SizedBox.shrink();
+    }
+    final existing = ref.watch(myDeliveryRatingProvider(delivery.id)).valueOrNull;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: OutlinedButton.icon(
+        onPressed: () =>
+            showCourierRatingSheet(context, deliveryId: delivery.id),
+        icon: Icon(
+          existing == null
+              ? Icons.delivery_dining_outlined
+              : Icons.star_rounded,
+          color: existing == null ? null : Colors.amber,
+        ),
+        label: Text(
+          existing == null
+              ? 'Noter le livreur'
+              : 'Livreur noté ${existing.stars}/5 — modifier',
+        ),
+      ),
     );
   }
 }

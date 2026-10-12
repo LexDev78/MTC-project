@@ -1,4 +1,5 @@
 import '../entities/courier_delivery.dart';
+import '../entities/courier_history.dart';
 
 /// Ce dont l'app livreur a besoin, sans rien savoir de Supabase.
 abstract class DeliveryRepository {
@@ -53,6 +54,26 @@ abstract class DeliveryRepository {
     required bool approve,
     String? reason,
   });
+
+  /// Courses terminées, sans les identités du client ni du fournisseur.
+  Future<List<CourierHistoryEntry>> fetchHistory({int limit, int offset});
+
+  /// Cumul d'activité : courses livrées, frais perçus, note moyenne.
+  Future<CourierStats> fetchStats();
+
+  /// Notes reçues, sans leurs auteurs.
+  Future<List<CourierRating>> fetchMyRatings({int limit, int offset});
+
+  /// Note une course livrée. Le rôle de l'appelant (client ou fournisseur)
+  /// est déduit côté serveur, pas transmis d'ici.
+  Future<void> rateCourier({
+    required String deliveryId,
+    required int stars,
+    String? comment,
+  });
+
+  /// La note déjà donnée par l'utilisateur courant sur cette course.
+  Future<MyDeliveryRating?> fetchMyRatingForDelivery(String deliveryId);
 
   Future<void> setOnline({
     required String courierId,

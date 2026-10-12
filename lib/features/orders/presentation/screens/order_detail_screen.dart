@@ -6,6 +6,8 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/features/delivery/domain/entities/courier_delivery.dart';
 import 'package:mtc_app/features/delivery/presentation/providers/delivery_providers.dart';
+import 'package:mtc_app/features/delivery/presentation/providers/courier_history_providers.dart';
+import 'package:mtc_app/features/delivery/presentation/widgets/courier_rating_sheet.dart';
 import 'package:mtc_app/features/delivery/presentation/widgets/delivery_code_qr.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -174,6 +176,9 @@ class _OrderDetailBody extends ConsumerWidget {
                       icon: const Icon(Icons.star_outline_rounded),
                       label: const Text('Laisser un avis'),
                     ),
+                  if (group.status == OrderStatus.delivered &&
+                      group.deliveryMode == DeliveryMode.mtcDelivery)
+                    _RateCourierButton(groupId: group.id),
                   if (canClientCancel(group.status))
                     OutlinedButton.icon(
                       onPressed: controllerState.isLoading
@@ -381,6 +386,50 @@ class _DeliveryCode extends ConsumerWidget {
         instruction:
             'À montrer au livreur au moment de recevoir votre commande. '
             'Ne le communiquez à personne d\'autre.',
+      ),
+    );
+  }
+}
+
+/// Noter le livreur, une fois la commande remise.
+///
+/// Distinct de « Laisser un avis », qui juge le **fournisseur** : la
+/// marchandise et son acheminement sont deux prestations différentes, et une
+/// seule note pour les deux pénaliserait un bon vendeur pour un livreur en
+/// retard — ou l'inverse.
+///
+/// N'apparaît que pour une livraison MTC : sur une livraison assurée par le
+/// fournisseur lui-même, il n'y a aucun livreur à noter.
+class _RateCourierButton extends ConsumerWidget {
+  const _RateCourierButton({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final delivery = ref.watch(deliveryForGroupProvider(groupId)).valueOrNull;
+    // Un groupe livré sans course : commande confiée à MTC et close
+    // autrement. Rien à noter.
+    if (delivery == null || delivery.status != DeliveryStatus.delivered) {
+      return const SizedBox.shrink();
+    }
+    final existing = ref.watch(myDeliveryRatingProvider(delivery.id)).valueOrNull;
+
+    return OutlinedButton.icon(
+      onPressed: () =>
+          showCourierRatingSheet(context, deliveryId: delivery.id),
+      icon: Icon(
+        existing == null
+            ? Icons.delivery_dining_outlined
+            : Icons.star_rounded,
+        color: existing == null ? null : Colors.amber,
+      ),
+      // Rappeler la note déjà donnée évite de la redonner en croyant que la
+      // première n'est pas passée.
+      label: Text(
+        existing == null
+            ? 'Noter le livreur'
+            : 'Livreur noté ${existing.stars}/5 — modifier',
       ),
     );
   }

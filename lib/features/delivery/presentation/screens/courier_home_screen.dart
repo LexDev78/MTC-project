@@ -47,6 +47,11 @@ class _CourierHomeScreenState extends ConsumerState<CourierHomeScreen> {
         title: const Text('Mes courses'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.bar_chart_rounded),
+            tooltip: 'Mon activité',
+            onPressed: () => context.push(AppRoutes.courierHistory),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Déconnexion',
             onPressed: () => ref.read(authControllerProvider.notifier).logout(),

@@ -58,6 +58,11 @@ abstract final class AppRoutes {
   static const String courierDelivery = '/livreur/courses/:id';
   static const String courierProfile = '/livreur/profil';
 
+  /// Ses courses terminées et ses notes. Hors de `courierHome` et de ses
+  /// sous-routes : `/livreur/courses/:id` capturerait `historique` comme un
+  /// identifiant de course.
+  static const String courierHistory = '/livreur/historique';
+
   static String courierDeliveryPath(String id) => '/livreur/courses/$id';
 
   static const String supplierPrincipalDashboard =

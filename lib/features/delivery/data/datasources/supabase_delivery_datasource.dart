@@ -156,6 +156,72 @@ class SupabaseDeliveryDatasource {
     );
   }
 
+  /// Historique des courses terminées, **sans** les identités du client ni
+  /// du fournisseur (`fetch_courier_delivery_history`, `0060`).
+  ///
+  /// Pourquoi une RPC alors que `watchForCourier` ramène déjà ces courses :
+  /// cette lecture-là remonte commande, client et fournisseur. Rejouer un
+  /// filtre d'affichage par-dessus laisserait les coordonnées arriver sur
+  /// l'appareil, où il suffirait d'un écran oublié pour les montrer.
+  Future<List<Map<String, dynamic>>> fetchHistory({
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc(
+      'fetch_courier_delivery_history',
+      params: {'p_limit': limit, 'p_offset': offset},
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  Future<Map<String, dynamic>?> fetchStats() async {
+    final rows = await _client.rpc('fetch_courier_stats');
+    final list = List<Map<String, dynamic>>.from(rows as List);
+    return list.isEmpty ? null : list.first;
+  }
+
+  /// Les notes reçues. Ne renvoie jamais `rater_id` : le livreur voit d'où
+  /// vient la note, pas de qui.
+  Future<List<Map<String, dynamic>>> fetchMyRatings({
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc(
+      'fetch_my_courier_ratings',
+      params: {'p_limit': limit, 'p_offset': offset},
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  /// Note une course livrée. Le rôle (client ou fournisseur) n'est pas
+  /// transmis : le serveur le déduit de l'appelant, sinon le client pourrait
+  /// déposer une note « fournisseur » et en poser deux.
+  Future<void> rateCourier({
+    required String deliveryId,
+    required int stars,
+    String? comment,
+  }) {
+    return _client.rpc(
+      'rate_courier',
+      params: {
+        'p_delivery_id': deliveryId,
+        'p_stars': stars,
+        'p_comment': comment,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>?> fetchMyRatingForDelivery(
+    String deliveryId,
+  ) async {
+    final rows = await _client.rpc(
+      'fetch_my_rating_for_delivery',
+      params: {'p_delivery_id': deliveryId},
+    );
+    final list = List<Map<String, dynamic>>.from(rows as List);
+    return list.isEmpty ? null : list.first;
+  }
+
   Future<void> setOnline({
     required String courierId,
     required bool isOnline,

@@ -7,6 +7,7 @@ import 'package:mtc_app/features/auth/presentation/screens/loading_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_delivery_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_review_queue_screen.dart';
+import 'package:mtc_app/features/delivery/presentation/screens/courier_history_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_home_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/role_selection_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/sign_up_details_screen.dart';
@@ -154,9 +155,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             _fluidPage(state, const LoadingScreen()),
       ),
       // ---- livreur ---------------------------------------------------------
-      // Deux routes à plat, sans coquille à onglets : l'app livreur n'a
-      // qu'une liste et le détail d'une course. Une barre de navigation à
-      // deux entrées coûterait plus d'écran qu'elle n'en ferait gagner.
+      // Des routes à plat, sans coquille à onglets : l'app livreur tourne
+      // autour d'une liste, du détail d'une course, et d'un historique
+      // qu'on ouvre de temps en temps. Une barre de navigation permanente
+      // coûterait plus d'écran qu'elle n'en ferait gagner.
       GoRoute(
         path: AppRoutes.courierHome,
         pageBuilder: (context, state) =>
@@ -170,6 +172,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.courierHistory,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const CourierHistoryScreen()),
       ),
       GoRoute(
         path: AppRoutes.signUpRole,
