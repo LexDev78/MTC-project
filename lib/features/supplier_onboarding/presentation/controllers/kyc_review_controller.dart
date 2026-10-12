@@ -1,21 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
-import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 
 import '../providers/supplier_kyc_providers.dart';
 
-/// Drives a staff member's approve/reject decision on a supplier's KYC
-/// dossier. A decision touches four records — `SupplierKyc.status`,
-/// `AppUser.verificationStatus`, `SupplierProfile.verificationStatus`,
-/// `Product.isSupplierVerified` — so this controller is where that
-/// cross-repository orchestration lives (mirroring `ReviewController.submit`,
-/// which does the same thing across `ReviewRepository`/`SupplierRepository`/
-/// `ProductRepository`).
+/// Décision du staff sur un dossier de vérification.
+///
+/// Ne coordonne plus rien : les quatre enregistrements qu'une décision
+/// touche (le dossier, la fiche fournisseur, ses produits, la notification)
+/// sont écrits ensemble par `review_supplier_kyc` (`0069`). Cette classe ne
+/// garde que l'état de chargement et l'invalidation des caches.
 class KycReviewController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
@@ -33,79 +28,33 @@ class KycReviewController extends AsyncNotifier<void> {
     return !state.hasError;
   }
 
-  Future<bool> approve({
+  /// Approuve ou refuse, en un appel.
+  ///
+  /// Les quatre écritures qu'une décision entraîne — le dossier, la fiche
+  /// fournisseur, la visibilité de ses produits, la notification — sont
+  /// faites par `review_supplier_kyc` (`0069`) dans une transaction. Cette
+  /// classe les enchaînait, et un échec au milieu laissait un dossier
+  /// approuvé dont les produits restaient invisibles.
+  ///
+  /// Les caches locaux sont invalidés ensuite : ces lignes ont changé sans
+  /// passer par les sources de données de l'app.
+  Future<bool> review({
     required String kycId,
     required String supplierId,
-    required String staffId,
+    required bool approve,
+    String? reason,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await ref
+    state = await AsyncValue.guard(
+      () => ref
           .read(supplierKycRepositoryProvider)
-          .approve(kycId: kycId, staffId: staffId);
-      await ref
-          .read(authRepositoryProvider)
-          .updateSupplierVerificationStatus(
-            userId: supplierId,
-            status: VerificationStatus.verified,
-          );
-      await ref
-          .read(supplierRepositoryProvider)
-          .updateVerificationStatus(
-            supplierId: supplierId,
-            status: VerificationStatus.verified,
-          );
-      await ref
-          .read(productRepositoryProvider)
-          .updateSupplierVerification(supplierId: supplierId, isVerified: true);
-      await ref
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: supplierId,
-            type: NotificationType.kycDecision,
-            title: 'Dossier approuvé',
-            body: 'Votre vérification a été validée.',
-          );
-    });
-    return !state.hasError;
-  }
+          .review(kycId: kycId, approve: approve, reason: reason),
+    );
+    if (state.hasError) return false;
 
-  Future<bool> reject({
-    required String kycId,
-    required String supplierId,
-    required String staffId,
-    required String reason,
-  }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await ref
-          .read(supplierKycRepositoryProvider)
-          .reject(kycId: kycId, staffId: staffId, reason: reason);
-      await ref
-          .read(authRepositoryProvider)
-          .updateSupplierVerificationStatus(
-            userId: supplierId,
-            status: VerificationStatus.rejected,
-          );
-      await ref
-          .read(supplierRepositoryProvider)
-          .updateVerificationStatus(
-            supplierId: supplierId,
-            status: VerificationStatus.rejected,
-          );
-      await ref
-          .read(productRepositoryProvider)
-          .updateSupplierVerification(supplierId: supplierId, isVerified: false);
-      await ref
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: supplierId,
-            type: NotificationType.kycDecision,
-            title: 'Dossier refusé',
-            body: reason,
-          );
-    });
-    return !state.hasError;
+    ref.invalidate(supplierDetailProvider(supplierId));
+    ref.invalidate(productDetailProvider);
+    return true;
   }
 }
 

@@ -225,4 +225,64 @@ void main() {
       await anon.dispose();
     },
   );
+
+  test(
+    'les décisions du staff sont refusées à un compte ordinaire',
+    () async {
+      // Ces trois RPC écrivent ce que l'appelant ne peut pas écrire
+      // (statut d'un dossier, versement, type de caractéristique) **et** la
+      // notification qui l'annonce. Elles vérifient donc elles-mêmes qui
+      // appelle : la policy de la table ne suffirait pas, puisqu'elles
+      // s'exécutent en tant que propriétaire.
+      final attempts = <String, Map<String, Object?>>{
+        'review_supplier_kyc': {
+          'p_kyc_id': 'peu-importe',
+          'p_approve': true,
+        },
+        'review_characteristic_type': {
+          'p_id': 'peu-importe',
+          'p_approve': true,
+        },
+        'update_payout_status': {
+          'p_payout_id': 'peu-importe',
+          'p_status': 'paid',
+        },
+      };
+
+      for (final entry in attempts.entries) {
+        await expectLater(
+          reviewer.rpc(entry.key, params: entry.value),
+          throwsA(isA<PostgrestException>()),
+          reason: '${entry.key} doit refuser un client',
+        );
+      }
+    },
+  );
+
+  test(
+    'un fournisseur ne peut pas valider son propre dossier',
+    () async {
+      // Le cas qui compte vraiment : la validation ouvre la visibilité du
+      // catalogue, donc s'auto-approuver contournerait toute la
+      // vérification.
+      final supplier = await _signIn('fournisseur3');
+      final kyc = await supplier
+          .from('supplier_kyc')
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+
+      if (kyc != null) {
+        await expectLater(
+          supplier.rpc('review_supplier_kyc', params: {
+            'p_kyc_id': kyc['id'],
+            'p_approve': true,
+          }),
+          throwsA(isA<PostgrestException>()),
+        );
+      }
+
+      await supplier.dispose();
+    },
+  );
 }

@@ -28,16 +28,11 @@ class SupabaseCharacteristicTypeRepository
   }
 
   @override
-  Future<void> approve({required String id, required String staffId}) {
-    return _datasource.approve(id: id, staffId: staffId);
-  }
-
-  @override
-  Future<void> reject({
+  Future<void> review({
     required String id,
-    required String staffId,
-    required String reason,
+    required bool approve,
+    String? reason,
   }) {
-    return _datasource.reject(id: id, staffId: staffId, reason: reason);
+    return _datasource.review(id: id, approve: approve, reason: reason);
   }
 }

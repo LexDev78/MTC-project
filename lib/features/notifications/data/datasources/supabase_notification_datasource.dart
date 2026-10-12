@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:mtc_app/core/utils/id_generator.dart';
 
 /// Raw `notifications` I/O. No Realtime (out of scope — see
 /// `0006_lot7_realtime_and_notifications.sql`; a recipient sees a new
@@ -33,11 +32,6 @@ class SupabaseNotificationDatasource {
           .eq('user_id', userId)
           .order('created_at', ascending: false),
     );
-  }
-
-  Future<void> add(Map<String, dynamic> row) async {
-    await _client.from('notifications').insert({'id': IdGenerator.next(), ...row});
-    _notify();
   }
 
   Future<void> markRead(String notificationId) async {

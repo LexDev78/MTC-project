@@ -118,11 +118,7 @@ void main() {
 
       final ok = await container
           .read(characteristicTypeReviewControllerProvider.notifier)
-          .approve(
-            id: proposal.id,
-            proposedBySupplierId: DemoIds.supplierBogolanBamako,
-            staffId: DemoIds.staffAgent,
-          );
+          .review(id: proposal.id, approve: true);
       expect(ok, isTrue);
 
       final approved = await container.read(approvedCharacteristicTypesProvider.future);
@@ -153,10 +149,9 @@ void main() {
 
       await container
           .read(characteristicTypeReviewControllerProvider.notifier)
-          .reject(
+          .review(
             id: proposal.id,
-            proposedBySupplierId: DemoIds.supplierBogolanBamako,
-            staffId: DemoIds.staffAgent,
+            approve: false,
             reason: 'Pas pertinent pour ce catalogue.',
           );
 

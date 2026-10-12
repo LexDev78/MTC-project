@@ -1,59 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
-
 import '../providers/characteristic_type_providers.dart';
 
-/// Drives a staff member's approve/reject decision on a supplier-proposed
-/// characteristic type — cloned from `KycReviewController`, just against a
-/// single mutable record instead of a multi-field dossier.
+/// Décision du staff sur un type de caractéristique proposé par un
+/// fournisseur.
+///
+/// Ne coordonne plus rien : le statut et la notification à l'auteur sont
+/// écrits ensemble par `review_characteristic_type` (`0069`). Les faire en
+/// deux appels obligeait à laisser une session insérer des notifications —
+/// c'est-à-dire à laisser n'importe quel compte en écrire une pour
+/// n'importe qui.
 class CharacteristicTypeReviewController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<bool> approve({
+  Future<bool> review({
     required String id,
-    required String proposedBySupplierId,
-    required String staffId,
+    required bool approve,
+    String? reason,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await ref
+    state = await AsyncValue.guard(
+      () => ref
           .read(characteristicTypeRepositoryProvider)
-          .approve(id: id, staffId: staffId);
-      await ref
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: proposedBySupplierId,
-            type: NotificationType.characteristicTypeDecision,
-            title: 'Caractéristique approuvée',
-            body: 'Votre proposition de caractéristique a été validée.',
-          );
-    });
-    return !state.hasError;
-  }
-
-  Future<bool> reject({
-    required String id,
-    required String proposedBySupplierId,
-    required String staffId,
-    required String reason,
-  }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await ref
-          .read(characteristicTypeRepositoryProvider)
-          .reject(id: id, staffId: staffId, reason: reason);
-      await ref
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: proposedBySupplierId,
-            type: NotificationType.characteristicTypeDecision,
-            title: 'Caractéristique refusée',
-            body: reason,
-          );
-    });
+          .review(id: id, approve: approve, reason: reason),
+    );
     return !state.hasError;
   }
 }

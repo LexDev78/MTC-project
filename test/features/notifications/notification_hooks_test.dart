@@ -224,10 +224,10 @@ void main() {
 
       await container
           .read(kycReviewControllerProvider.notifier)
-          .approve(
+          .review(
             kycId: kyc.id,
             supplierId: DemoIds.supplierArtisanatSikasso,
-            staffId: DemoIds.staffAgent,
+            approve: true,
           );
 
       final notifications = await fetchNotificationsForUserAsAdmin(

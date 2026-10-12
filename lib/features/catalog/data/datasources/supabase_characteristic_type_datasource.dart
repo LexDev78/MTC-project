@@ -54,33 +54,21 @@ class SupabaseCharacteristicTypeDatasource {
     _notify();
   }
 
-  Future<void> approve({required String id, required String staffId}) async {
-    await _client
-        .from('product_characteristic_types')
-        .update({
-          'status': 'approved',
-          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
-          'reviewed_by_staff_id': staffId,
-          'rejection_reason': null,
-        })
-        .eq('id', id);
-    _notify();
-  }
-
-  Future<void> reject({
+  /// Décide par `review_characteristic_type` (`0069`).
+  ///
+  /// La notification qui accompagne la décision partait de l'app, ce qui
+  /// obligeait à laisser une session insérer des notifications. Elle part
+  /// désormais avec l'écriture qu'elle annonce, et `staffId` n'est plus
+  /// transmis : le serveur prend l'appelant.
+  Future<void> review({
     required String id,
-    required String staffId,
-    required String reason,
+    required bool approve,
+    String? reason,
   }) async {
-    await _client
-        .from('product_characteristic_types')
-        .update({
-          'status': 'rejected',
-          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
-          'reviewed_by_staff_id': staffId,
-          'rejection_reason': reason,
-        })
-        .eq('id', id);
+    await _client.rpc(
+      'review_characteristic_type',
+      params: {'p_id': id, 'p_approve': approve, 'p_reason': reason},
+    );
     _notify();
   }
 }

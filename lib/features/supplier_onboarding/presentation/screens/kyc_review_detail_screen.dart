@@ -69,15 +69,16 @@ class _KycReviewDetailScreenState
     );
   }
 
+  /// L'identifiant de l'agent n'est plus transmis : `review_supplier_kyc`
+  /// (`0069`) prend celui de la session, et refuse l'appel s'il ne s'agit
+  /// pas du staff.
   Future<void> _approve() async {
-    final staffId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (staffId == null) return;
     final success = await ref
         .read(kycReviewControllerProvider.notifier)
-        .approve(
+        .review(
           kycId: widget.kyc.id,
           supplierId: widget.kyc.supplierId,
-          staffId: staffId,
+          approve: true,
         );
     if (success && mounted) context.pop();
   }
@@ -85,14 +86,12 @@ class _KycReviewDetailScreenState
   Future<void> _reject() async {
     final reason = await _promptRejectionReason();
     if (reason == null || reason.isEmpty || !mounted) return;
-    final staffId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (staffId == null) return;
     final success = await ref
         .read(kycReviewControllerProvider.notifier)
-        .reject(
+        .review(
           kycId: widget.kyc.id,
           supplierId: widget.kyc.supplierId,
-          staffId: staffId,
+          approve: false,
           reason: reason,
         );
     if (success && mounted) context.pop();

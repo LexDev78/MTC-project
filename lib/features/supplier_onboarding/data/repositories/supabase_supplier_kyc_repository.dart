@@ -106,17 +106,12 @@ class SupabaseSupplierKycRepository implements SupplierKycRepository {
   }
 
   @override
-  Future<void> approve({required String kycId, required String staffId}) {
-    return _datasource.approve(kycId: kycId, staffId: staffId);
-  }
-
-  @override
-  Future<void> reject({
+  Future<void> review({
     required String kycId,
-    required String staffId,
-    required String reason,
+    required bool approve,
+    String? reason,
   }) {
-    return _datasource.reject(kycId: kycId, staffId: staffId, reason: reason);
+    return _datasource.review(kycId: kycId, approve: approve, reason: reason);
   }
 }
 

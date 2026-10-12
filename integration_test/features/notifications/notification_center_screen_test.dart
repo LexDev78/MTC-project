@@ -9,8 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 
 import '../../../test/support/supabase_test_harness.dart';
 
@@ -58,18 +56,19 @@ void main() {
       await tester.tap(find.text('Se connecter'));
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      // Seed one unread notification directly through the repository —
-      // simpler and more direct than driving a whole other flow (e.g. a
-      // chat message) just to get one on screen. Must happen after login:
-      // the insert policy requires an authenticated role.
-      await container
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: DemoIds.supplierBogolanBamako,
-            type: NotificationType.newOrder,
-            title: 'Nouvelle commande',
-            body: 'Awa Traoré — 1 article',
-          );
+      // Une notification posée par le harnais plutôt que par un vrai
+      // parcours (une commande, un message) : cet écran porte sur la cloche
+      // et la pastille, pas sur ce qui les remplit.
+      //
+      // Passe par `service_role` depuis `0064` : une session, même
+      // authentifiée, n'insère plus de notification — elles sont produites
+      // par l'événement qui les justifie.
+      await insertNotificationAsAdmin(
+        userId: DemoIds.supplierBogolanBamako,
+        type: 'new_order',
+        title: 'Nouvelle commande',
+        body: 'Awa Traoré — 1 article',
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('1'), findsOneWidget); // unread badge on the bell

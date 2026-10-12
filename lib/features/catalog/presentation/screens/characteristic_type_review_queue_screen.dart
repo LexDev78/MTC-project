@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
-import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 
 import '../../domain/entities/product_characteristic_type.dart';
 import '../controllers/characteristic_type_review_controller.dart';
@@ -79,33 +78,22 @@ class _QueueTile extends ConsumerWidget {
     );
   }
 
+  /// Ni l'agent ni l'auteur de la proposition ne sont transmis :
+  /// `review_characteristic_type` (`0069`) prend l'un dans la session et
+  /// retrouve l'autre dans la ligne. Un type pré-approuvé, sans auteur, est
+  /// géré par le serveur plutôt qu'écarté ici.
   Future<void> _approve(BuildContext context, WidgetRef ref) async {
-    final staffId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (staffId == null || type.proposedBySupplierId == null) return;
     await ref
         .read(characteristicTypeReviewControllerProvider.notifier)
-        .approve(
-          id: type.id,
-          proposedBySupplierId: type.proposedBySupplierId!,
-          staffId: staffId,
-        );
+        .review(id: type.id, approve: true);
   }
 
   Future<void> _reject(BuildContext context, WidgetRef ref) async {
     final reason = await _promptRejectionReason(context);
     if (reason == null || reason.isEmpty) return;
-    final staffId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (staffId == null || type.proposedBySupplierId == null || !context.mounted) {
-      return;
-    }
     await ref
         .read(characteristicTypeReviewControllerProvider.notifier)
-        .reject(
-          id: type.id,
-          proposedBySupplierId: type.proposedBySupplierId!,
-          staffId: staffId,
-          reason: reason,
-        );
+        .review(id: type.id, approve: false, reason: reason);
   }
 
   @override

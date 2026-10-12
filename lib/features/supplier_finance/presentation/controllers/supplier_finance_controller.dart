@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/core/error/exceptions.dart';
-import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/orders/domain/entities/payment.dart' show MobileMoneyProvider;
 import 'package:mtc_app/features/orders/presentation/providers/supplier_order_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
@@ -76,25 +74,18 @@ class SupplierFinanceController extends AsyncNotifier<void> {
     String? rejectionReason,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final updated = await ref
+    // La notification au fournisseur part de `update_payout_status`
+    // (`0069`), avec l'écriture qu'elle annonce : en second appel, elle
+    // pouvait échouer après qu'un versement a été marqué payé.
+    state = await AsyncValue.guard(
+      () => ref
           .read(supplierFinanceRepositoryProvider)
           .updatePayoutStatus(
             payoutId: payoutId,
             status: status,
             rejectionReason: rejectionReason,
-          );
-      await ref
-          .read(notificationRepositoryProvider)
-          .add(
-            userId: updated.supplierId,
-            type: NotificationType.payoutDecision,
-            title: 'Retrait ${status.label.toLowerCase()}',
-            body: status == PayoutStatus.rejected && rejectionReason != null
-                ? rejectionReason
-                : '${updated.amountFcfa} FCFA',
-          );
-    });
+          ),
+    );
     return !state.hasError;
   }
 }

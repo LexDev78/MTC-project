@@ -1,15 +1,12 @@
 import '../entities/app_notification.dart';
 
+/// Lecture et marquage des notifications. **Pas d'écriture** : depuis
+/// `0064` et `0069`, chaque notification est produite par l'événement qui la
+/// justifie, côté serveur, et `notifications` n'a plus aucune policy
+/// d'insertion. Une méthode `add` ici ne pourrait qu'échouer — et inviterait
+/// à rouvrir la policy pour la faire marcher.
 abstract interface class NotificationRepository {
   Stream<List<AppNotification>> watchForUser(String userId);
-
-  Future<void> add({
-    required String userId,
-    required NotificationType type,
-    required String title,
-    required String body,
-    String? referenceId,
-  });
 
   Future<void> markRead(String notificationId);
 

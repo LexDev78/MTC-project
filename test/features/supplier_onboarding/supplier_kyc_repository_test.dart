@@ -273,9 +273,9 @@ void main() {
       final kycId = (await repository.getForSupplier(supplierId)).id;
 
       await loginAs('admin1');
-      await repository.reject(
+      await repository.review(
         kycId: kycId,
-        staffId: DemoIds.staffAdmin,
+        approve: false,
         reason: 'Numéro RCCM illisible sur la photo.',
       );
 
@@ -298,7 +298,7 @@ void main() {
 
       await loginAs('admin1');
       await repository.startReview(kycId: kycId, staffId: DemoIds.staffAdmin);
-      await repository.approve(kycId: kycId, staffId: DemoIds.staffAdmin);
+      await repository.review(kycId: kycId, approve: true);
 
       final kyc = await repository.getForSupplier(supplierId);
       expect(kyc.status, KycReviewStatus.approved);
@@ -318,7 +318,7 @@ void main() {
       await loginAs('admin1');
       await container
           .read(supplierKycRepositoryProvider)
-          .approve(kycId: approvedKycId, staffId: DemoIds.staffAdmin);
+          .review(kycId: approvedKycId, approve: true);
 
       final submittedId = await submitACompleteCompanyDossier('kyctest14');
       final submittedKycId =

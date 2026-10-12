@@ -188,33 +188,28 @@ class SupabaseSupplierKycDatasource {
     _notify();
   }
 
-  Future<void> approve({required String kycId, required String staffId}) async {
-    await _client
-        .from('supplier_kyc')
-        .update({
-          'status': 'approved',
-          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
-          'reviewed_by_staff_id': staffId,
-          'rejection_reason': null,
-        })
-        .eq('id', kycId);
-    _notify();
-  }
-
-  Future<void> reject({
+  /// Décide du dossier par `review_supplier_kyc` (`0069`) et non par un
+  /// `update`.
+  ///
+  /// Une décision touchait quatre enregistrements — le dossier, la fiche
+  /// fournisseur, tous ses produits, la notification — en quatre appels
+  /// depuis l'app. Un échec au milieu laissait un dossier approuvé dont les
+  /// produits restaient invisibles, état qu'aucun écran ne sait rattraper.
+  /// Les quatre tiennent maintenant dans une transaction, et `staffId` n'est
+  /// plus transmis : le serveur prend l'appelant.
+  Future<void> review({
     required String kycId,
-    required String staffId,
-    required String reason,
+    required bool approve,
+    String? reason,
   }) async {
-    await _client
-        .from('supplier_kyc')
-        .update({
-          'status': 'rejected',
-          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
-          'reviewed_by_staff_id': staffId,
-          'rejection_reason': reason,
-        })
-        .eq('id', kycId);
+    await _client.rpc(
+      'review_supplier_kyc',
+      params: {
+        'p_kyc_id': kycId,
+        'p_approve': approve,
+        'p_reason': reason,
+      },
+    );
     _notify();
   }
 }

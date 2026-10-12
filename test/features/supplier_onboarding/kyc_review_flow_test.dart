@@ -54,10 +54,10 @@ void main() {
 
       final success = await container
           .read(kycReviewControllerProvider.notifier)
-          .approve(
+          .review(
             kycId: kycBefore.id,
             supplierId: supplierId,
-            staffId: DemoIds.staffAdmin,
+            approve: true,
           );
       expect(success, isTrue);
 
@@ -101,10 +101,10 @@ void main() {
       final reviewController = container.read(
         kycReviewControllerProvider.notifier,
       );
-      final rejected = await reviewController.reject(
+      final rejected = await reviewController.review(
         kycId: kyc.id,
         supplierId: supplierId,
-        staffId: DemoIds.staffAgent,
+        approve: false,
         reason: 'NIF illisible sur le document fourni.',
       );
       expect(rejected, isTrue);

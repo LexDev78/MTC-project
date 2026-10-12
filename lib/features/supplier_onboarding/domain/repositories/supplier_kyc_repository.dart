@@ -57,11 +57,13 @@ abstract interface class SupplierKycRepository {
   /// decision to `AppUser.verificationStatus`, `SupplierProfile`, and
   /// `Product.isSupplierVerified` is cross-repository orchestration that
   /// belongs in a controller (see `KycReviewController`), not here.
-  Future<void> approve({required String kycId, required String staffId});
-
-  Future<void> reject({
+  /// Décide du dossier : le statut, la fiche fournisseur, la visibilité de
+  /// ses produits et la notification, en une transaction côté serveur
+  /// (`review_supplier_kyc`, `0069`). L'agent qui décide est celui de la
+  /// session ; un refus non motivé est refusé par la base.
+  Future<void> review({
     required String kycId,
-    required String staffId,
-    required String reason,
+    required bool approve,
+    String? reason,
   });
 }

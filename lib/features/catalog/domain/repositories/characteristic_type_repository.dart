@@ -21,11 +21,12 @@ abstract interface class CharacteristicTypeRepository {
   /// Only updates the type's own status/review fields — propagation (e.g.
   /// a notification to the proposer) is cross-repository orchestration
   /// that belongs in `CharacteristicTypeReviewController`, not here.
-  Future<void> approve({required String id, required String staffId});
-
-  Future<void> reject({
+  /// Décide d'une proposition : le statut et la notification à son auteur,
+  /// en une transaction côté serveur (`review_characteristic_type`, `0069`).
+  /// Un refus non motivé est refusé par la base.
+  Future<void> review({
     required String id,
-    required String staffId,
-    required String reason,
+    required bool approve,
+    String? reason,
   });
 }
