@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
@@ -74,10 +75,13 @@ void main() {
     },
   );
 
+  // Le point de retrait vient désormais de la carte, posé par le
+  // fournisseur. Avant, il était déduit du **nom de la ville** : toutes les
+  // boutiques de Bamako partageaient le même point, et le livreur était
+  // envoyé au centre-ville quelle que soit la boutique.
   test(
-    'SupplierAccountController.updateStorefront resolves the operating '
-    "supplier and derives coordinates from the supplier's city — the "
-    'caller never passes either',
+    'updateStorefront enregistre le point posé sur la carte, et ne l\'écrase '
+    'pas quand aucun nouveau point n\'est fourni',
     () async {
       await container
           .read(authRepositoryProvider)
@@ -85,27 +89,48 @@ void main() {
       await container.read(currentUserProvider.future);
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
+      const pose = LatLng(12.6601, -7.9712);
       final ok = await container
           .read(supplierAccountControllerProvider.notifier)
           .updateStorefront(
             description: 'Nouvelle description.',
             bannerUrl: null,
             fullAddress: 'Rue 123, Bamako',
+            pickupPoint: pose,
             publicPhoneNumbers: const ['+22370000002'],
             deliveryZones: const ['Bamako'],
             openingHoursLabel: null,
           );
       expect(ok, isTrue);
 
-      final updated = await container
-          .read(supplierRepositoryProvider)
-          .getById(DemoIds.supplierBogolanBamako);
+      final repository = container.read(supplierRepositoryProvider);
+      var updated = await repository.getById(DemoIds.supplierBogolanBamako);
       expect(updated.description, 'Nouvelle description.');
-      expect(updated.addressLatitude, MalianCity.bamako.coordinates.latitude);
+      expect(updated.addressLatitude, closeTo(pose.latitude, 0.00001));
+      expect(updated.addressLongitude, closeTo(pose.longitude, 0.00001));
+      // Et surtout : ce n'est pas le centre de Bamako.
       expect(
-        updated.addressLongitude,
-        MalianCity.bamako.coordinates.longitude,
+        updated.addressLatitude,
+        isNot(closeTo(MalianCity.bamako.coordinates.latitude, 0.0001)),
       );
+
+      // Deuxième enregistrement sans nouveau point — par exemple le
+      // fournisseur ne change que ses horaires. Le repère doit survivre.
+      await container
+          .read(supplierAccountControllerProvider.notifier)
+          .updateStorefront(
+            description: 'Encore une autre description.',
+            bannerUrl: null,
+            fullAddress: 'Rue 123, Bamako',
+            pickupPoint: null,
+            publicPhoneNumbers: const ['+22370000002'],
+            deliveryZones: const ['Bamako'],
+            openingHoursLabel: '8h - 18h',
+          );
+
+      updated = await repository.getById(DemoIds.supplierBogolanBamako);
+      expect(updated.addressLatitude, closeTo(pose.latitude, 0.00001));
+      expect(updated.openingHoursLabel, '8h - 18h');
     },
   );
 

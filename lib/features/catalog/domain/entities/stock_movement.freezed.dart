@@ -28,6 +28,10 @@ mixin _$StockMovement {
   DateTime get occurredAt => throw _privateConstructorUsedError;
   String? get note => throw _privateConstructorUsedError;
 
+  /// Which variant this movement targeted — `null` for a variant-less
+  /// product's own stock.
+  String? get variantId => throw _privateConstructorUsedError;
+
   /// Serializes this StockMovement to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -52,6 +56,7 @@ abstract class $StockMovementCopyWith<$Res> {
     StockMovementReason reason,
     DateTime occurredAt,
     String? note,
+    String? variantId,
   });
 }
 
@@ -76,6 +81,7 @@ class _$StockMovementCopyWithImpl<$Res, $Val extends StockMovement>
     Object? reason = null,
     Object? occurredAt = null,
     Object? note = freezed,
+    Object? variantId = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -103,6 +109,10 @@ class _$StockMovementCopyWithImpl<$Res, $Val extends StockMovement>
                 ? _value.note
                 : note // ignore: cast_nullable_to_non_nullable
                       as String?,
+            variantId: freezed == variantId
+                ? _value.variantId
+                : variantId // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -125,6 +135,7 @@ abstract class _$$StockMovementImplCopyWith<$Res>
     StockMovementReason reason,
     DateTime occurredAt,
     String? note,
+    String? variantId,
   });
 }
 
@@ -148,6 +159,7 @@ class __$$StockMovementImplCopyWithImpl<$Res>
     Object? reason = null,
     Object? occurredAt = null,
     Object? note = freezed,
+    Object? variantId = freezed,
   }) {
     return _then(
       _$StockMovementImpl(
@@ -175,6 +187,10 @@ class __$$StockMovementImplCopyWithImpl<$Res>
             ? _value.note
             : note // ignore: cast_nullable_to_non_nullable
                   as String?,
+        variantId: freezed == variantId
+            ? _value.variantId
+            : variantId // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -190,6 +206,7 @@ class _$StockMovementImpl implements _StockMovement {
     required this.reason,
     required this.occurredAt,
     this.note,
+    this.variantId,
   });
 
   factory _$StockMovementImpl.fromJson(Map<String, dynamic> json) =>
@@ -208,9 +225,14 @@ class _$StockMovementImpl implements _StockMovement {
   @override
   final String? note;
 
+  /// Which variant this movement targeted — `null` for a variant-less
+  /// product's own stock.
+  @override
+  final String? variantId;
+
   @override
   String toString() {
-    return 'StockMovement(id: $id, productId: $productId, quantityDelta: $quantityDelta, reason: $reason, occurredAt: $occurredAt, note: $note)';
+    return 'StockMovement(id: $id, productId: $productId, quantityDelta: $quantityDelta, reason: $reason, occurredAt: $occurredAt, note: $note, variantId: $variantId)';
   }
 
   @override
@@ -226,7 +248,9 @@ class _$StockMovementImpl implements _StockMovement {
             (identical(other.reason, reason) || other.reason == reason) &&
             (identical(other.occurredAt, occurredAt) ||
                 other.occurredAt == occurredAt) &&
-            (identical(other.note, note) || other.note == note));
+            (identical(other.note, note) || other.note == note) &&
+            (identical(other.variantId, variantId) ||
+                other.variantId == variantId));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -239,6 +263,7 @@ class _$StockMovementImpl implements _StockMovement {
     reason,
     occurredAt,
     note,
+    variantId,
   );
 
   /// Create a copy of StockMovement
@@ -263,6 +288,7 @@ abstract class _StockMovement implements StockMovement {
     required final StockMovementReason reason,
     required final DateTime occurredAt,
     final String? note,
+    final String? variantId,
   }) = _$StockMovementImpl;
 
   factory _StockMovement.fromJson(Map<String, dynamic> json) =
@@ -280,6 +306,11 @@ abstract class _StockMovement implements StockMovement {
   DateTime get occurredAt;
   @override
   String? get note;
+
+  /// Which variant this movement targeted — `null` for a variant-less
+  /// product's own stock.
+  @override
+  String? get variantId;
 
   /// Create a copy of StockMovement
   /// with the given fields replaced by the non-null parameter values.

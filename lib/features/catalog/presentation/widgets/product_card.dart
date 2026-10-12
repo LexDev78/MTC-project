@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_shadows.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/utils/currency_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/core/widgets/resolved_image.dart';
 import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
@@ -143,13 +144,7 @@ class ProductCard extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    CurrencyText(
-                      product.priceFcfa,
-                      style: textTheme.titleSmall?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    _PriceLine(product: product, textTheme: textTheme, scheme: scheme),
                   ],
                 ),
               ),
@@ -157,6 +152,40 @@ class ProductCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The price row on a catalog card — a plain [CurrencyText] for a
+/// variant-less product or one whose variants all share the same price,
+/// "À partir de X FCFA" when they don't (both `priceFcfa`/`maxPriceFcfa`
+/// are trigger-maintained aggregates, see `0018_product_variants.sql`, so
+/// this never needs to fetch the variant list itself).
+class _PriceLine extends StatelessWidget {
+  const _PriceLine({
+    required this.product,
+    required this.textTheme,
+    required this.scheme,
+  });
+
+  final Product product;
+  final TextTheme textTheme;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = textTheme.titleSmall?.copyWith(
+      color: scheme.primary,
+      fontWeight: FontWeight.w700,
+    );
+    final maxPrice = product.maxPriceFcfa;
+    if (product.hasVariants && maxPrice != null && maxPrice != product.priceFcfa) {
+      return Text('À partir de ${CurrencyFormatter.formatFcfa(product.priceFcfa)}', style: style);
+    }
+    return CurrencyText(
+      product.priceFcfa,
+      compareAtAmountFcfa: product.compareAtPriceFcfa,
+      style: style,
     );
   }
 }

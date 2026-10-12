@@ -34,3 +34,7 @@ final class InsufficientStockException extends AppException {
 final class NotAuthenticatedException extends AppException {
   const NotAuthenticatedException() : super('Vous devez être connecté');
 }
+
+final class AccountDeletedException extends AppException {
+  const AccountDeletedException() : super('Ce compte a été supprimé.');
+}

@@ -14,18 +14,34 @@ class LiveTrackingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final trackingAsync = ref.watch(trackingStreamProvider(orderId));
+    final params = ref.watch(trackingParamsProvider(orderId));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Suivi de livraison')),
       body: AsyncValueWidget(
-        value: trackingAsync,
-        data: (tracking) {
-          return Column(
-            children: [
-              EtaBanner(tracking: tracking),
-              Expanded(child: TrackingMap(tracking: tracking)),
-            ],
+        value: params,
+        data: (params) {
+          // Livraison assurée par le fournisseur lui-même : personne ne
+          // transmet de position. Le dire franchement vaut mieux que laisser
+          // tourner un chargement qui n'aboutira jamais — et mieux encore
+          // qu'animer un livreur imaginaire.
+          if (!params.isMtcDelivery) {
+            return const MtcEmptyState(
+              icon: Icons.storefront_rounded,
+              title: 'Suivi indisponible',
+              subtitle:
+                  'Cette commande est livrée directement par le fournisseur. '
+                  'Contactez-le pour connaître le point de situation.',
+            );
+          }
+          return AsyncValueWidget(
+            value: ref.watch(trackingStreamProvider(orderId)),
+            data: (tracking) => Column(
+              children: [
+                EtaBanner(tracking: tracking),
+                Expanded(child: TrackingMap(tracking: tracking)),
+              ],
+            ),
           );
         },
       ),

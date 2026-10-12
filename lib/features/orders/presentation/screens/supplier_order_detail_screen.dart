@@ -5,14 +5,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/features/delivery/domain/entities/courier_delivery.dart';
+import 'package:mtc_app/features/delivery/presentation/providers/delivery_providers.dart';
+import 'package:mtc_app/features/delivery/presentation/widgets/delivery_code_qr.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart'
+    show ChatProductAttachment;
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
+import '../../domain/entities/order.dart';
 import '../../domain/entities/order_status.dart';
 import '../../domain/order_status_transitions.dart';
 import '../controllers/supplier_order_controller.dart';
 import '../providers/supplier_order_providers.dart';
+import '../widgets/order_item_row.dart';
 
 /// One order, scoped to the operating supplier's own group — reached from
 /// `SupplierOrderListScreen`. Never renders another supplier's items/prices
@@ -135,20 +142,80 @@ class _OrderDetailBody extends ConsumerWidget {
     );
   }
 
+  Future<void> _contactClientAboutItem(
+    BuildContext context,
+    WidgetRef ref,
+    OrderItem item,
+  ) async {
+    final result = await ref
+        .read(supplierOrderControllerProvider.notifier)
+        .contactClientAboutItem(
+          clientId: view.clientId,
+          clientDisplayNameSnapshot: view.clientDisplayNameSnapshot,
+          item: item,
+        );
+    if (!context.mounted) return;
+    if (result.conversationId == null) {
+      final error = ref.read(supplierOrderControllerProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+      );
+      return;
+    }
+    final product = result.product;
+    unawaited(
+      context.push(
+        '${ref.read(supplierRoutePrefixProvider)}/messages/${result.conversationId}',
+        // `product` is best-effort (see `contactClientAboutItem`'s doc
+        // comment) — `null` still opens the conversation, just without an
+        // attachment, rather than blocking navigation on it.
+        extra: product == null
+            ? null
+            : ChatProductAttachment(product: product, variant: result.variant),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final group = view.myGroup;
     final state = ref.watch(supplierOrderControllerProvider);
 
+    // Une livraison MTC se clôt par le scan du client, pas par un bouton :
+    // le fournisseur ne constate pas l'arrivée du colis, et la preuve existe
+    // ailleurs (`0054_mtc_delivery_closed_by_scan.sql`, qui refuse aussi
+    // l'appel direct). Il garde la remise au livreur — « En livraison » —
+    // qui est bien son geste à lui.
+    final closedByCourier = group.deliveryMode == DeliveryMode.mtcDelivery;
     final nextStatuses = OrderStatus.values.where(
-      (s) => s != OrderStatus.cancelled && isValidTransition(group.status, s),
+      (s) =>
+          s != OrderStatus.cancelled &&
+          isValidTransition(group.status, s) &&
+          !(closedByCourier && s == OrderStatus.delivered),
     );
     final canCancel = isValidTransition(group.status, OrderStatus.cancelled);
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
+        if (closedByCourier && group.status == OrderStatus.inTransit)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Row(
+              children: [
+                Icon(Icons.qr_code_rounded, color: scheme.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Un livreur MTC s\'en charge. La commande passera en '
+                    '« Livrée » quand le client aura scanné son code de remise.',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Row(
           children: [
             Expanded(
@@ -215,17 +282,23 @@ class _OrderDetailBody extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final item in group.items)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${item.quantity} × ${item.productNameSnapshot}',
-                          ),
-                        ),
-                        CurrencyText(item.unitPriceFcfaSnapshot * item.quantity),
-                      ],
+                  OrderItemRow(
+                    productId: item.productId,
+                    productNameSnapshot: item.productNameSnapshot,
+                    unitPriceFcfaSnapshot: item.unitPriceFcfaSnapshot,
+                    quantity: item.quantity,
+                    variantId: item.variantId,
+                    variantNameSnapshot: item.variantNameSnapshot,
+                    trailing: IconButton(
+                      icon: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 20,
+                      ),
+                      tooltip: 'Contacter à propos de cet article',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: state.isLoading
+                          ? null
+                          : () => _contactClientAboutItem(context, ref, item),
                     ),
                   ),
                 const Divider(),
@@ -246,6 +319,10 @@ class _OrderDetailBody extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (group.deliveryMode == DeliveryMode.mtcDelivery) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _PickupCode(groupId: group.id),
+                ],
               ],
             ),
           ),
@@ -268,6 +345,36 @@ class _OrderDetailBody extends ConsumerWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+/// QR de retrait, présenté au livreur qui vient chercher le colis.
+///
+/// N'apparaît qu'une fois la commande confiée à MTC — avant, il n'y a pas de
+/// course, donc pas de code. Disparaît une fois scanné : un QR qui reste
+/// affiché après coup laisse croire qu'il reste quelque chose à faire.
+class _PickupCode extends ConsumerWidget {
+  const _PickupCode({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final delivery = ref.watch(deliveryForGroupProvider(groupId)).valueOrNull;
+    if (delivery == null) return const SizedBox.shrink();
+    if (delivery.status == DeliveryStatus.pickedUp ||
+        delivery.status == DeliveryStatus.delivered) {
+      return const SizedBox.shrink();
+    }
+
+    return DeliveryCodeQr(
+      deliveryId: delivery.id,
+      kind: DeliveryCodeKind.pickup,
+      title: 'Code de retrait',
+      instruction:
+          'À montrer au livreur quand il vient chercher la commande. '
+          'Il ne peut pas la récupérer sans ce scan.',
     );
   }
 }

@@ -7,10 +7,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
+import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/domain/entities/stock_movement.dart';
 import 'package:mtc_app/features/catalog/presentation/controllers/supplier_product_controller.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
+import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 import 'package:mtc_app/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:mtc_app/features/notifications/domain/entities/app_notification.dart';
 import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
@@ -95,7 +100,7 @@ void main() {
       // notifies the client, Awa.
       await container
           .read(chatControllerProvider.notifier)
-          .sendMessage(conversationId: 'conv-awa-bogolan', text: 'Merci !');
+          .sendMessage(conversationId: DemoIds.convAwaBogolan, text: 'Merci !');
 
       // Awa (the recipient) isn't the signed-in session (fournisseur1).
       final clientNotifications = await fetchNotificationsForUserAsAdmin(
@@ -127,18 +132,47 @@ void main() {
       await login('fournisseur1');
 
       final productRepository = container.read(productRepositoryProvider);
-      final myProducts = await container
-          .read(productRepositoryProvider)
-          .watchMyProducts(DemoIds.supplierBogolanBamako)
-          .first;
-      final product = myProducts.firstWhere(
-        (p) => p.lowStockThreshold != null,
-        orElse: () => myProducts.first,
+      // A fresh product rather than one of Bogolan Bamako's seeded ones:
+      // every seeded product now comes with its own pre-existing default
+      // variant (`0021_backfill_default_variants_and_require_variant.sql`),
+      // and `adjust_stock` (`0016_adjust_stock_rpc.sql`) refuses a
+      // product-level adjustment (no `variantId`) once a product has
+      // variants — this test cares about the low-stock threshold logic,
+      // not variant plumbing, so it gives itself a product with a single
+      // variant at a known stock instead of fighting an existing one's
+      // arbitrary seeded stock.
+      final supplierId = container.read(operatingSupplierIdProvider)!;
+      final user = container.read(currentUserProvider).value! as SupplierTiersUser;
+      final supplierProfile = await container
+          .read(supplierRepositoryProvider)
+          .getById(supplierId);
+      final draft = await productRepository.createProduct(
+        supplierId: supplierId,
+        supplierName: supplierProfile.businessName,
+        supplierType: SupplierType.tiers,
+        isSupplierVerified: user.verificationStatus == VerificationStatus.verified,
+        name: 'Produit test seuil de stock',
+        description: 'Produit créé pour tester les notifications de stock bas.',
+        category: ProductCategory.autre,
+        priceFcfa: 10000,
+        stockQuantity: 10,
+        weightKg: 1.0,
+        city: 'Bamako',
+        imageUrls: const [],
+        allowsSelfDelivery: true,
+        allowsMtcDelivery: true,
+        sizes: const [],
+        colors: const [],
+        region: ProductRegion.mali,
+        lowStockThreshold: 5,
       );
-      // Force a known threshold so the test doesn't depend on seed values.
-      await productRepository.updateProduct(
-        product.copyWith(lowStockThreshold: 5, stockQuantity: 10),
+      await giveProductADefaultVariantAsAdmin(
+        draft.id,
+        priceFcfa: 10000,
+        stockQuantity: 10,
       );
+      final variantId = (await productRepository.getById(draft.id)).variants.single.id;
+      final product = draft;
 
       // Stays above threshold — no notification.
       await container
@@ -147,6 +181,7 @@ void main() {
             productId: product.id,
             quantityDelta: -2,
             reason: StockMovementReason.manualAdjustment,
+            variantId: variantId,
           );
       var notifications = await container
           .read(notificationRepositoryProvider)
@@ -164,6 +199,7 @@ void main() {
             productId: product.id,
             quantityDelta: -3,
             reason: StockMovementReason.manualAdjustment,
+            variantId: variantId,
           );
       notifications = await container
           .read(notificationRepositoryProvider)
@@ -213,7 +249,7 @@ void main() {
       await container
           .read(supplierFinanceControllerProvider.notifier)
           .reviewPayout(
-            payoutId: 'payout-bogolan-1',
+            payoutId: DemoIds.payoutBogolan1,
             status: PayoutStatus.rejected,
           );
       // Already terminal in the seed (`paid`) — invalid transition, no
@@ -267,8 +303,8 @@ void main() {
       await container
           .read(reviewControllerProvider.notifier)
           .submit(
-            orderId: 'order-awa-delivered',
-            supplierGroupId: 'group-awa-delivered-1',
+            orderId: DemoIds.orderAwaDelivered,
+            supplierGroupId: DemoIds.groupAwaDelivered1,
             supplierId: DemoIds.supplierBogolanBamako,
             stars: 5,
             comment: 'Excellent service.',

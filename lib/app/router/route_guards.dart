@@ -41,6 +41,10 @@ String? authRedirect(Ref ref, GoRouterState state) {
         ? AppRoutes.supplierOnboarding
         : AppRoutes.supplierTiersDashboard,
     UserRole.supplierPrincipal => AppRoutes.supplierPrincipalDashboard,
+    // Un livreur non encore validé atterrit sur la même liste : elle porte
+    // le message d'attente. Lui réserver un écran à part doublerait les
+    // chemins pour un état qui dure le temps d'une validation.
+    UserRole.livreur => AppRoutes.courierHome,
   };
 
   if (isAuthRoute) {
@@ -53,16 +57,18 @@ String? authRedirect(Ref ref, GoRouterState state) {
   final isClientArea = path.startsWith('/client');
   final isTiersArea = path.startsWith('/supplier-tiers');
   final isPrincipalArea = path.startsWith('/supplier-principal');
+  final isCourierArea = path.startsWith('/livreur');
 
   final inOwnArea = switch (user.role) {
     UserRole.client => isClientArea,
     UserRole.supplierTiers => isTiersArea,
     UserRole.supplierPrincipal => isPrincipalArea,
+    UserRole.livreur => isCourierArea,
   };
 
-  final inAnySupplierOrClientArea =
-      isClientArea || isTiersArea || isPrincipalArea;
-  if (inAnySupplierOrClientArea && !inOwnArea) return roleHome;
+  final inAnyRoleArea =
+      isClientArea || isTiersArea || isPrincipalArea || isCourierArea;
+  if (inAnyRoleArea && !inOwnArea) return roleHome;
 
   if (user is SupplierTiersUser) {
     final onOnboarding = path == AppRoutes.supplierOnboarding;

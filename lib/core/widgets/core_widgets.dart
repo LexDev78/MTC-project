@@ -2,7 +2,6 @@ export 'animated_count_badge.dart';
 export 'async_value_widget.dart';
 export 'currency_text.dart';
 export 'fade_slide_in.dart';
-export 'mtc_brand_mark.dart';
 export 'mtc_coming_soon.dart';
 export 'mtc_empty_state.dart';
 export 'mtc_error_view.dart';

@@ -29,8 +29,6 @@ mixin _$SupplierProfile {
   int get ratingCount => throw _privateConstructorUsedError;
   int get productCount => throw _privateConstructorUsedError;
   VerificationStatus? get verificationStatus =>
-      throw _privateConstructorUsedError;
-  String? get avatarUrl =>
       throw _privateConstructorUsedError; // Null for `SupplierType.principal` (MTC itself has no legal form to
   // register) — only ever set for `SupplierType.tiers`.
   SupplierLegalType? get legalType =>
@@ -78,7 +76,6 @@ abstract class $SupplierProfileCopyWith<$Res> {
     int ratingCount,
     int productCount,
     VerificationStatus? verificationStatus,
-    String? avatarUrl,
     SupplierLegalType? legalType,
     String? description,
     String? bannerUrl,
@@ -115,7 +112,6 @@ class _$SupplierProfileCopyWithImpl<$Res, $Val extends SupplierProfile>
     Object? ratingCount = null,
     Object? productCount = null,
     Object? verificationStatus = freezed,
-    Object? avatarUrl = freezed,
     Object? legalType = freezed,
     Object? description = freezed,
     Object? bannerUrl = freezed,
@@ -161,10 +157,6 @@ class _$SupplierProfileCopyWithImpl<$Res, $Val extends SupplierProfile>
                 ? _value.verificationStatus
                 : verificationStatus // ignore: cast_nullable_to_non_nullable
                       as VerificationStatus?,
-            avatarUrl: freezed == avatarUrl
-                ? _value.avatarUrl
-                : avatarUrl // ignore: cast_nullable_to_non_nullable
-                      as String?,
             legalType: freezed == legalType
                 ? _value.legalType
                 : legalType // ignore: cast_nullable_to_non_nullable
@@ -229,7 +221,6 @@ abstract class _$$SupplierProfileImplCopyWith<$Res>
     int ratingCount,
     int productCount,
     VerificationStatus? verificationStatus,
-    String? avatarUrl,
     SupplierLegalType? legalType,
     String? description,
     String? bannerUrl,
@@ -265,7 +256,6 @@ class __$$SupplierProfileImplCopyWithImpl<$Res>
     Object? ratingCount = null,
     Object? productCount = null,
     Object? verificationStatus = freezed,
-    Object? avatarUrl = freezed,
     Object? legalType = freezed,
     Object? description = freezed,
     Object? bannerUrl = freezed,
@@ -311,10 +301,6 @@ class __$$SupplierProfileImplCopyWithImpl<$Res>
             ? _value.verificationStatus
             : verificationStatus // ignore: cast_nullable_to_non_nullable
                   as VerificationStatus?,
-        avatarUrl: freezed == avatarUrl
-            ? _value.avatarUrl
-            : avatarUrl // ignore: cast_nullable_to_non_nullable
-                  as String?,
         legalType: freezed == legalType
             ? _value.legalType
             : legalType // ignore: cast_nullable_to_non_nullable
@@ -372,7 +358,6 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     required this.ratingCount,
     required this.productCount,
     this.verificationStatus,
-    this.avatarUrl,
     this.legalType,
     this.description,
     this.bannerUrl,
@@ -405,8 +390,6 @@ class _$SupplierProfileImpl implements _SupplierProfile {
   final int productCount;
   @override
   final VerificationStatus? verificationStatus;
-  @override
-  final String? avatarUrl;
   // Null for `SupplierType.principal` (MTC itself has no legal form to
   // register) — only ever set for `SupplierType.tiers`.
   @override
@@ -456,7 +439,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
 
   @override
   String toString() {
-    return 'SupplierProfile(id: $id, businessName: $businessName, supplierType: $supplierType, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, productCount: $productCount, verificationStatus: $verificationStatus, avatarUrl: $avatarUrl, legalType: $legalType, description: $description, bannerUrl: $bannerUrl, fullAddress: $fullAddress, addressLatitude: $addressLatitude, addressLongitude: $addressLongitude, publicPhoneNumbers: $publicPhoneNumbers, deliveryZones: $deliveryZones, openingHoursLabel: $openingHoursLabel, isOpen: $isOpen)';
+    return 'SupplierProfile(id: $id, businessName: $businessName, supplierType: $supplierType, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, productCount: $productCount, verificationStatus: $verificationStatus, legalType: $legalType, description: $description, bannerUrl: $bannerUrl, fullAddress: $fullAddress, addressLatitude: $addressLatitude, addressLongitude: $addressLongitude, publicPhoneNumbers: $publicPhoneNumbers, deliveryZones: $deliveryZones, openingHoursLabel: $openingHoursLabel, isOpen: $isOpen)';
   }
 
   @override
@@ -478,8 +461,6 @@ class _$SupplierProfileImpl implements _SupplierProfile {
                 other.productCount == productCount) &&
             (identical(other.verificationStatus, verificationStatus) ||
                 other.verificationStatus == verificationStatus) &&
-            (identical(other.avatarUrl, avatarUrl) ||
-                other.avatarUrl == avatarUrl) &&
             (identical(other.legalType, legalType) ||
                 other.legalType == legalType) &&
             (identical(other.description, description) ||
@@ -507,7 +488,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hashAll([
+  int get hashCode => Object.hash(
     runtimeType,
     id,
     businessName,
@@ -517,7 +498,6 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     ratingCount,
     productCount,
     verificationStatus,
-    avatarUrl,
     legalType,
     description,
     bannerUrl,
@@ -528,7 +508,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     const DeepCollectionEquality().hash(_deliveryZones),
     openingHoursLabel,
     isOpen,
-  ]);
+  );
 
   /// Create a copy of SupplierProfile
   /// with the given fields replaced by the non-null parameter values.
@@ -557,7 +537,6 @@ abstract class _SupplierProfile implements SupplierProfile {
     required final int ratingCount,
     required final int productCount,
     final VerificationStatus? verificationStatus,
-    final String? avatarUrl,
     final SupplierLegalType? legalType,
     final String? description,
     final String? bannerUrl,
@@ -588,9 +567,7 @@ abstract class _SupplierProfile implements SupplierProfile {
   @override
   int get productCount;
   @override
-  VerificationStatus? get verificationStatus;
-  @override
-  String? get avatarUrl; // Null for `SupplierType.principal` (MTC itself has no legal form to
+  VerificationStatus? get verificationStatus; // Null for `SupplierType.principal` (MTC itself has no legal form to
   // register) — only ever set for `SupplierType.tiers`.
   @override
   SupplierLegalType? get legalType; // Extended storefront fields (Lot 11) — edited from

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,17 +10,24 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_shadows.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
-import 'package:mtc_app/core/widgets/resolved_image.dart';
+import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/cart/domain/entities/cart_item.dart';
 import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/chat/presentation/controllers/chat_controller.dart';
+import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart'
+    show ChatProductAttachment;
 import 'package:mtc_app/features/comments/presentation/providers/comment_providers.dart';
 import 'package:mtc_app/features/comments/presentation/widgets/product_comments_modal.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
+import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
 
 import '../../domain/entities/product.dart';
+import '../../domain/entities/product_characteristic.dart';
+import '../../domain/entities/product_variant.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/fullscreen_image_viewer.dart';
+import '../widgets/variant_video_player.dart';
 import '../widgets/product_card.dart'
     show ProductCard, ProductCategoryIcon, ProductImage;
 
@@ -32,14 +40,144 @@ final _selectedQuantityProvider = StateProvider.autoDispose.family<int, String>(
   (ref, productId) => 1,
 );
 
+/// The variant currently picked on the detail page, `null` for a
+/// variant-less product — shared the same way [_selectedQuantityProvider]
+/// is, between the swatch/chip picker, the price/stock display, and the
+/// bottom action bar (which isn't a descendant of the widget that owns the
+/// picker, hence needing Riverpod state rather than a local field).
+/// `autoDispose` is safe here (unlike `buyNowItemProvider`): it's read and
+/// written entirely while this screen stays mounted, the same
+/// "write-then-read-from-a-still-watching-widget" shape
+/// [_selectedQuantityProvider] already relies on — not the
+/// "write-then-navigate-with-no-listener" shape that broke `buyNowItemProvider`.
+final _selectedVariantIdProvider = StateProvider.autoDispose.family<String?, String>(
+  (ref, productId) => null,
+);
+
+/// The client's specific pick for each characteristic where the selected
+/// variant bundles more than one option together (e.g. "Taille" spanning
+/// several sizes at one shared price/stock) — `ProductVariant.optionRefs`
+/// alone can't say which exact size the client wants, only which ones the
+/// supplier grouped together. Keyed by characteristic id; re-derived via
+/// [_derivePicks] whenever the selected variant changes, same lifecycle as
+/// [_selectedVariantIdProvider].
+final _pickedOptionsProvider =
+    StateProvider.autoDispose.family<Map<String, String>, String>(
+      (ref, productId) => const {},
+    );
+
+/// [variant]'s own options, grouped by characteristic — a variant can list
+/// *several* options for the same characteristic (e.g. one variant sold in
+/// sizes S, M and L together), so each characteristic maps to a set, not a
+/// single value.
+Map<String, Set<String>> _optionsByCharacteristic(ProductVariant variant) {
+  final result = <String, Set<String>>{};
+  for (final r in variant.optionRefs) {
+    (result[r.characteristicId] ??= {}).add(r.optionId);
+  }
+  return result;
+}
+
+/// The variant to land on when the client taps [optionId] for
+/// [characteristicId], given what's already selected for every *other*
+/// characteristic. Never a dead end: since one variant's options for a
+/// characteristic aren't necessarily the same set as another's (e.g. a
+/// "Noir" variant offering sizes 42/46/48 together vs. a "Rouge" one only
+/// offering 46/48), requiring every other characteristic to still match
+/// exactly — the old behaviour — could make a color that verifiably exists
+/// unreachable purely because of which of *its own* variant's several sizes
+/// happened to be showing. This instead prefers a variant that also matches
+/// every other current selection where one exists, but falls back to any
+/// variant offering [optionId] at all rather than resolving to nothing.
+ProductVariant? _variantForOption(
+  Product product,
+  String characteristicId,
+  String optionId,
+  Map<String, Set<String>> currentSelection,
+) {
+  ProductVariant? fallback;
+  for (final v in product.variants) {
+    final byCharacteristic = _optionsByCharacteristic(v);
+    if (!(byCharacteristic[characteristicId]?.contains(optionId) ?? false)) {
+      continue;
+    }
+    fallback ??= v;
+    final matchesOthers = currentSelection.entries
+        .where((e) => e.key != characteristicId)
+        .every(
+          (e) => e.value.any((o) => byCharacteristic[e.key]?.contains(o) ?? false),
+        );
+    if (matchesOthers) return v;
+  }
+  return fallback;
+}
+
+/// For every characteristic [variant] carries: the single option to treat
+/// as "picked" for it — the option itself when it's the only one,
+/// [previous]'s pick carried over when it's still one of [variant]'s own
+/// (e.g. switching color while keeping the same size), or left unset when
+/// [variant] bundles several and neither of those applies — the client has
+/// to tap one before checkout (see `_hasUnresolvedChoice`).
+Map<String, String> _derivePicks(
+  ProductVariant variant,
+  Map<String, String> previous,
+) {
+  final byCharacteristic = _optionsByCharacteristic(variant);
+  final result = <String, String>{};
+  for (final entry in byCharacteristic.entries) {
+    final own = entry.value;
+    if (own.length == 1) {
+      result[entry.key] = own.single;
+    } else {
+      final carriedOver = previous[entry.key];
+      if (carriedOver != null && own.contains(carriedOver)) {
+        result[entry.key] = carriedOver;
+      }
+    }
+  }
+  return result;
+}
+
+/// Whether [variant] bundles more than one option for some characteristic
+/// (e.g. several sizes together) that [picks] hasn't resolved yet — blocks
+/// "Acheter"/"Ajouter au panier" until it is, since the supplier otherwise
+/// has no way to know which one to actually ship.
+bool _hasUnresolvedChoice(ProductVariant variant, Map<String, String> picks) {
+  final byCharacteristic = _optionsByCharacteristic(variant);
+  return byCharacteristic.entries.any(
+    (e) => e.value.length > 1 && !picks.containsKey(e.key),
+  );
+}
+
+/// [variant] with its `name` narrowed to exactly what [picks] resolved
+/// (e.g. "Noir 46" instead of the supplier's bundled "Noir 42 46 48") —
+/// what actually gets snapshotted onto a cart/order item or a chat
+/// attachment, so *which* size the client wants survives past this screen.
+/// Falls back to [variant] unchanged if [picks] resolved nothing at all
+/// (e.g. a plain single-option variant needs no narrowing to begin with).
+ProductVariant _resolveVariantForPurchase(
+  ProductVariant variant,
+  Map<String, String> picks,
+  List<ProductCharacteristic> characteristics,
+) {
+  final parts = [
+    for (final c in characteristics.sortedBy((c) => c.displayOrder))
+      if (picks[c.id] case final pickedId?)
+        if (c.options.firstWhereOrNull((o) => o.id == pickedId) case final option?)
+          option.value,
+  ];
+  return parts.isEmpty ? variant : variant.copyWith(name: parts.join(' '));
+}
+
 /// Starts (or resumes) the conversation with this product's supplier and
-/// opens it with the product queued as a pending attachment — see
-/// [ChatThreadScreen.initialProduct] — so the client's next message carries
-/// the product's name/price/photo automatically.
+/// opens it with the product (and, if one is picked, [variant]) queued as a
+/// pending attachment — see `ChatThreadScreen.initialAttachment` — so the
+/// client's next message carries the exact name/price/photo automatically.
 Future<void> _contactSupplierAboutProduct(
   BuildContext context,
   WidgetRef ref,
   Product product,
+  ProductVariant? variant,
 ) async {
   final conversationId = await ref
       .read(chatControllerProvider.notifier)
@@ -49,7 +187,10 @@ Future<void> _contactSupplierAboutProduct(
       );
   if (!context.mounted || conversationId == null) return;
   unawaited(
-    context.push(AppRoutes.chatThread(conversationId), extra: product),
+    context.push(
+      AppRoutes.chatThread(conversationId),
+      extra: ChatProductAttachment(product: product, variant: variant),
+    ),
   );
 }
 
@@ -114,6 +255,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final productAsync = ref.watch(productDetailProvider(widget.productId));
     final loadedProduct = productAsync.valueOrNull;
     final cartCount = ref.watch(cartItemCountProvider);
+    final selectedVariantId = loadedProduct == null
+        ? null
+        : ref.watch(_selectedVariantIdProvider(loadedProduct.id));
+    final picks = loadedProduct == null
+        ? const <String, String>{}
+        : ref.watch(_pickedOptionsProvider(loadedProduct.id));
+    final selectedVariant = loadedProduct?.variants.firstWhereOrNull(
+      (v) => v.id == selectedVariantId,
+    );
+    // Narrowed to the client's actual size/etc. pick where one was needed —
+    // what the supplier should see, not the raw bundled variant.
+    final resolvedVariant = selectedVariant == null || loadedProduct == null
+        ? selectedVariant
+        : _resolveVariantForPurchase(selectedVariant, picks, loadedProduct.characteristics);
 
     return Scaffold(
       appBar: AppBar(
@@ -127,6 +282,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     context,
                     ref,
                     loadedProduct,
+                    resolvedVariant,
                   ),
                 ),
                 FavoriteToggleButton(productId: loadedProduct.id),
@@ -153,7 +309,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       ),
       bottomNavigationBar:
           loadedProduct != null && loadedProduct.stockQuantity > 0
-          ? _AddToCartBar(product: loadedProduct, onAddToCart: _flyCartonsToCart)
+          ? _AddToCartBar(
+              product: loadedProduct,
+              selectedVariant: selectedVariant,
+              picks: picks,
+              onAddToCart: _flyCartonsToCart,
+            )
           : null,
     );
   }
@@ -179,19 +340,40 @@ class _ProductDetailContentState
   late final PageController _pageController;
   Timer? _idleAutoScrollTimer;
   int _selectedIndex = 0;
-  late String? _selectedSize = widget.product.sizes.isEmpty
-      ? null
-      : widget.product.sizes.first;
-  late String? _selectedColor = widget.product.colors.isEmpty
-      ? null
-      : widget.product.colors.first;
+
+  /// Set right before an auto-scroll tick calls [PageController.animateToPage]
+  /// and cleared once the resulting `onPageChanged` fires — lets
+  /// [_onUserSelectedImage] tell that page change apart from one the client
+  /// actually swiped, so a real swipe can stop the idle timer for good
+  /// instead of just rescheduling it.
+  bool _autoScrollInFlight = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    if (widget.product.imageUrls.length > 1) {
+    if (_images.length > 1) {
       _startIdleAutoScroll();
+    }
+    if (widget.product.hasVariants) {
+      final defaultVariant =
+          widget.product.variants.firstWhereOrNull((v) => v.isDefault) ??
+          widget.product.variants.firstOrNull;
+      if (defaultVariant != null) {
+        // Riverpod forbids writing a provider synchronously from initState
+        // (it runs during the widget tree's build phase) — defer to right
+        // after this frame finishes building, same fix Riverpod's own error
+        // message recommends.
+        Future(() {
+          if (!mounted) return;
+          ref
+              .read(_selectedVariantIdProvider(widget.product.id).notifier)
+              .state = defaultVariant.id;
+          ref
+              .read(_pickedOptionsProvider(widget.product.id).notifier)
+              .state = _derivePicks(defaultVariant, const {});
+        });
+      }
     }
   }
 
@@ -202,12 +384,25 @@ class _ProductDetailContentState
     super.dispose();
   }
 
+  /// The currently selected variant's own photos when it has any, else the
+  /// base product's — read via `ref.read` since this is called from a
+  /// timer/callback, not `build`.
+  List<String> get _images {
+    final variantId = ref.read(_selectedVariantIdProvider(widget.product.id));
+    final variant = widget.product.variants.firstWhereOrNull(
+      (v) => v.id == variantId,
+    );
+    if (variant != null && variant.imageUrls.isNotEmpty) return variant.imageUrls;
+    return widget.product.imageUrls;
+  }
+
   void _startIdleAutoScroll() {
     _idleAutoScrollTimer?.cancel();
     _idleAutoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted || !_pageController.hasClients) return;
-      final count = widget.product.imageUrls.length;
+      final count = _images.length;
       final next = (_selectedIndex + 1) % count;
+      _autoScrollInFlight = true;
       _pageController.animateToPage(
         next,
         duration: const Duration(milliseconds: 500),
@@ -216,43 +411,75 @@ class _ProductDetailContentState
     });
   }
 
-  /// Any user-driven photo change (swipe or thumbnail tap) resets the idle
-  /// clock, so auto-scroll only kicks in after real inactivity rather than
-  /// fighting a page the user is actively browsing.
+  /// Fires for every page change, whichever caused it. An auto-scroll tick
+  /// is tagged via [_autoScrollInFlight] right before it animates — anything
+  /// else reaching here is the client's own swipe, which stops the idle
+  /// timer for good instead of just rescheduling it, so the gallery never
+  /// fights a photo the client is actively browsing.
   void _onUserSelectedImage(int index) {
     setState(() => _selectedIndex = index);
-    if (widget.product.imageUrls.length > 1) _startIdleAutoScroll();
-  }
-
-  void _selectImage(int index) {
-    _onUserSelectedImage(index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
+    if (_autoScrollInFlight) {
+      _autoScrollInFlight = false;
+    } else {
+      _idleAutoScrollTimer?.cancel();
+    }
   }
 
   void _openFullscreen() {
-    final images = widget.product.imageUrls;
+    final images = _images;
     if (images.isEmpty) return;
     _idleAutoScrollTimer?.cancel();
     showFullscreenImageViewer(
       context,
       images: images,
       initialIndex: _selectedIndex,
-    ).whenComplete(() {
-      if (mounted && widget.product.imageUrls.length > 1) {
-        _startIdleAutoScroll();
-      }
-    });
+    );
+  }
+
+  /// Fired when the picker resolves a different variant — switches the
+  /// gallery to that variant's own photos (falling back to the product's)
+  /// and restarts browsing from its first photo, same as opening a
+  /// different product would.
+  void _onVariantChanged() {
+    if (!_pageController.hasClients) return;
+    setState(() => _selectedIndex = 0);
+    _pageController.jumpToPage(0);
+    if (_images.length > 1) {
+      _startIdleAutoScroll();
+    } else {
+      _idleAutoScrollTimer?.cancel();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
     final scheme = Theme.of(context).colorScheme;
-    final images = product.imageUrls;
+
+    ref.listen(_selectedVariantIdProvider(product.id), (previous, next) {
+      if (previous == next) return;
+      _onVariantChanged();
+      // A quantity picked against the previous variant's stock could
+      // exceed the new one's — reset rather than silently clamp, so the
+      // stepper never shows a number the client didn't actually choose.
+      ref.read(_selectedQuantityProvider(product.id).notifier).state = 1;
+      final variant = product.variants.firstWhereOrNull((v) => v.id == next);
+      if (variant != null) {
+        final previousPicks = ref.read(_pickedOptionsProvider(product.id));
+        ref.read(_pickedOptionsProvider(product.id).notifier).state = _derivePicks(
+          variant,
+          previousPicks,
+        );
+      }
+    });
+
+    final selectedVariantId = ref.watch(_selectedVariantIdProvider(product.id));
+    final picks = ref.watch(_pickedOptionsProvider(product.id));
+    final selectedVariant = product.variants.firstWhereOrNull(
+      (v) => v.id == selectedVariantId,
+    );
+    final images = _images;
+    final resolvedStock = selectedVariant?.stockQuantity ?? product.stockQuantity;
 
     return ListView(
       padding: EdgeInsets.zero,
@@ -270,6 +497,7 @@ class _ProductDetailContentState
                         icon: product.category.icon,
                       )
                     : PageView.builder(
+                        key: ValueKey(selectedVariantId),
                         controller: _pageController,
                         itemCount: images.length,
                         onPageChanged: _onUserSelectedImage,
@@ -278,6 +506,17 @@ class _ProductDetailContentState
                           icon: product.category.icon,
                         ),
                       ),
+                // La vidéo de la variante sélectionnée, en pastille sur la
+                // galerie plutôt qu'en page supplémentaire du carrousel :
+                // elle reste là où l'acheteur regarde les photos, sans que
+                // la pagination (index courant, plein écran) ait à composer
+                // avec une page qui n'est pas une image.
+                if (selectedVariant?.videoPath != null)
+                  Positioned(
+                    top: AppSpacing.sm,
+                    left: AppSpacing.sm,
+                    child: _VideoBadge(videoPath: selectedVariant!.videoPath!),
+                  ),
                 if (images.isNotEmpty)
                   Positioned(
                     bottom: AppSpacing.sm,
@@ -306,14 +545,6 @@ class _ProductDetailContentState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (images.length > 1) ...[
-                _ThumbnailStrip(
-                  images: images,
-                  selectedIndex: _selectedIndex,
-                  onSelected: _selectImage,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
               Text(
                 product.name,
                 style: Theme.of(context).textTheme.headlineSmall,
@@ -323,34 +554,37 @@ class _ProductDetailContentState
                 children: [
                   Expanded(
                     child: CurrencyText(
-                      product.priceFcfa,
+                      selectedVariant?.priceFcfa ?? product.priceFcfa,
+                      compareAtAmountFcfa: product.compareAtPriceFcfa,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: scheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  if (product.stockQuantity > 0)
-                    _InlineQuantityStepper(product: product),
+                  if (resolvedStock > 0)
+                    _InlineQuantityStepper(
+                      product: product,
+                      stockQuantity: resolvedStock,
+                    ),
                 ],
               ),
-              if (product.colors.isNotEmpty) ...[
+              if (product.hasVariants) ...[
                 const SizedBox(height: AppSpacing.md),
-                _VariantSelector(
-                  label: 'Couleur',
-                  options: product.colors,
-                  selected: _selectedColor,
-                  onSelected: (value) =>
-                      setState(() => _selectedColor = value),
-                ),
-              ],
-              if (product.sizes.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.md),
-                _VariantSelector(
-                  label: 'Taille',
-                  options: product.sizes,
-                  selected: _selectedSize,
-                  onSelected: (value) => setState(() => _selectedSize = value),
+                _VariantPicker(
+                  product: product,
+                  selectedVariantId: selectedVariantId,
+                  picks: picks,
+                  onSelected: (id) => ref
+                      .read(_selectedVariantIdProvider(product.id).notifier)
+                      .state = id,
+                  onPick: (characteristicId, optionId) {
+                    final current = ref.read(_pickedOptionsProvider(product.id));
+                    ref.read(_pickedOptionsProvider(product.id).notifier).state = {
+                      ...current,
+                      characteristicId: optionId,
+                    };
+                  },
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
@@ -366,7 +600,10 @@ class _ProductDetailContentState
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: AppSpacing.lg),
-              _StockAndDelivery(product: product),
+              _StockAndDelivery(
+                product: product,
+                resolvedStockQuantity: resolvedStock,
+              ),
               const Divider(height: AppSpacing.xl),
               _CommentsEntryRow(productId: product.id),
             ],
@@ -419,9 +656,16 @@ class _CommentsEntryRow extends ConsumerWidget {
 /// Compact +/- stepper sat next to the price, sharing
 /// [_selectedQuantityProvider] with the bottom action bar.
 class _InlineQuantityStepper extends ConsumerWidget {
-  const _InlineQuantityStepper({required this.product});
+  const _InlineQuantityStepper({
+    required this.product,
+    required this.stockQuantity,
+  });
 
   final Product product;
+
+  /// The currently *selected variant's* stock when the product has
+  /// variants, else the product's own — the cap this stepper enforces.
+  final int stockQuantity;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -463,7 +707,7 @@ class _InlineQuantityStepper extends ConsumerWidget {
             iconSize: 16,
             padding: EdgeInsets.zero,
             constraints: buttonConstraints,
-            onPressed: quantity < product.stockQuantity
+            onPressed: quantity < stockQuantity
                 ? () => ref
                       .read(_selectedQuantityProvider(product.id).notifier)
                       .state++
@@ -475,45 +719,358 @@ class _InlineQuantityStepper extends ConsumerWidget {
   }
 }
 
-/// A row of selectable chips for one variant axis (color or size) — purely
-/// a browsing/comparison aid for now; the cart doesn't track per-variant
-/// selection yet, so this doesn't change price or stock.
-class _VariantSelector extends StatelessWidget {
-  const _VariantSelector({
-    required this.label,
-    required this.options,
-    required this.selected,
+/// Renders one row per characteristic — a swatch row (photo thumbnails) for
+/// `couleur`, a chip row for everything else — driven entirely by
+/// [product]'s already-saved variants. An option stays tappable only when
+/// some variant carries it *together with* whatever's already picked for
+/// every other characteristic (see `reachable` below) — so picking "Rouge"
+/// narrows the "Taille" row down to only the sizes Rouge actually comes in,
+/// instead of showing every size that exists for any color. Before anything
+/// is picked that check is vacuously true, so every option attached to at
+/// least one variant starts out tappable; only options nobody ever built a
+/// variant for at all stay grayed out.
+class _VariantPicker extends StatelessWidget {
+  const _VariantPicker({
+    required this.product,
+    required this.selectedVariantId,
+    required this.picks,
     required this.onSelected,
+    required this.onPick,
   });
 
-  final String label;
-  final List<String> options;
-  final String? selected;
-  final void Function(String value) onSelected;
+  final Product product;
+  final String? selectedVariantId;
+
+  /// The client's specific pick per characteristic where the selected
+  /// variant bundles more than one option — see `_derivePicks`.
+  final Map<String, String> picks;
+  final ValueChanged<String> onSelected;
+  final void Function(String characteristicId, String optionId) onPick;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final selectedVariant = product.variants.firstWhereOrNull(
+      (v) => v.id == selectedVariantId,
+    );
+    final selection = selectedVariant == null
+        ? const <String, Set<String>>{}
+        : _optionsByCharacteristic(selectedVariant);
+
+    final characteristics = product.characteristics.sortedBy(
+      (c) => c.displayOrder,
+    );
+
+    void selectOption(String characteristicId, String optionId) {
+      final variant = _variantForOption(product, characteristicId, optionId, selection);
+      if (variant == null) return;
+      // Record the tap itself *before* switching variants, not after: the
+      // switch below re-derives `picks` from scratch for the destination
+      // variant (see the `ref.listen` on `_selectedVariantIdProvider`
+      // above), and when that variant is itself bundled on this same
+      // characteristic (e.g. "Rouge" sold in S/M/L together), pure
+      // carry-over logic (`_derivePicks`) has no way to know which of those
+      // several options the client actually meant — only that whichever
+      // one was already picked (if any) still applies. Pre-seeding it here
+      // means it's already the "previous" pick `_derivePicks` carries
+      // over, since `variant` is guaranteed (by `_variantForOption`) to
+      // list [optionId] among its own options for [characteristicId].
+      // Without this, the first tap on such a value looked like it did
+      // nothing — "Choisissez une valeur." stayed up, the buy button
+      // stayed disabled — until a second, identical tap resolved it.
+      onPick(characteristicId, optionId);
+      onSelected(variant.id);
+    }
+
+    // True when some variant carries [optionId] for [characteristicId] *and*
+    // also matches every other characteristic already selected (e.g. also
+    // carries the currently picked color) — not just when the option exists
+    // on any variant of the product at all. With nothing selected yet,
+    // `selection` is empty and the `.every` below is vacuously true, so this
+    // falls back to "exists anywhere" exactly like before a selection is made.
+    bool reachable(String characteristicId, String optionId) {
+      return product.variants.any((v) {
+        final byCharacteristic = _optionsByCharacteristic(v);
+        if (!(byCharacteristic[characteristicId]?.contains(optionId) ?? false)) {
+          return false;
+        }
+        return selection.entries
+            .where((e) => e.key != characteristicId)
+            .every(
+              (e) => e.value.any((o) => byCharacteristic[e.key]?.contains(o) ?? false),
+            );
+      });
+    }
+
+    final rows = <Widget>[];
+    for (final characteristic in characteristics) {
+      final variantOptions = selection[characteristic.id] ?? const <String>{};
+      // The selected variant itself listing more than one option for this
+      // characteristic (e.g. sizes 42/46/48 sold together) can't be
+      // resolved to a *different* variant by tapping among them — they all
+      // point at this same one — so that just records which one the client
+      // actually wants instead of searching for a variant switch that could
+      // never find anything new.
+      final isBundled = variantOptions.length > 1;
+      final pickedId = picks[characteristic.id];
+      final highlighted = isBundled
+          ? (pickedId != null ? {pickedId} : const <String>{})
+          : variantOptions;
+
+      void onTap(String optionId) {
+        if (variantOptions.contains(optionId)) {
+          onPick(characteristic.id, optionId);
+        } else {
+          selectOption(characteristic.id, optionId);
+        }
+      }
+
+      rows.add(
+        characteristic.type.id == 'couleur'
+            ? _VariantSwatchRow(
+                product: product,
+                characteristic: characteristic,
+                selectedOptionIds: highlighted,
+                isReachable: (optionId) => reachable(characteristic.id, optionId),
+                onSelected: onTap,
+              )
+            : _VariantChipRow(
+                characteristic: characteristic,
+                selectedOptionIds: highlighted,
+                isReachable: (optionId) => reachable(characteristic.id, optionId),
+                onSelected: onTap,
+              ),
+      );
+      if (isBundled && pickedId == null) {
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(
+              'Choisissez une valeur.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.error),
+            ),
+          ),
+        );
+      }
+      rows.add(const SizedBox(height: AppSpacing.md));
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows);
+  }
+}
+
+/// Pastille « Vidéo » posée sur la galerie quand la variante sélectionnée en
+/// a une, ouvrant le lecteur plein écran.
+class _VideoBadge extends StatelessWidget {
+  const _VideoBadge({required this.videoPath});
+
+  final String videoPath;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+        onTap: () => showVariantVideo(context, videoPath),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 4),
+              Text(
+                'Vidéo',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small square photo thumbnails for the `couleur` characteristic — the
+/// swatch/label pairing from the Wildberries-style reference: each option's
+/// thumbnail is the first photo of any variant carrying that color, falling
+/// back to the base product's photos when none has its own.
+class _VariantSwatchRow extends StatelessWidget {
+  const _VariantSwatchRow({
+    required this.product,
+    required this.characteristic,
+    required this.selectedOptionIds,
+    required this.isReachable,
+    required this.onSelected,
+  });
+
+  final Product product;
+  final ProductCharacteristic characteristic;
+
+  /// Every one of the currently selected variant's own options for this
+  /// characteristic — plural because one variant can list several (e.g.
+  /// sizes 42/46/48 sold together), so more than one chip highlights at once.
+  final Set<String> selectedOptionIds;
+  final bool Function(String optionId) isReachable;
+  final ValueChanged<String> onSelected;
+
+  String? _thumbnailFor(String optionId) {
+    final variant = product.variants.firstWhereOrNull(
+      (v) => v.optionRefs.any(
+        (r) => r.characteristicId == characteristic.id && r.optionId == optionId,
+      ),
+    );
+    final photo = variant?.imageUrls.firstOrNull;
+    return photo ?? product.imageUrls.firstOrNull;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final options = characteristic.options.sortedBy((o) => o.displayOrder);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.titleSmall),
+        Text(characteristic.type.label, style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          // 64 for the photo + spacing + a line of label underneath it —
+          // every option gets its own name, not just whichever one happens
+          // to be selected right now.
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: options.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+            itemBuilder: (context, index) {
+              final option = options[index];
+              final selected = selectedOptionIds.contains(option.id);
+              final reachable = isReachable(option.id);
+              return Opacity(
+                opacity: reachable ? 1 : 0.35,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  onTap: reachable ? () => onSelected(option.id) : null,
+                  child: SizedBox(
+                    width: 64,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          padding: EdgeInsets.all(selected ? 3 : 0),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                            border: Border.all(
+                              color: selected ? scheme.primary : scheme.outlineVariant,
+                              width: selected ? 2.5 : 1,
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusSm - (selected ? 2 : 1),
+                            ),
+                            child: ProductImage(
+                              imageUrl: _thumbnailFor(option.id),
+                              icon: product.category.icon,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          option.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: selected ? scheme.primary : null,
+                            fontWeight: selected ? FontWeight.w600 : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Chip row for every non-`couleur` characteristic (stockage/taille/poids/
+/// approved custom types) — visually identical to the old dead
+/// `_VariantSelector`, just wired into real price/stock now.
+class _VariantChipRow extends StatelessWidget {
+  const _VariantChipRow({
+    required this.characteristic,
+    required this.selectedOptionIds,
+    required this.isReachable,
+    required this.onSelected,
+  });
+
+  final ProductCharacteristic characteristic;
+
+  /// Every one of the currently selected variant's own options for this
+  /// characteristic — plural because one variant can list several (e.g.
+  /// sizes 42/46/48 sold together), so more than one chip highlights at once.
+  final Set<String> selectedOptionIds;
+  final bool Function(String optionId) isReachable;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final options = characteristic.options.sortedBy((o) => o.displayOrder);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(characteristic.type.label, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
           children: [
             for (final option in options)
-              ChoiceChip(
-                label: Text(option),
-                selected: option == selected,
-                selectedColor: scheme.primary,
-                labelStyle: TextStyle(
-                  color: option == selected ? scheme.onPrimary : scheme.onSurface,
-                  fontWeight: FontWeight.w600,
+              Opacity(
+                opacity: isReachable(option.id) ? 1 : 0.35,
+                child: ChoiceChip(
+                  label: Text(option.value),
+                  selected: selectedOptionIds.contains(option.id),
+                  selectedColor: scheme.primary,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: selectedOptionIds.contains(option.id) ? 14 : 10,
+                    vertical: selectedOptionIds.contains(option.id) ? 10 : 6,
+                  ),
+                  side: BorderSide(
+                    color: selectedOptionIds.contains(option.id)
+                        ? scheme.primary
+                        : scheme.outlineVariant,
+                    width: selectedOptionIds.contains(option.id) ? 2.5 : 1,
+                  ),
+                  labelStyle: TextStyle(
+                    color: selectedOptionIds.contains(option.id)
+                        ? scheme.onPrimary
+                        : scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onSelected: isReachable(option.id)
+                      ? (_) => onSelected(option.id)
+                      : null,
                 ),
-                onSelected: (_) => onSelected(option),
               ),
           ],
         ),
@@ -575,61 +1132,29 @@ class _SimilarProducts extends ConsumerWidget {
   }
 }
 
-class _ThumbnailStrip extends StatelessWidget {
-  const _ThumbnailStrip({
-    required this.images,
-    required this.selectedIndex,
-    required this.onSelected,
+/// Dual-action bottom bar — a quick "Acheter" that jumps straight to
+/// checkout for just the selected quantity of this one product (via
+/// `buyNowItemProvider`, bypassing the shared cart entirely), and the
+/// regular "Ajouter au panier" that adds it to the cart instead. Both read
+/// the same [_selectedQuantityProvider] the inline stepper next to the
+/// price writes to, so there's a single source of truth for "how many".
+class _AddToCartBar extends ConsumerStatefulWidget {
+  const _AddToCartBar({
+    required this.product,
+    required this.selectedVariant,
+    required this.picks,
+    required this.onAddToCart,
   });
 
-  final List<String> images;
-  final int selectedIndex;
-  final void Function(int index) onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return SizedBox(
-      height: 64,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: images.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, index) {
-          final selected = index == selectedIndex;
-          return InkWell(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            onTap: () => onSelected(index),
-            child: Container(
-              width: 64,
-              height: 64,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                border: Border.all(
-                  color: selected ? scheme.primary : scheme.outlineVariant,
-                  width: selected ? 2 : 1,
-                ),
-              ),
-              child: ResolvedImage(path: images[index], bucket: 'product-images'),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Dual-action bottom bar — a quick "Acheter" that adds the selected
-/// quantity straight to the cart and jumps to checkout, and the regular
-/// "Ajouter au panier" that just adds it. Both read the same
-/// [_selectedQuantityProvider] the inline stepper next to the price writes
-/// to, so there's a single source of truth for "how many".
-class _AddToCartBar extends ConsumerStatefulWidget {
-  const _AddToCartBar({required this.product, required this.onAddToCart});
-
   final Product product;
+
+  /// The variant currently picked above, if [product] has any — resolves
+  /// which price/stock/id "Acheter"/"Ajouter au panier" actually act on.
+  final ProductVariant? selectedVariant;
+
+  /// The client's specific pick per characteristic where [selectedVariant]
+  /// bundles more than one option — see `_derivePicks`.
+  final Map<String, String> picks;
 
   /// Called with the "Ajouter au panier" button's on-screen center and the
   /// quantity just added, so the parent screen can fly cartons from here to
@@ -653,9 +1178,32 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    final variant = widget.selectedVariant;
     final scheme = Theme.of(context).colorScheme;
     final brightness = Theme.of(context).brightness;
     final quantity = ref.watch(_selectedQuantityProvider(product.id));
+    // The product overall is purchasable (the outer bottom-bar visibility
+    // guard already checked the aggregate stock), but the *specific*
+    // variant currently picked might itself be out — disable just the
+    // buttons then, so the price row stays visible and the client can see
+    // it's this particular variant that's unavailable, not the product.
+    final variantOutOfStock = product.hasVariants && (variant?.stockQuantity ?? 0) <= 0;
+    // The selected variant bundles several options for some characteristic
+    // (e.g. sizes 42/46/48 together) and the client hasn't tapped one yet —
+    // there'd be no way to tell the supplier which one to ship.
+    final needsChoice = variant != null && _hasUnresolvedChoice(variant, widget.picks);
+    final disabled = variantOutOfStock || needsChoice;
+    // Narrowed to exactly what the client picked (e.g. "Noir 46") — this,
+    // not the supplier's raw bundled variant, is what gets snapshotted onto
+    // the cart/order item.
+    final resolvedVariant = variant == null
+        ? null
+        : _resolveVariantForPurchase(variant, widget.picks, product.characteristics);
+    final buttonLabel = variantOutOfStock
+        ? 'Variante en rupture'
+        : needsChoice
+        ? 'Choisissez une taille'
+        : 'Ajouter au panier';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -674,14 +1222,31 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () async {
-                  await ref
-                      .read(cartControllerProvider.notifier)
-                      .addProduct(product, quantity: quantity);
-                  if (context.mounted) {
-                    unawaited(context.push(AppRoutes.clientCheckout));
-                  }
-                },
+                onPressed: disabled
+                    ? null
+                    : () {
+                        final user = ref.read(currentUserProvider).valueOrNull;
+                        if (user == null) return;
+                        // Stages a buy-now override instead of adding to the
+                        // shared cart — checkout then builds its single group
+                        // from just this product, so anything else already
+                        // sitting in the client's cart is left untouched and
+                        // isn't purchased alongside it.
+                        ref.read(buyNowItemProvider.notifier).state = CartItem(
+                          id: 'buy-now-${product.id}',
+                          userId: user.id,
+                          productId: product.id,
+                          supplierId: product.supplierId,
+                          productNameSnapshot: product.name,
+                          unitPriceFcfaSnapshot:
+                              resolvedVariant?.priceFcfa ?? product.priceFcfa,
+                          quantity: quantity,
+                          addedAt: DateTime.now(),
+                          variantId: resolvedVariant?.id,
+                          variantNameSnapshot: resolvedVariant?.name,
+                        );
+                        unawaited(context.push(AppRoutes.clientCheckout));
+                      },
                 child: const Text('Acheter'),
               ),
             ),
@@ -690,21 +1255,27 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
               flex: 2,
               child: MtcPrimaryButton(
                 key: _addToCartButtonKey,
-                label: 'Ajouter au panier',
+                label: buttonLabel,
                 icon: Icons.add_shopping_cart_rounded,
-                onPressed: () {
-                  // Fired alongside the real mutation (not awaited after
-                  // it) so the flight animation and the cart badge update
-                  // together instead of the button feeling like it's
-                  // waiting on the animation to finish. The flight itself
-                  // is the "added to cart" feedback now, so no snackbar.
-                  _launchCartonFlight(quantity);
-                  unawaited(
-                    ref
-                        .read(cartControllerProvider.notifier)
-                        .addProduct(product, quantity: quantity),
-                  );
-                },
+                onPressed: disabled
+                    ? null
+                    : () {
+                        // Fired alongside the real mutation (not awaited after
+                        // it) so the flight animation and the cart badge update
+                        // together instead of the button feeling like it's
+                        // waiting on the animation to finish. The flight itself
+                        // is the "added to cart" feedback now, so no snackbar.
+                        _launchCartonFlight(quantity);
+                        unawaited(
+                          ref
+                              .read(cartControllerProvider.notifier)
+                              .addProduct(
+                                product,
+                                quantity: quantity,
+                                variant: resolvedVariant,
+                              ),
+                        );
+                      },
               ),
             ),
           ],
@@ -868,15 +1439,22 @@ class _SupplierTile extends StatelessWidget {
 }
 
 class _StockAndDelivery extends StatelessWidget {
-  const _StockAndDelivery({required this.product});
+  const _StockAndDelivery({
+    required this.product,
+    required this.resolvedStockQuantity,
+  });
 
   final Product product;
+
+  /// The currently *selected variant's* stock when the product has
+  /// variants, else the product's own.
+  final int resolvedStockQuantity;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final brightness = Theme.of(context).brightness;
-    final inStock = product.stockQuantity > 0;
+    final inStock = resolvedStockQuantity > 0;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -900,7 +1478,7 @@ class _StockAndDelivery extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Text(
                 inStock
-                    ? '${product.stockQuantity} en stock'
+                    ? '$resolvedStockQuantity en stock'
                     : 'Rupture de stock',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),

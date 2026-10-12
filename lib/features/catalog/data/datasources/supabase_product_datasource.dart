@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mtc_app/core/error/exceptions.dart';
-import 'package:mtc_app/core/utils/id_generator.dart';
+import 'package:mtc_app/core/utils/realtime_retry.dart';
 
 import '../../domain/entities/product_category.dart';
 
@@ -29,22 +29,62 @@ class SupabaseProductDatasource {
 
   final SupabaseClient _client;
 
-  /// No Realtime here (out of scope for this lot, see
-  /// BACKEND_MIGRATION_PROGRESS.md) — re-fetches on every write made
-  /// through this same repository instance, same "notify after mutation"
-  /// shape the in-memory datasource used, just backed by a real query.
+  /// Fires the instant a write goes through *this* datasource instance —
+  /// covers a supplier seeing their own edit reflected immediately, without
+  /// waiting on Realtime's network round-trip. Not enough on its own for a
+  /// *different* session (a client browsing while a supplier edits
+  /// elsewhere) — see `_productRealtimeTrigger`, merged alongside this in
+  /// `watchProducts`/`watchMyProducts`.
   final _changes = StreamController<void>.broadcast();
   final _stockMovementChanges = StreamController<void>.broadcast();
 
-  Stream<T> _watch<T>(Future<T> Function() fetch) {
+  Stream<T> _watch<T>(Future<T> Function() fetch, {Stream<void>? extraTriggers}) {
     return Stream<void>.multi((controller) {
       controller.add(null);
-      final subscription = _changes.stream.listen(controller.add);
-      controller.onCancel = subscription.cancel;
+      final subscriptions = [
+        _changes.stream.listen(controller.add),
+        if (extraTriggers != null) extraTriggers.listen(controller.add),
+      ];
+      controller.onCancel = () async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+      };
     }, isBroadcast: true).asyncMap((_) => fetch());
   }
 
   void _notify() => _changes.add(null);
+
+  /// Real Postgres Realtime on `products` (`0026_products_realtime.sql`) —
+  /// the row payload itself is ignored, this only exists to wake `_watch`'s
+  /// `asyncMap` into re-running the real (filtered/nested) query whenever
+  /// *any* product row changes, from *any* session. Query-scoped `.eq(...)`
+  /// filters aren't applied here on purpose: RLS already limits which rows
+  /// a given session's subscription can even see change, and the narrower
+  /// filtering (category/search/supplier) still happens in the real fetch
+  /// this triggers.
+  Stream<void> get _productRealtimeTrigger =>
+      withRealtimeRetry(() => _client.from('products').stream(primaryKey: ['id'])).map((_) {});
+
+  /// Only `getById` embeds this — list queries (`watchProducts`,
+  /// `watchMyProducts`) stay cheap, the two new scalar aggregate columns
+  /// (`has_variants`, `max_price_fcfa`, `variant_count`) ride along for free
+  /// on `select()`. Same nested-select shape as
+  /// `SupabaseOrderDatasource._nestedSelect`.
+  // The `options:product_characteristic_options(...)` embed must name its
+  // FK explicitly (`!product_characteristic_options_characteristic_id_fkey`):
+  // since `product_variant_options` widened its primary key to
+  // (variant_id, characteristic_id, option_id) (`0028_multi_option_variant_options.sql`,
+  // for a variant carrying several options of the same characteristic —
+  // e.g. sizes S/M/L together), PostgREST also treats it as a valid
+  // many-to-many bridge between `product_characteristics` and
+  // `product_characteristic_options`, making the direct one-to-many path
+  // ambiguous without this.
+  static const _nestedSelect =
+      '*, '
+      'characteristics:product_characteristics(*, type:product_characteristic_types(*), '
+      'options:product_characteristic_options!product_characteristic_options_characteristic_id_fkey(*)), '
+      'variants:product_variants(*, variant_options:product_variant_options(characteristic_id, option_id))';
 
   /// Server-side pushdown of every `ProductRepository.watchProducts` filter
   /// — public catalog visibility (`status = 'active' and
@@ -76,11 +116,11 @@ class SupabaseProductDatasource {
       return builder
           .order('rating_average', ascending: false)
           .order('name', ascending: true);
-    });
+    }, extraTriggers: _productRealtimeTrigger);
   }
 
   Future<Map<String, dynamic>> getById(String id) {
-    return _client.from('products').select().eq('id', id).single();
+    return _client.from('products').select(_nestedSelect).eq('id', id).single();
   }
 
   Future<void> updateSupplierRating({
@@ -102,6 +142,7 @@ class SupabaseProductDatasource {
           .select()
           .eq('supplier_id', supplierId)
           .order('created_at', ascending: false),
+      extraTriggers: _productRealtimeTrigger,
     );
   }
 
@@ -121,30 +162,69 @@ class SupabaseProductDatasource {
     _notify();
   }
 
+  /// Full replace, not a diff/patch — `VariantManagerPanel.buildDraft`
+  /// always sends the complete resulting set (already merged client-side: existing
+  /// variant ids are reused where a regenerated combination still matches,
+  /// so their stock/price/photos survive; ids not present here are simply
+  /// gone after this call).
+  ///
+  /// RPC rather than direct table writes: this used to be 6 sequential
+  /// PostgREST calls (delete variants, delete characteristics, insert
+  /// characteristics, insert options, insert variants, insert variant
+  /// options), each its own transaction. The first one alone — deleting all
+  /// variants — momentarily drops the product to zero variants and commits
+  /// that state on its own, which `products_active_requires_variants`
+  /// (0021) rejects for an already-`active` product before the later calls
+  /// in this same sequence ever get a chance to re-add any. Bundling
+  /// everything into `replace_product_characteristics_and_variants`
+  /// (`0024_replace_characteristics_variants_rpc.sql`) makes it one
+  /// transaction/commit, like `place_order` does for the same class of
+  /// problem.
+  Future<void> replaceCharacteristicsAndVariants({
+    required String productId,
+    required List<Map<String, dynamic>> characteristics,
+    required List<Map<String, dynamic>> variants,
+  }) async {
+    await _client.rpc(
+      'replace_product_characteristics_and_variants',
+      params: {
+        'p_product_id': productId,
+        'p_characteristics': characteristics,
+        'p_variants': variants,
+      },
+    );
+    _notify();
+  }
+
+  /// Atomic RPC (`0016_adjust_stock_rpc.sql`) rather than a client-side
+  /// read-then-write — closes the race between reading the current quantity
+  /// and writing the new one. [variantId] targets a specific variant's own
+  /// stock; `null` targets the product's own (only valid when the product
+  /// has no variants, enforced server-side).
   Future<void> adjustStock({
     required String id,
     required int quantityDelta,
     required String reason,
+    String? variantId,
     String? note,
   }) async {
-    final current = await getById(id);
-    final currentQuantity = current['stock_quantity'] as int;
-    final newQuantity = currentQuantity + quantityDelta;
-    if (newQuantity < 0) {
-      throw InsufficientStockException(
-        'Stock insuffisant pour ${current['name']} : '
-        '$currentQuantity disponible(s), ${-quantityDelta} demandé(s).',
+    try {
+      await _client.rpc(
+        'adjust_stock',
+        params: {
+          'p_product_id': id,
+          'p_quantity_delta': quantityDelta,
+          'p_reason': reason,
+          'p_variant_id': variantId,
+          'p_note': note,
+        },
       );
+    } on PostgrestException catch (e) {
+      if (e.message.contains('Stock insuffisant')) {
+        throw InsufficientStockException(e.message);
+      }
+      rethrow;
     }
-
-    await _client.from('products').update({'stock_quantity': newQuantity}).eq('id', id);
-    await _client.from('stock_movements').insert({
-      'id': IdGenerator.next(),
-      'product_id': id,
-      'quantity_delta': quantityDelta,
-      'reason': reason,
-      'note': note,
-    });
     _notify();
     _stockMovementChanges.add(null);
   }

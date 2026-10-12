@@ -81,10 +81,33 @@ int _mtcDeliveryFeeFor({
   );
 }
 
+/// Set right before pushing to checkout from a single product's "Acheter"
+/// (buy-now) button — `product_detail_screen.dart`, `favorite_line_item.dart`
+/// — instead of adding it to the shared cart first. When set,
+/// [checkoutGroupsProvider] builds its one group from this item alone, so
+/// placing the order never touches (or clears) whatever else is already
+/// sitting in the client's actual cart.
+///
+/// Deliberately **not** `autoDispose`: it's written via `ref.read(...).state
+/// = ...` immediately followed by `context.push` from a widget that isn't
+/// watching it, so there's no listener keeping it alive across that gap —
+/// an `autoDispose` version can (and in practice does) get garbage
+/// collected before the checkout screen's first build ever reads it,
+/// silently falling back to the real cart and making "Acheter" look like it
+/// just reopens "Mon panier". Every entry point into checkout sets this
+/// explicitly instead — the single-item buy-now buttons set it to that
+/// item, every cart-based entry point (`cart_screen.dart`,
+/// `favorites_screen.dart`'s multi-select "Acheter") resets it to `null` —
+/// so its value never depends on disposal timing either way.
+final buyNowItemProvider = StateProvider<CartItem?>((ref) => null);
+
 final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
   ref,
 ) async {
-  final cartItems = await ref.watch(cartItemsProvider.future);
+  final buyNowItem = ref.watch(buyNowItemProvider);
+  final cartItems = buyNowItem != null
+      ? [buyNowItem]
+      : await ref.watch(cartItemsProvider.future);
   final productRepository = ref.watch(productRepositoryProvider);
   final destination = _destination(ref);
 

@@ -38,13 +38,22 @@ class SupabaseCartDatasource {
     required String productName,
     required int unitPriceFcfa,
     required int quantity,
+    String? variantId,
+    String? variantName,
   }) async {
-    final existing = await _client
+    // The dedup key includes `variant_id` — without it, two different
+    // variants of the same product (e.g. two colors) would silently merge
+    // into one line, showing whichever variant's name/price happened to be
+    // snapshotted first for a quantity that's actually split across both.
+    var query = _client
         .from('cart_items')
         .select()
         .eq('user_id', userId)
-        .eq('product_id', productId)
-        .maybeSingle();
+        .eq('product_id', productId);
+    query = variantId == null
+        ? query.isFilter('variant_id', null)
+        : query.eq('variant_id', variantId);
+    final existing = await query.maybeSingle();
 
     if (existing != null) {
       final newQuantity = (existing['quantity'] as int) + quantity;
@@ -61,6 +70,8 @@ class SupabaseCartDatasource {
         'product_name_snapshot': productName,
         'unit_price_fcfa_snapshot': unitPriceFcfa,
         'quantity': quantity,
+        'variant_id': variantId,
+        'variant_name_snapshot': variantName,
       });
     }
     _notify();

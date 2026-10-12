@@ -29,6 +29,18 @@ abstract interface class AuthRepository {
     required SupplierLegalType legalType,
   });
 
+  /// Inscription d'un livreur. Le compte est créé immédiatement mais sa
+  /// fiche reste `pending` : c'est un agent MTC qui l'active, aucune course
+  /// ne lui est proposée d'ici là (`0046_couriers_and_deliveries.sql`).
+  Future<AppUser> signUpCourier({
+    required String displayName,
+    required String usernameOrPhone,
+    required String phoneNumber,
+    required String password,
+    required String city,
+    String? vehicleLabel,
+  });
+
   Future<AppUser> signUpSupplierPrincipal({
     required String displayName,
     required String usernameOrPhone,
@@ -38,6 +50,12 @@ abstract interface class AuthRepository {
   });
 
   Future<void> logout();
+
+  /// Soft-deletes the signed-in account, then signs out — see
+  /// `deactivate_account()` (`supabase/migrations/0036_account_deactivation.sql`)
+  /// for exactly what this blocks (a supplier with unresolved orders/
+  /// payouts) and what it never allows (a staff account deleting itself).
+  Future<void> deleteAccount();
 
   /// Restores a previously persisted session (e.g. after an app restart).
   Future<void> restoreSession();

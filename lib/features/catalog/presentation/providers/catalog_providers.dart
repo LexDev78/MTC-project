@@ -280,9 +280,13 @@ final globalSearchResultsProvider = StreamProvider<List<Product>>((ref) {
 /// like the notification center's "next visit" refresh, not a live
 /// subscription: view/like/order counts are analytics-ish, not
 /// action-critical, so they don't need second-by-second updates.
-final productStatsProvider = FutureProvider.family<Map<String, ProductStats>, String>((
-  ref,
-  supplierId,
-) {
-  return ref.watch(productRepositoryProvider).fetchProductStats(supplierId);
-});
+/// `autoDispose` so "once per screen visit" is actually true — a plain
+/// `FutureProvider` stays cached (and increasingly stale) for the whole app
+/// session once first created, since nothing ever explicitly invalidates it.
+final productStatsProvider =
+    FutureProvider.autoDispose.family<Map<String, ProductStats>, String>((
+      ref,
+      supplierId,
+    ) {
+      return ref.watch(productRepositoryProvider).fetchProductStats(supplierId);
+    });

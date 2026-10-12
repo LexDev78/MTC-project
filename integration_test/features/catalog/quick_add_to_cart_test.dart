@@ -21,7 +21,7 @@ import '../../../test/support/supabase_test_harness.dart';
 // must mirror a real seeded product (`product-001`, Bogolan Bamako) rather
 // than a fabricated one — see the same constraint on `_userId` below.
 final _product = Product(
-  id: 'product-001',
+  id: DemoIds.product001,
   supplierId: DemoIds.supplierBogolanBamako,
   supplierName: 'Bogolan Bamako',
   supplierType: SupplierType.tiers,

@@ -40,6 +40,18 @@ class RoleSelectionScreen extends StatelessWidget {
               subtitle: 'Je veux vendre mes produits sur la plateforme.',
               onTap: () => context.push(AppRoutes.signUpSupplierLegalType),
             ),
+            const SizedBox(height: AppSpacing.md),
+            _RoleCard(
+              icon: Icons.delivery_dining_outlined,
+              title: 'Livreur',
+              subtitle:
+                  'Je veux livrer les commandes. Mon inscription sera '
+                  'validée par MTC avant ma première course.',
+              onTap: () => context.push(
+                AppRoutes.signUpDetails,
+                extra: (role: UserRole.livreur, legalType: null),
+              ),
+            ),
           ],
         ),
       ),

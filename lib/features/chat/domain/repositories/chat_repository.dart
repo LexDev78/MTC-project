@@ -22,6 +22,8 @@ abstract interface class ChatRepository {
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
     ChatAttachmentType attachmentType,
     String? attachmentPath,
     int? voiceDurationSeconds,

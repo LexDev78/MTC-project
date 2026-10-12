@@ -31,8 +31,10 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
   final _passwordController = TextEditingController();
   final _businessNameController = TextEditingController();
   final _cityController = TextEditingController();
+  final _vehicleController = TextEditingController();
 
   bool get _isSupplier => widget.args.role == UserRole.supplierTiers;
+  bool get _isCourier => widget.args.role == UserRole.livreur;
   bool get _isCompany => widget.args.legalType == SupplierLegalType.company;
 
   @override
@@ -43,6 +45,7 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
     _passwordController.dispose();
     _businessNameController.dispose();
     _cityController.dispose();
+    _vehicleController.dispose();
     super.dispose();
   }
 
@@ -50,7 +53,16 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
     if (!_formKey.currentState!.validate()) return;
     final controller = ref.read(authControllerProvider.notifier);
 
-    final success = _isSupplier
+    final success = _isCourier
+        ? await controller.signUpCourier(
+            displayName: _displayNameController.text.trim(),
+            usernameOrPhone: _usernameController.text.trim(),
+            phoneNumber: _phoneController.text.trim(),
+            password: _passwordController.text,
+            city: _cityController.text.trim(),
+            vehicleLabel: _vehicleController.text.trim(),
+          )
+        : _isSupplier
         ? await controller.signUpSupplierTiers(
             displayName: _displayNameController.text.trim(),
             usernameOrPhone: _usernameController.text.trim(),
@@ -82,7 +94,9 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          !_isSupplier
+          _isCourier
+              ? 'Compte livreur'
+              : !_isSupplier
               ? 'Compte client'
               : (_isCompany ? 'Compte société' : 'Compte vendeur individuel'),
         ),
@@ -108,10 +122,19 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
                     validator: Validators.required,
                   ),
                   const SizedBox(height: AppSpacing.md),
+                ],
+                if (_isSupplier || _isCourier) ...[
                   MtcTextField(
                     label: 'Ville',
                     controller: _cityController,
                     validator: Validators.required,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (_isCourier) ...[
+                  MtcTextField(
+                    label: 'Véhicule (moto, tricycle…)',
+                    controller: _vehicleController,
                   ),
                   const SizedBox(height: AppSpacing.md),
                 ],
@@ -134,9 +157,15 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
                   obscureText: true,
                   validator: Validators.password,
                 ),
-                if (_isSupplier) ...[
+                if (_isSupplier || _isCourier) ...[
                   const SizedBox(height: AppSpacing.md),
-                  const _VerificationNotice(),
+                  _VerificationNotice(
+                    message: _isCourier
+                        ? 'Votre inscription sera validée par MTC avant votre '
+                              'première course.'
+                        : 'Votre identité sera vérifiée avant que vos produits '
+                              'soient visibles par les clients.',
+                  ),
                 ],
                 const SizedBox(height: AppSpacing.xl),
                 MtcPrimaryButton(
@@ -154,7 +183,9 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
 }
 
 class _VerificationNotice extends StatelessWidget {
-  const _VerificationNotice();
+  const _VerificationNotice({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +202,7 @@ class _VerificationNotice extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Votre identité sera vérifiée avant que vos produits soient visibles par les clients.',
+              message,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

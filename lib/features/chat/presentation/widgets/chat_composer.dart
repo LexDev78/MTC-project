@@ -16,6 +16,8 @@ class ChatComposer extends StatefulWidget {
     required this.onSendImage,
     required this.onSendVoice,
     this.initialText,
+    this.onAttachProduct,
+    this.hasPendingAttachment = false,
   });
 
   final void Function(String text) onSend;
@@ -26,6 +28,19 @@ class ChatComposer extends StatefulWidget {
   /// product attachment, so there's a ready-to-edit question instead of an
   /// empty box next to a silent attachment chip.
   final String? initialText;
+
+  /// Shows a "tag a product" icon next to the photo one when set — the
+  /// supplier side only (see `ChatThreadScreen`, which leaves this `null`
+  /// for a client: they already get a product staged automatically by
+  /// opening a thread from that product's page, see `ChatProductAttachment`).
+  final VoidCallback? onAttachProduct;
+
+  /// Whether a product is already staged to go out with the next message —
+  /// lets an empty-text send go through (and puts the send icon up front
+  /// instead of the mic) since "just the tagged product, no comment" is a
+  /// normal thing to send, not something that should require typing a
+  /// throwaway word first.
+  final bool hasPendingAttachment;
 
   @override
   State<ChatComposer> createState() => _ChatComposerState();
@@ -46,10 +61,12 @@ class _ChatComposerState extends State<ChatComposer> {
     super.dispose();
   }
 
+  bool get _canSend =>
+      _controller.text.trim().isNotEmpty || widget.hasPendingAttachment;
+
   void _submit() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    widget.onSend(text);
+    if (!_canSend) return;
+    widget.onSend(_controller.text.trim());
     _controller.clear();
   }
 
@@ -134,6 +151,12 @@ class _ChatComposerState extends State<ChatComposer> {
   Widget _textRow(ColorScheme scheme) {
     return Row(
       children: [
+        if (widget.onAttachProduct != null)
+          IconButton(
+            icon: const Icon(Icons.sell_outlined),
+            tooltip: 'Taguer un produit',
+            onPressed: widget.onAttachProduct,
+          ),
         IconButton(
           icon: const Icon(Icons.image_outlined),
           tooltip: 'Joindre une photo',
@@ -150,12 +173,8 @@ class _ChatComposerState extends State<ChatComposer> {
         ),
         const SizedBox(width: AppSpacing.sm),
         IconButton.filled(
-          onPressed: _controller.text.trim().isEmpty ? _startRecording : _submit,
-          icon: Icon(
-            _controller.text.trim().isEmpty
-                ? Icons.mic_none_rounded
-                : Icons.send_rounded,
-          ),
+          onPressed: _canSend ? _submit : _startRecording,
+          icon: Icon(_canSend ? Icons.send_rounded : Icons.mic_none_rounded),
         ),
       ],
     );

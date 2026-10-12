@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/features/delivery/domain/entities/courier_delivery.dart';
+import 'package:mtc_app/features/delivery/presentation/providers/delivery_providers.dart';
+import 'package:mtc_app/features/delivery/presentation/widgets/delivery_code_qr.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/core/widgets/voice_note_player.dart';
@@ -15,6 +18,7 @@ import '../../domain/entities/payment.dart';
 import '../../domain/order_status_transitions.dart';
 import '../controllers/order_controller.dart';
 import '../providers/order_providers.dart';
+import '../widgets/order_item_row.dart';
 import '../widgets/order_status_stepper.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
@@ -137,22 +141,13 @@ class _OrderDetailBody extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   for (final item in group.items)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${item.quantity} × ${item.productNameSnapshot}',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ),
-                          CurrencyText(
-                            item.unitPriceFcfaSnapshot * item.quantity,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
+                    OrderItemRow(
+                      productId: item.productId,
+                      productNameSnapshot: item.productNameSnapshot,
+                      unitPriceFcfaSnapshot: item.unitPriceFcfaSnapshot,
+                      quantity: item.quantity,
+                      variantId: item.variantId,
+                      variantNameSnapshot: item.variantNameSnapshot,
                     ),
                   const Divider(),
                   Row(
@@ -170,6 +165,8 @@ class _OrderDetailBody extends ConsumerWidget {
                       icon: const Icon(Icons.local_shipping_outlined),
                       label: const Text('Suivre la livraison'),
                     ),
+                  if (group.deliveryMode == DeliveryMode.mtcDelivery)
+                    _DeliveryCode(groupId: group.id),
                   if (group.status == OrderStatus.delivered)
                     OutlinedButton.icon(
                       onPressed: () =>
@@ -353,6 +350,38 @@ class _InfoRow extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         Expanded(child: Text(text)),
       ],
+    );
+  }
+}
+
+/// QR de remise, présenté au livreur à l'arrivée.
+///
+/// N'apparaît qu'une fois le colis retiré chez le fournisseur : avant, le
+/// livreur n'est pas en route et l'afficher plus tôt inviterait à le montrer
+/// — ou à le transmettre — hors de la remise elle-même, ce qui est
+/// exactement ce que ce code empêche.
+class _DeliveryCode extends ConsumerWidget {
+  const _DeliveryCode({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final delivery = ref.watch(deliveryForGroupProvider(groupId)).valueOrNull;
+    if (delivery == null || delivery.status != DeliveryStatus.pickedUp) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: DeliveryCodeQr(
+        deliveryId: delivery.id,
+        kind: DeliveryCodeKind.delivery,
+        title: 'Code de remise',
+        instruction:
+            'À montrer au livreur au moment de recevoir votre commande. '
+            'Ne le communiquez à personne d\'autre.',
+      ),
     );
   }
 }

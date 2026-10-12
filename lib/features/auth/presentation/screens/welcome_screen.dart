@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:mtc_app/app/theme/app_colors.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/mtc_primary_button.dart';
@@ -158,7 +159,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFFF3F1FB);
+    final scheme = Theme.of(context).colorScheme;
+    // Le fond suivait le thème clair quelle que soit la luminosité, alors
+    // que les textes, eux, suivaient le thème : en sombre, le titre sortait
+    // en blanc cassé sur une toile lavande très claire.
+    final backgroundColor = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.welcomeCanvasDark
+        : AppColors.welcomeCanvasLight;
     return Scaffold(
       backgroundColor: backgroundColor,
       body: LayoutBuilder(
@@ -190,7 +197,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
-                                color: const Color(0xFF221F3B),
+                                color: scheme.onSurface,
                                 fontWeight: FontWeight.w800,
                                 height: 1.25,
                               ),
@@ -200,11 +207,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           'MTC réunit fournisseurs et clients au même endroit.',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: const Color(
-                                  0xFF221F3B,
-                                ).withValues(alpha: 0.65),
-                              ),
+                              ?.copyWith(color: scheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: AppSpacing.xxl),
                         _AnimatedStartButton(

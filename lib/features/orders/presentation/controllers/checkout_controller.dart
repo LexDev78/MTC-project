@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -89,11 +90,15 @@ class CheckoutController extends AsyncNotifier<Order?> {
     for (final group in groups) {
       for (final item in group.items) {
         final product = await productRepository.getById(item.productId);
-        if (product.stockQuantity < item.quantity) {
+        final variant = item.variantId == null
+            ? null
+            : product.variants.firstWhereOrNull((v) => v.id == item.variantId);
+        final availableStock = variant?.stockQuantity ?? product.stockQuantity;
+        if (availableStock < item.quantity) {
           state = AsyncError(
             InsufficientStockException(
               'Stock insuffisant pour ${item.productNameSnapshot} : '
-              '${product.stockQuantity} disponible(s), ${item.quantity} demandé(s).',
+              '$availableStock disponible(s), ${item.quantity} demandé(s).',
             ),
             StackTrace.current,
           );
@@ -123,6 +128,8 @@ class CheckoutController extends AsyncNotifier<Order?> {
                 productNameSnapshot: i.productNameSnapshot,
                 unitPriceFcfaSnapshot: i.unitPriceFcfaSnapshot,
                 quantity: i.quantity,
+                variantId: i.variantId,
+                variantNameSnapshot: i.variantNameSnapshot,
               ),
             )
             .toList(),
@@ -182,7 +189,16 @@ class CheckoutController extends AsyncNotifier<Order?> {
       // session has no write access to `products`/`stock_movements`
       // (RLS requires the operating supplier), so this must not be
       // repeated here.
-      await ref.read(cartRepositoryProvider).clear(userId);
+      //
+      // A "buy now" order (see `buyNowItemProvider`) never touched the
+      // shared cart in the first place, so clearing it here would wipe out
+      // unrelated items the client had already added separately — only a
+      // real "Mon panier" checkout clears the cart.
+      if (ref.read(buyNowItemProvider) == null) {
+        await ref.read(cartRepositoryProvider).clear(userId);
+      } else {
+        ref.read(buyNowItemProvider.notifier).state = null;
+      }
 
       if (supplierMessageType == SupplierMessageType.voice) {
         final localPath = ref.read(supplierMessageVoicePathProvider);

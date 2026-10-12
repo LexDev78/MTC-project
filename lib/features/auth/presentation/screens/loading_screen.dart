@@ -58,6 +58,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
             ? AppRoutes.supplierOnboarding
             : AppRoutes.supplierTiersDashboard,
       SupplierPrincipalUser() => AppRoutes.supplierPrincipalDashboard,
+      CourierUser() => AppRoutes.courierHome,
       ClientUser() || null => AppRoutes.clientHome,
     });
   }

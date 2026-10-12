@@ -14,6 +14,11 @@ class OrderItem with _$OrderItem {
     required String productNameSnapshot,
     required int unitPriceFcfaSnapshot,
     required int quantity,
+
+    /// Which variant was ordered, if the product had variants at order
+    /// time — `null` for a variant-less product.
+    String? variantId,
+    String? variantNameSnapshot,
   }) = _OrderItem;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) =>

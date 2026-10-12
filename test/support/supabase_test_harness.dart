@@ -64,7 +64,42 @@ final _adminClient = SupabaseClient(_supabaseUrl, _serviceRoleKey);
 /// `supabase start` to be running locally (see BACKEND_MIGRATION_PROGRESS.md).
 Future<void> resetAndSeed() async {
   _allowRealHttpRequests();
-  await _adminClient.rpc('test_reset_and_seed');
+  await _withDeadlockRetry(() => _adminClient.rpc('test_reset_and_seed'));
+  // Les comptes livreurs sont seedés à part (`0047_test_seed_couriers.sql`),
+  // pour ne pas recopier les six cents lignes de `test_reset_and_seed()` dans
+  // une migration juste pour y ajouter deux comptes.
+  await _adminClient.rpc('test_seed_couriers');
+  // Adresses de retrait : la garde de `0050` refuse de confier une commande
+  // à la livraison MTC sans elles, donc le décor doit les poser.
+  await _adminClient.rpc('test_seed_supplier_pickup_points');
+}
+
+/// Rejoue [action] si Postgres détecte un interblocage (40P01).
+///
+/// `test_reset_and_seed()` et la RPC des variantes désactivent toutes deux un
+/// trigger sur `products` le temps de leur transaction, ce qui demande un
+/// verrou **exclusif** sur la table. Une connexion de longue durée — PostgREST,
+/// Realtime — qui lit `products` puis `suppliers` au même instant ferme le
+/// cycle, et Postgres annule l'une des deux. `dart_test.yaml` sérialise déjà
+/// les fichiers de test pour cette raison, mais ça ne couvre pas les sessions
+/// qui ne sont pas des tests.
+///
+/// Un interblocage est transitoire par définition : la victime est annulée,
+/// l'autre passe. Rejouer est donc la réponse correcte, et non masquer un
+/// défaut — le même code réussit immédiatement au coup suivant.
+Future<void> _withDeadlockRetry(
+  Future<void> Function() action, {
+  int attempts = 3,
+}) async {
+  for (var i = 1; ; i++) {
+    try {
+      await action();
+      return;
+    } on PostgrestException catch (e) {
+      if (e.code != '40P01' || i >= attempts) rethrow;
+      await Future<void>.delayed(Duration(milliseconds: 150 * i));
+    }
+  }
 }
 
 /// Directly adjusts a product's stock, bypassing RLS via
@@ -82,6 +117,87 @@ Future<void> adjustStockAsAdmin({
   await _adminClient.rpc(
     'test_adjust_stock',
     params: {'p_product_id': productId, 'p_quantity_delta': quantityDelta},
+  );
+}
+
+/// Force le statut d'un groupe fournisseur via `test_set_group_status`
+/// (`0047_test_seed_couriers.sql`) — pour remonter un décor que le jeu de
+/// démo livre déjà joué, pas pour remplacer une vraie transition de statut.
+Future<void> adminSetGroupStatus({
+  required String groupId,
+  required String status,
+}) async {
+  await _adminClient.rpc(
+    'test_set_group_status',
+    params: {'p_group_id': groupId, 'p_status': status},
+  );
+}
+
+/// Statut courant d'un groupe fournisseur, lu sans session.
+Future<String> adminFetchGroupStatus(String groupId) async {
+  final status = await _adminClient.rpc(
+    'test_fetch_group_status',
+    params: {'p_group_id': groupId},
+  );
+  return status as String;
+}
+
+/// Bascule le mode de livraison d'un groupe — pour qu'un test portant sur les
+/// transitions du fournisseur travaille bien sur une commande qu'il livre
+/// lui-même.
+Future<void> adminSetGroupDeliveryMode({
+  required String groupId,
+  required String mode,
+}) async {
+  await _adminClient.rpc(
+    'test_set_group_delivery_mode',
+    params: {'p_group_id': groupId, 'p_mode': mode},
+  );
+}
+
+/// Statut d'un livreur, lu sans session — la fiche n'est visible que de lui
+/// et du staff.
+Future<String> adminFetchCourierStatus(String courierId) async {
+  final status = await _adminClient.rpc(
+    'test_fetch_courier_status',
+    params: {'p_courier_id': courierId},
+  );
+  return status as String;
+}
+
+/// Efface l'adresse de retrait d'un fournisseur, pour vérifier que la
+/// livraison MTC la réclame bien (`0050`).
+Future<void> adminClearSupplierPickupPoint({required String supplierId}) async {
+  await _adminClient.rpc(
+    'test_clear_supplier_pickup_point',
+    params: {'p_supplier_id': supplierId},
+  );
+}
+
+/// Gives a product a single "Standard" default variant, bypassing RLS and
+/// the full characteristics/options flow via `test_give_product_a_variant()`
+/// (`0022_test_variant_helper.sql`) — for staging "this product is
+/// variant-backed" in a test that isn't itself about composing
+/// characteristics (e.g. activating a draft product, low-stock
+/// notifications), now that `products_active_requires_variants`
+/// (`0021_backfill_default_variants_and_require_variant.sql`) requires it
+/// before a product can go `active`. Defaults to the product's own current
+/// price/stock when not given — same numbers the real
+/// `product_variants_aggregate_products` trigger would then recompute back
+/// onto the product, so callers that don't care about the exact figures can
+/// omit them without the product's price/stock silently changing.
+Future<void> giveProductADefaultVariantAsAdmin(
+  String productId, {
+  int? priceFcfa,
+  int? stockQuantity,
+}) async {
+  await _adminClient.rpc(
+    'test_give_product_a_variant',
+    params: {
+      'p_product_id': productId,
+      'p_price_fcfa': priceFcfa,
+      'p_stock_quantity': stockQuantity,
+    },
   );
 }
 
@@ -116,4 +232,51 @@ Future<List<Map<String, dynamic>>> fetchNotificationsForUserAsAdmin(
     params: {'p_user_id': userId},
   );
   return (rows as List).cast<Map<String, dynamic>>();
+}
+
+/// Reads a user's registered device tokens, bypassing RLS via
+/// `test_fetch_device_tokens_for_user()` (`0035_test_device_token_helper.sql`)
+/// — same rationale as [fetchNotificationsForUserAsAdmin]. Not a substitute
+/// for `DeviceTokenRepository`, which real code should keep going through.
+Future<List<Map<String, dynamic>>> fetchDeviceTokensForUserAsAdmin(
+  String userId,
+) async {
+  final rows = await _adminClient.rpc(
+    'test_fetch_device_tokens_for_user',
+    params: {'p_user_id': userId},
+  );
+  return (rows as List).cast<Map<String, dynamic>>();
+}
+
+/// Calls the production `get_device_tokens_for_notification_user()` RPC
+/// directly with the admin client — this *is* the fan-out the push Edge
+/// Function relies on, `security definer`/`service_role`-only by design
+/// (see `0034_device_tokens.sql`), so there's no non-admin way to exercise
+/// it from a test.
+Future<List<String>> tokensForNotificationUserAsAdmin(String userId) async {
+  final rows = await _adminClient.rpc(
+    'get_device_tokens_for_notification_user',
+    params: {'p_user_id': userId},
+  );
+  return (rows as List)
+      .cast<Map<String, dynamic>>()
+      .map((r) => r['fcm_token'] as String)
+      .toList();
+}
+
+/// Reads whether `deleted_at` is set on a user's `profiles`/`suppliers` rows,
+/// bypassing RLS via `test_fetch_account_deletion_state()`
+/// (`0037_test_account_deactivation_helper.sql`) — a deleted account's own
+/// `suppliers` row is invisible through the normal public-select policy by
+/// design, which is exactly what a test needs to confirm.
+Future<({DateTime? profileDeletedAt, DateTime? supplierDeletedAt})>
+fetchAccountDeletionStateAsAdmin(String userId) async {
+  final row = await _adminClient
+      .rpc('test_fetch_account_deletion_state', params: {'p_user_id': userId})
+      .single();
+  DateTime? parse(String? value) => value == null ? null : DateTime.parse(value);
+  return (
+    profileDeletedAt: parse(row['profile_deleted_at'] as String?),
+    supplierDeletedAt: parse(row['supplier_deleted_at'] as String?),
+  );
 }

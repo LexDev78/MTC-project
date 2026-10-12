@@ -43,14 +43,14 @@ void main() {
       // tests).
       expect(
         bogolanOrders.map((o) => o.id).toSet(),
-        {'order-awa-delivered', 'seed-order-1'},
+        {DemoIds.orderAwaDelivered, DemoIds.seedOrder1},
       );
 
       final materiauxOrders = await (await _repositoryAs('fournisseur7'))
           .watchOrdersForSupplier(DemoIds.supplierMateriauxKoutiala)
           .first;
       expect(materiauxOrders, hasLength(1));
-      expect(materiauxOrders.single.id, 'order-moussa-intransit');
+      expect(materiauxOrders.single.id, DemoIds.orderMoussaIntransit);
 
       final noOrders = await (await _repositoryAs('fournisseur8'))
           .watchOrdersForSupplier(DemoIds.supplierTissusMopti)
@@ -65,8 +65,8 @@ void main() {
     // status, so nothing should move it back to `pending`.
     await expectLater(
       () => repository.updateGroupStatus(
-        orderId: 'order-awa-delivered',
-        groupId: 'group-awa-delivered-1',
+        orderId: DemoIds.orderAwaDelivered,
+        groupId: DemoIds.groupAwaDelivered1,
         status: OrderStatus.pending,
       ),
       throwsA(isA<ValidationException>()),
@@ -77,14 +77,25 @@ void main() {
     'updateGroupStatus applies a valid transition and recomputes the '
     "order's overall status",
     () async {
+      // Ce test porte sur les transitions de statut du fournisseur, pas sur
+      // la livraison MTC — qui, elle, se clôt par le scan du client et refuse
+      // désormais le bouton « Livrée »
+      // (`0054_mtc_delivery_closed_by_scan.sql`). Le groupe du jeu de
+      // démonstration est en livraison MTC : on le remet en livraison par le
+      // fournisseur, qui est le cas que ce test décrit.
+      await adminSetGroupDeliveryMode(
+        groupId: DemoIds.groupMoussaIntransit1,
+        mode: 'self_delivery',
+      );
+
       final repository = await _repositoryAs('fournisseur7');
       await repository.updateGroupStatus(
-        orderId: 'order-moussa-intransit',
-        groupId: 'group-moussa-intransit-1',
+        orderId: DemoIds.orderMoussaIntransit,
+        groupId: DemoIds.groupMoussaIntransit1,
         status: OrderStatus.delivered,
       );
 
-      final order = await repository.watchOrderById('order-moussa-intransit').first;
+      final order = await repository.watchOrderById(DemoIds.orderMoussaIntransit).first;
       expect(order.supplierGroups.single.status, OrderStatus.delivered);
       // The only group is delivered, so the whole order is too.
       expect(order.status, OrderStatus.delivered);
@@ -97,14 +108,14 @@ void main() {
     () async {
       final repository = await _repositoryAs('fournisseur7');
       await repository.updateGroupStatus(
-        orderId: 'order-moussa-intransit',
-        groupId: 'group-moussa-intransit-1',
+        orderId: DemoIds.orderMoussaIntransit,
+        groupId: DemoIds.groupMoussaIntransit1,
         status: OrderStatus.cancelled,
         cancellationReason: 'Rupture de stock imprévue.',
         cancelledBy: CancelledBy.supplier,
       );
 
-      final order = await repository.watchOrderById('order-moussa-intransit').first;
+      final order = await repository.watchOrderById(DemoIds.orderMoussaIntransit).first;
       final group = order.supplierGroups.single;
       expect(group.status, OrderStatus.cancelled);
       expect(group.cancellationReason, 'Rupture de stock imprévue.');
@@ -118,8 +129,8 @@ void main() {
     () async {
       final repository = await _repositoryAs('fournisseur7');
       await repository.updateGroupStatus(
-        orderId: 'order-moussa-intransit',
-        groupId: 'group-moussa-intransit-1',
+        orderId: DemoIds.orderMoussaIntransit,
+        groupId: DemoIds.groupMoussaIntransit1,
         status: OrderStatus.cancelled,
         cancellationReason: 'Test',
         cancelledBy: CancelledBy.supplier,
@@ -127,8 +138,8 @@ void main() {
 
       await expectLater(
         () => repository.updateGroupStatus(
-          orderId: 'order-moussa-intransit',
-          groupId: 'group-moussa-intransit-1',
+          orderId: DemoIds.orderMoussaIntransit,
+          groupId: DemoIds.groupMoussaIntransit1,
           status: OrderStatus.delivered,
         ),
         throwsA(isA<ValidationException>()),

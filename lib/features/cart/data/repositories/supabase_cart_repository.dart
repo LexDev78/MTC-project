@@ -22,6 +22,8 @@ class SupabaseCartRepository implements CartRepository {
     required String productName,
     required int unitPriceFcfa,
     int quantity = 1,
+    String? variantId,
+    String? variantName,
   }) {
     return _datasource.addOrIncrement(
       userId: userId,
@@ -30,6 +32,8 @@ class SupabaseCartRepository implements CartRepository {
       productName: productName,
       unitPriceFcfa: unitPriceFcfa,
       quantity: quantity,
+      variantId: variantId,
+      variantName: variantName,
     );
   }
 

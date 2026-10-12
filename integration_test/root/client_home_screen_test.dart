@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart';
 
 import '../../test/support/supabase_test_harness.dart';
@@ -58,14 +59,54 @@ void main() {
     expect(labels, ['Fournisseur principal', 'Fournisseurs tiers']);
   });
 
+  // Ce test affirmait auparavant que l'onglet principal montrait *aussi*
+  // les produits tiers. La restructuration de l'accueil a tranché
+  // l'inverse : chaque onglet est strictement cloisonné à son type de
+  // fournisseur (voir le commentaire de `ClientHomeScreen`, et les deux
+  // `CatalogTabScreen(supplierType: ...)` qu'il instancie). Ce qui compte
+  // vraiment — que l'attribution du fournisseur reste visible sur la carte
+  // produit — est donc vérifié là où ces produits s'affichent réellement :
+  // l'onglet « Fournisseurs tiers ».
   testWidgets(
-    'the principal tab shows third-party products too, without losing '
-    'their own supplier attribution',
+    'each tab is scoped to its own supplier type, and cards keep their '
+    'supplier attribution',
     (tester) async {
       await _loginAsClient1(tester);
 
-      // Default landing tab is now "Fournisseur principal" (index 0).
-      expect(find.text('Bogolan Bamako'), findsWidgets);
+      // Les cartes rendues sont inspectées plutôt que cherchées par le nom
+      // d'un fournisseur précis : la grille est paresseuse, donc chercher
+      // « Bogolan Bamako » ne testerait en réalité que sa position dans le
+      // défilement — un produit hors écran n'est pas construit du tout.
+      final principalCards = tester
+          .widgetList<ProductCard>(find.byType(ProductCard))
+          .toList();
+      expect(principalCards, isNotEmpty);
+      expect(
+        principalCards.every(
+          (card) => card.product.supplierType == SupplierType.principal,
+        ),
+        isTrue,
+        reason: "l'onglet principal ne doit lister que la vitrine MTC",
+      );
+
+      await tester.tap(find.text('Fournisseurs tiers'));
+      await tester.pumpAndSettle();
+
+      final tiersCards = tester
+          .widgetList<ProductCard>(find.byType(ProductCard))
+          .toList();
+      expect(tiersCards, isNotEmpty);
+      expect(
+        tiersCards.every(
+          (card) => card.product.supplierType == SupplierType.tiers,
+        ),
+        isTrue,
+        reason: "l'onglet tiers ne doit lister que des fournisseurs tiers",
+      );
+
+      // L'attribution reste affichée sur la carte — vérifiée sur le
+      // fournisseur réellement présent à l'écran, quel qu'il soit.
+      expect(find.text(tiersCards.first.product.supplierName), findsWidgets);
     },
   );
 
@@ -86,39 +127,16 @@ void main() {
     expect(find.text('Le meilleur du Mali,\nlivré chez vous'), findsNothing);
   });
 
-  testWidgets(
-    'the category product rows only auto-scroll after 10s of screen-wide '
-    'inactivity, not on a fixed timer',
-    (tester) async {
-      await _loginAsClient1(tester);
+  // Le test d'auto-défilement des rangées par catégorie après 10 s
+  // d'inactivité a été retiré avec la fonctionnalité qu'il couvrait : les
+  // onglets d'accueil rendent désormais une grille plate
+  // (`CatalogTabScreen` → `ProductGrid`), plus de rangées groupées par
+  // catégorie ni de `_AutoScrollingProductRow`. Le regroupement par
+  // catégorie vit maintenant dans l'onglet « Catalogue »
+  // (`CatalogueScreen`/`CategoryProductsScreen`), qui n'auto-défile pas.
+  testWidgets('the home tabs render a flat product grid', (tester) async {
+    await _loginAsClient1(tester);
 
-      // A tiny net-zero drag registers as screen activity (resetting the
-      // idle clock to a known zero point here) without actually moving
-      // anything, regardless of how much simulated time the login flow's
-      // pumpAndSettle already consumed.
-      await tester.drag(find.byType(NestedScrollView), const Offset(0, 1));
-      await tester.drag(find.byType(NestedScrollView), const Offset(0, -1));
-      await tester.pump();
-
-      final cardFinder = find.byType(ProductCard).first;
-      final positionBefore = tester.getTopLeft(cardFinder);
-
-      // Well under the 10s idle threshold — nothing should have moved.
-      await tester.pump(const Duration(seconds: 8));
-      expect(tester.getTopLeft(cardFinder), positionBefore);
-
-      // Past the threshold — auto-scroll starts, but its first tick is
-      // still 4s away (it re-arms a fresh 4s periodic timer once idle).
-      await tester.pump(const Duration(seconds: 3));
-      expect(tester.getTopLeft(cardFinder), positionBefore);
-
-      // The first tick's `animateTo` needs incremental frames to actually
-      // progress — a single huge `pump(duration)` jump doesn't drive its
-      // ticker the way real frames would, so advance in small steps here.
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 200));
-      }
-      expect(tester.getTopLeft(cardFinder), isNot(positionBefore));
-    },
-  );
+    expect(find.byType(ProductCard), findsWidgets);
+  });
 }

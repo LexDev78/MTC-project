@@ -55,7 +55,7 @@ void main() {
           .first;
 
       expect(conversations, hasLength(1));
-      expect(conversations.single.id, 'conv-awa-bogolan');
+      expect(conversations.single.id, DemoIds.convAwaBogolan);
       expect(conversations.single.clientDisplayNameSnapshot, 'Awa Traoré');
 
       // Still logged in as fournisseur1 (Bogolan Bamako) — RLS restricts
@@ -75,7 +75,7 @@ void main() {
     "count, and vice versa — the two sides' counters are independent",
     () async {
       final repo = container.read(chatRepositoryProvider);
-      const conversationId = 'conv-awa-bogolan';
+      const conversationId = DemoIds.convAwaBogolan;
 
       await login('client1');
       final before = (await repo
@@ -123,7 +123,7 @@ void main() {
     "the other side's unread count untouched",
     () async {
       final repo = container.read(chatRepositoryProvider);
-      const conversationId = 'conv-awa-bogolan';
+      const conversationId = DemoIds.convAwaBogolan;
 
       await login('client1');
       await repo.sendMessage(
@@ -152,7 +152,7 @@ void main() {
     'ChatController.markRead clears the supplier side when a signed-in '
     'supplier reads the thread, without the caller having to say so',
     () async {
-      const conversationId = 'conv-awa-bogolan';
+      const conversationId = DemoIds.convAwaBogolan;
 
       await login('client1');
       await container

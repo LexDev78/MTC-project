@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/supplier_product_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
+import '../providers/comment_providers.dart';
 import '../providers/supplier_comment_inbox_providers.dart';
 import '../widgets/product_comments_modal.dart';
 
@@ -15,11 +17,35 @@ import '../widgets/product_comments_modal.dart';
 /// `showProductCommentsModal` as-is to actually read/reply to the thread —
 /// this screen's job is only to say "here's what's waiting for a reply,
 /// across every one of your listings".
-class SupplierCommentInboxScreen extends ConsumerWidget {
+class SupplierCommentInboxScreen extends ConsumerStatefulWidget {
   const SupplierCommentInboxScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SupplierCommentInboxScreen> createState() =>
+      _SupplierCommentInboxScreenState();
+}
+
+class _SupplierCommentInboxScreenState
+    extends ConsumerState<SupplierCommentInboxScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // `supplierProductCommentsProvider` is `autoDispose`, but Flutter's
+    // Navigator keeps a popped route's state around for its exit
+    // animation/potential back-swipe (`maintainState`), so the previous
+    // visit's watch doesn't reliably drop to zero listeners before this one
+    // starts — `autoDispose` alone can't be trusted to force a fresh fetch.
+    // Same fix as `NotificationCenterScreen`: explicitly invalidate on open.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final supplierId = ref.read(operatingSupplierIdProvider);
+      if (supplierId == null) return;
+      ref.invalidate(supplierProductCommentsProvider(supplierId));
+      ref.invalidate(myProductsProvider(supplierId));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final supplierId = ref.watch(operatingSupplierIdProvider);
     if (supplierId == null) {
       return const Scaffold(body: MtcLoadingView());

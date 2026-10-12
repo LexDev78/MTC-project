@@ -53,6 +53,18 @@ mixin _$AppUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
     )
     supplierPrincipal,
@@ -82,6 +94,18 @@ mixin _$AppUser {
       SupplierLegalType legalType,
     )?
     supplierTiers,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
     TResult? Function(
       String id,
       String displayName,
@@ -123,6 +147,18 @@ mixin _$AppUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
     )?
     supplierPrincipal,
@@ -132,18 +168,21 @@ mixin _$AppUser {
   TResult map<TResult extends Object?>({
     required TResult Function(ClientUser value) client,
     required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
     required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(ClientUser value)? client,
     TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
     TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(ClientUser value)? client,
     TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
     TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
@@ -387,6 +426,18 @@ class _$ClientUserImpl implements ClientUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
     )
     supplierPrincipal,
@@ -427,6 +478,18 @@ class _$ClientUserImpl implements ClientUser {
       SupplierLegalType legalType,
     )?
     supplierTiers,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
     TResult? Function(
       String id,
       String displayName,
@@ -479,6 +542,18 @@ class _$ClientUserImpl implements ClientUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
     )?
     supplierPrincipal,
@@ -502,6 +577,7 @@ class _$ClientUserImpl implements ClientUser {
   TResult map<TResult extends Object?>({
     required TResult Function(ClientUser value) client,
     required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
     required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
   }) {
     return client(this);
@@ -512,6 +588,7 @@ class _$ClientUserImpl implements ClientUser {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(ClientUser value)? client,
     TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
     TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
   }) {
     return client?.call(this);
@@ -522,6 +599,7 @@ class _$ClientUserImpl implements ClientUser {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(ClientUser value)? client,
     TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
     TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
     required TResult orElse(),
   }) {
@@ -794,6 +872,18 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
     )
     supplierPrincipal,
@@ -839,6 +929,18 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       SupplierLegalType legalType,
     )?
     supplierTiers,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
     TResult? Function(
       String id,
       String displayName,
@@ -896,6 +998,18 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
     )?
     supplierPrincipal,
@@ -924,6 +1038,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   TResult map<TResult extends Object?>({
     required TResult Function(ClientUser value) client,
     required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
     required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
   }) {
     return supplierTiers(this);
@@ -934,6 +1049,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(ClientUser value)? client,
     TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
     TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
   }) {
     return supplierTiers?.call(this);
@@ -944,6 +1060,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(ClientUser value)? client,
     TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
     TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
     required TResult orElse(),
   }) {
@@ -991,6 +1108,440 @@ abstract class SupplierTiersUser implements AppUser {
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SupplierTiersUserImplCopyWith<_$SupplierTiersUserImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$CourierUserImplCopyWith<$Res>
+    implements $AppUserCopyWith<$Res> {
+  factory _$$CourierUserImplCopyWith(
+    _$CourierUserImpl value,
+    $Res Function(_$CourierUserImpl) then,
+  ) = __$$CourierUserImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String id,
+    String displayName,
+    String usernameOrPhone,
+    String phoneNumber,
+    DateTime createdAt,
+    CourierStatus courierStatus,
+    String city,
+    bool isOnline,
+    String? vehicleLabel,
+  });
+}
+
+/// @nodoc
+class __$$CourierUserImplCopyWithImpl<$Res>
+    extends _$AppUserCopyWithImpl<$Res, _$CourierUserImpl>
+    implements _$$CourierUserImplCopyWith<$Res> {
+  __$$CourierUserImplCopyWithImpl(
+    _$CourierUserImpl _value,
+    $Res Function(_$CourierUserImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of AppUser
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? displayName = null,
+    Object? usernameOrPhone = null,
+    Object? phoneNumber = null,
+    Object? createdAt = null,
+    Object? courierStatus = null,
+    Object? city = null,
+    Object? isOnline = null,
+    Object? vehicleLabel = freezed,
+  }) {
+    return _then(
+      _$CourierUserImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        displayName: null == displayName
+            ? _value.displayName
+            : displayName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        usernameOrPhone: null == usernameOrPhone
+            ? _value.usernameOrPhone
+            : usernameOrPhone // ignore: cast_nullable_to_non_nullable
+                  as String,
+        phoneNumber: null == phoneNumber
+            ? _value.phoneNumber
+            : phoneNumber // ignore: cast_nullable_to_non_nullable
+                  as String,
+        createdAt: null == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+        courierStatus: null == courierStatus
+            ? _value.courierStatus
+            : courierStatus // ignore: cast_nullable_to_non_nullable
+                  as CourierStatus,
+        city: null == city
+            ? _value.city
+            : city // ignore: cast_nullable_to_non_nullable
+                  as String,
+        isOnline: null == isOnline
+            ? _value.isOnline
+            : isOnline // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        vehicleLabel: freezed == vehicleLabel
+            ? _value.vehicleLabel
+            : vehicleLabel // ignore: cast_nullable_to_non_nullable
+                  as String?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$CourierUserImpl implements CourierUser {
+  const _$CourierUserImpl({
+    required this.id,
+    required this.displayName,
+    required this.usernameOrPhone,
+    required this.phoneNumber,
+    required this.createdAt,
+    required this.courierStatus,
+    required this.city,
+    required this.isOnline,
+    this.vehicleLabel,
+  });
+
+  @override
+  final String id;
+  @override
+  final String displayName;
+  @override
+  final String usernameOrPhone;
+  @override
+  final String phoneNumber;
+  @override
+  final DateTime createdAt;
+  @override
+  final CourierStatus courierStatus;
+  @override
+  final String city;
+  @override
+  final bool isOnline;
+  @override
+  final String? vehicleLabel;
+
+  @override
+  String toString() {
+    return 'AppUser.courier(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, courierStatus: $courierStatus, city: $city, isOnline: $isOnline, vehicleLabel: $vehicleLabel)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CourierUserImpl &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.displayName, displayName) ||
+                other.displayName == displayName) &&
+            (identical(other.usernameOrPhone, usernameOrPhone) ||
+                other.usernameOrPhone == usernameOrPhone) &&
+            (identical(other.phoneNumber, phoneNumber) ||
+                other.phoneNumber == phoneNumber) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.courierStatus, courierStatus) ||
+                other.courierStatus == courierStatus) &&
+            (identical(other.city, city) || other.city == city) &&
+            (identical(other.isOnline, isOnline) ||
+                other.isOnline == isOnline) &&
+            (identical(other.vehicleLabel, vehicleLabel) ||
+                other.vehicleLabel == vehicleLabel));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    displayName,
+    usernameOrPhone,
+    phoneNumber,
+    createdAt,
+    courierStatus,
+    city,
+    isOnline,
+    vehicleLabel,
+  );
+
+  /// Create a copy of AppUser
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$CourierUserImplCopyWith<_$CourierUserImpl> get copyWith =>
+      __$$CourierUserImplCopyWithImpl<_$CourierUserImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String? defaultAddressId,
+    )
+    client,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String businessName,
+      VerificationStatus verificationStatus,
+      String city,
+      double ratingAverage,
+      int ratingCount,
+      SupplierLegalType legalType,
+    )
+    supplierTiers,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      StaffRole staffRole,
+    )
+    supplierPrincipal,
+  }) {
+    return courier(
+      id,
+      displayName,
+      usernameOrPhone,
+      phoneNumber,
+      createdAt,
+      courierStatus,
+      city,
+      isOnline,
+      vehicleLabel,
+    );
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String? defaultAddressId,
+    )?
+    client,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String businessName,
+      VerificationStatus verificationStatus,
+      String city,
+      double ratingAverage,
+      int ratingCount,
+      SupplierLegalType legalType,
+    )?
+    supplierTiers,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      StaffRole staffRole,
+    )?
+    supplierPrincipal,
+  }) {
+    return courier?.call(
+      id,
+      displayName,
+      usernameOrPhone,
+      phoneNumber,
+      createdAt,
+      courierStatus,
+      city,
+      isOnline,
+      vehicleLabel,
+    );
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String? defaultAddressId,
+    )?
+    client,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String businessName,
+      VerificationStatus verificationStatus,
+      String city,
+      double ratingAverage,
+      int ratingCount,
+      SupplierLegalType legalType,
+    )?
+    supplierTiers,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      StaffRole staffRole,
+    )?
+    supplierPrincipal,
+    required TResult orElse(),
+  }) {
+    if (courier != null) {
+      return courier(
+        id,
+        displayName,
+        usernameOrPhone,
+        phoneNumber,
+        createdAt,
+        courierStatus,
+        city,
+        isOnline,
+        vehicleLabel,
+      );
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(ClientUser value) client,
+    required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
+    required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
+  }) {
+    return courier(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(ClientUser value)? client,
+    TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
+    TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
+  }) {
+    return courier?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(ClientUser value)? client,
+    TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
+    TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
+    required TResult orElse(),
+  }) {
+    if (courier != null) {
+      return courier(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class CourierUser implements AppUser {
+  const factory CourierUser({
+    required final String id,
+    required final String displayName,
+    required final String usernameOrPhone,
+    required final String phoneNumber,
+    required final DateTime createdAt,
+    required final CourierStatus courierStatus,
+    required final String city,
+    required final bool isOnline,
+    final String? vehicleLabel,
+  }) = _$CourierUserImpl;
+
+  @override
+  String get id;
+  @override
+  String get displayName;
+  @override
+  String get usernameOrPhone;
+  @override
+  String get phoneNumber;
+  @override
+  DateTime get createdAt;
+  CourierStatus get courierStatus;
+  String get city;
+  bool get isOnline;
+  String? get vehicleLabel;
+
+  /// Create a copy of AppUser
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$CourierUserImplCopyWith<_$CourierUserImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -1168,6 +1719,18 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
     )
     supplierPrincipal,
@@ -1208,6 +1771,18 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       SupplierLegalType legalType,
     )?
     supplierTiers,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
     TResult? Function(
       String id,
       String displayName,
@@ -1260,6 +1835,18 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
     )?
     supplierPrincipal,
@@ -1283,6 +1870,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
   TResult map<TResult extends Object?>({
     required TResult Function(ClientUser value) client,
     required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
     required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
   }) {
     return supplierPrincipal(this);
@@ -1293,6 +1881,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(ClientUser value)? client,
     TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
     TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
   }) {
     return supplierPrincipal?.call(this);
@@ -1303,6 +1892,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(ClientUser value)? client,
     TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
     TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
     required TResult orElse(),
   }) {

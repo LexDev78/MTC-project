@@ -56,4 +56,17 @@ class SupabaseNotificationDatasource {
         .eq('is_read', false);
     _notify();
   }
+
+  Future<void> markReadByReference({
+    required String userId,
+    required String referenceId,
+  }) async {
+    await _client
+        .from('notifications')
+        .update({'is_read': true})
+        .eq('user_id', userId)
+        .eq('reference_id', referenceId)
+        .eq('is_read', false);
+    _notify();
+  }
 }

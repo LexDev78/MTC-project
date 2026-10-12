@@ -126,8 +126,8 @@ void main() {
       );
 
       final success = await controller.cancel(
-        orderId: 'order-moussa-intransit',
-        groupId: 'group-moussa-intransit-1',
+        orderId: DemoIds.orderMoussaIntransit,
+        groupId: DemoIds.groupMoussaIntransit1,
         reason: 'Camion en panne, impossible de livrer à temps.',
         clientId: DemoIds.clientMoussa,
         supplierName: 'Matériaux Koutiala',
@@ -137,7 +137,7 @@ void main() {
       final views = await container.read(
         supplierOrdersProvider(supplierId).future,
       );
-      final view = views.firstWhere((v) => v.orderId == 'order-moussa-intransit');
+      final view = views.firstWhere((v) => v.orderId == DemoIds.orderMoussaIntransit);
       expect(view.myGroup.status, OrderStatus.cancelled);
       expect(
         view.myGroup.cancellationReason,

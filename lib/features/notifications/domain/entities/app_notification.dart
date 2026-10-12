@@ -23,7 +23,18 @@ enum NotificationType {
   // preparing/shipped/delivered) or cancels it — the reverse direction of
   // [newOrder], which goes to the supplier when the client places one.
   @JsonValue('order_status_update')
-  orderStatusUpdate;
+  orderStatusUpdate,
+  // Sent both ways on `product_comments` — to the supplier when a client
+  // posts a top-level comment, and back to the client when the supplier (or
+  // another client) replies to their comment. Same shared-type shape as
+  // [newMessage].
+  @JsonValue('new_comment')
+  newComment,
+  // Sent to a supplier when staff approves or rejects a characteristic
+  // type they proposed (`CharacteristicTypeReviewController`) — same
+  // shared-type shape as [kycDecision].
+  @JsonValue('characteristic_type_decision')
+  characteristicTypeDecision;
 
   String get label => switch (this) {
     NotificationType.newOrder => 'Nouvelle commande',
@@ -33,6 +44,8 @@ enum NotificationType {
     NotificationType.payoutDecision => 'Retrait',
     NotificationType.newReview => 'Nouvel avis',
     NotificationType.orderStatusUpdate => 'Commande',
+    NotificationType.newComment => 'Nouveau commentaire',
+    NotificationType.characteristicTypeDecision => 'Caractéristique produit',
   };
 }
 
@@ -61,3 +74,24 @@ class AppNotification with _$AppNotification {
   factory AppNotification.fromJson(Map<String, dynamic> json) =>
       _$AppNotificationFromJson(json);
 }
+
+/// The reverse of `AppNotification.fromJson`'s `type` decoding, exposed on
+/// its own: a push's FCM `data` payload only carries the db string form
+/// (`type: 'new_message'`, ...), not a full notification row, so the tap
+/// handler (`notification_tap_router.dart`) needs to turn that string back
+/// into a [NotificationType] without constructing a whole [AppNotification]
+/// just to borrow its JSON decoding. `null` for an unrecognized or missing
+/// value rather than throwing — a stale client shouldn't crash on a payload
+/// sent by a newer server.
+NotificationType? notificationTypeFromDbValue(String? value) => switch (value) {
+  'new_order' => NotificationType.newOrder,
+  'new_message' => NotificationType.newMessage,
+  'low_stock' => NotificationType.lowStock,
+  'kyc_decision' => NotificationType.kycDecision,
+  'payout_decision' => NotificationType.payoutDecision,
+  'new_review' => NotificationType.newReview,
+  'order_status_update' => NotificationType.orderStatusUpdate,
+  'new_comment' => NotificationType.newComment,
+  'characteristic_type_decision' => NotificationType.characteristicTypeDecision,
+  _ => null,
+};

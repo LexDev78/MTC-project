@@ -1,7 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'product_category.dart';
+import 'product_characteristic.dart';
 import 'product_status.dart';
+import 'product_variant.dart';
 
 part 'product.freezed.dart';
 part 'product.g.dart';
@@ -72,6 +74,35 @@ class Product with _$Product {
     /// visit to the product's detail page — shown on the supplier
     /// dashboard, not client-facing anywhere.
     @Default(0) int viewCount,
+
+    /// Trigger-maintained (`0018_product_variants.sql`) — the only
+    /// reliable "does this product have variants" signal, true even from
+    /// list queries (`watchProducts`/`watchMyProducts`) that don't embed
+    /// [characteristics]/[variants] below. Never infer this from
+    /// `characteristics.isEmpty`/`variants.isEmpty`: those are only
+    /// populated by `getById`'s nested select.
+    @Default(false) bool hasVariants,
+
+    /// Trigger-maintained max variant price — `null` unless [hasVariants].
+    /// Paired with [priceFcfa] (trigger-maintained min variant price once
+    /// variants exist) to render "à partir de" range pricing without
+    /// fetching [variants].
+    int? maxPriceFcfa,
+
+    /// Trigger-maintained count of this product's variants — `0` unless
+    /// [hasVariants]. Lets list views show "N variantes" without embedding
+    /// the full [variants] list.
+    @Default(0) int variantCount,
+
+    /// This product's characteristics (couleur/stockage/...), each with its
+    /// own options — only populated via `getById`'s nested select (product
+    /// detail, cart line, checkout, favorites resolve, chat attachment,
+    /// stock-adjust sheet). Always empty from list queries.
+    @Default([]) List<ProductCharacteristic> characteristics,
+
+    /// This product's purchasable variants — same nested-select-only
+    /// population as [characteristics].
+    @Default([]) List<ProductVariant> variants,
   }) = _Product;
 
   factory Product.fromJson(Map<String, dynamic> json) =>

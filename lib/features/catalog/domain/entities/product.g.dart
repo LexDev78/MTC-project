@@ -45,6 +45,22 @@ _$ProductImpl _$$ProductImplFromJson(Map<String, dynamic> json) =>
       lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt(),
       compareAtPriceFcfa: (json['compare_at_price_fcfa'] as num?)?.toInt(),
       viewCount: (json['view_count'] as num?)?.toInt() ?? 0,
+      hasVariants: json['has_variants'] as bool? ?? false,
+      maxPriceFcfa: (json['max_price_fcfa'] as num?)?.toInt(),
+      variantCount: (json['variant_count'] as num?)?.toInt() ?? 0,
+      characteristics:
+          (json['characteristics'] as List<dynamic>?)
+              ?.map(
+                (e) =>
+                    ProductCharacteristic.fromJson(e as Map<String, dynamic>),
+              )
+              .toList() ??
+          const [],
+      variants:
+          (json['variants'] as List<dynamic>?)
+              ?.map((e) => ProductVariant.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
 
 Map<String, dynamic> _$$ProductImplToJson(_$ProductImpl instance) =>
@@ -74,6 +90,11 @@ Map<String, dynamic> _$$ProductImplToJson(_$ProductImpl instance) =>
       'low_stock_threshold': instance.lowStockThreshold,
       'compare_at_price_fcfa': instance.compareAtPriceFcfa,
       'view_count': instance.viewCount,
+      'has_variants': instance.hasVariants,
+      'max_price_fcfa': instance.maxPriceFcfa,
+      'variant_count': instance.variantCount,
+      'characteristics': instance.characteristics,
+      'variants': instance.variants,
     };
 
 const _$SupplierTypeEnumMap = {

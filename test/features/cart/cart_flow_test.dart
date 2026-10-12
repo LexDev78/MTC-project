@@ -65,7 +65,7 @@ void main() {
 
       await repository.addItem(
         userId: DemoIds.clientAwa,
-        productId: 'product-001',
+        productId: DemoIds.product001,
         supplierId: DemoIds.supplierBogolanBamako,
         productName: 'Tissu Bogolan traditionnel',
         unitPriceFcfa: 25000,
@@ -73,7 +73,7 @@ void main() {
       );
       await repository.addItem(
         userId: DemoIds.clientAwa,
-        productId: 'product-001',
+        productId: DemoIds.product001,
         supplierId: DemoIds.supplierBogolanBamako,
         productName: 'Tissu Bogolan traditionnel',
         unitPriceFcfa: 25000,

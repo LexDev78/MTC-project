@@ -14,6 +14,13 @@ class CartItem with _$CartItem {
     required int unitPriceFcfaSnapshot,
     required int quantity,
     required DateTime addedAt,
+
+    /// Which variant was selected, if the product has variants — `null`
+    /// for a variant-less product, or when the caller adds without
+    /// choosing one (see `CartController.addProduct`'s default-variant
+    /// fallback).
+    String? variantId,
+    String? variantNameSnapshot,
   }) = _CartItem;
 
   factory CartItem.fromJson(Map<String, dynamic> json) =>

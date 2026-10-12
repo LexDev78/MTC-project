@@ -22,7 +22,14 @@
       "Bash(pod install *)",
       "Bash(pkill -f \"flutter run\")",
       "Bash(xargs -I{} echo {})",
-      "Bash(flutter run *)"
+      "Bash(flutter run *)",
+      "Bash(dart analyze *)",
+      "Bash(tee /tmp/mtc_flutter_run.log)",
+      "Bash(osascript -e 'tell application \"System Events\" to set frontmost of first process whose unix id is 24560 to true')",
+      "Bash(screencapture -x /tmp/mtc_app_screenshot.png)",
+      "Bash(osascript -e 'tell application \"System Events\" to set frontmost of process \"mtc_app\" to true')",
+      "Bash(screencapture -x /tmp/mtc_app_screenshot2.png)",
+      "Bash(screencapture -x /tmp/mtc_app_screenshot3.png)"
     ]
   }
 }

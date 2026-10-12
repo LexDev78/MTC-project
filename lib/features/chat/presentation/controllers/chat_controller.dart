@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -18,26 +19,34 @@ class ChatController extends AsyncNotifier<void> {
   /// Notifies whichever side didn't just send the message — resolves the
   /// conversation fresh via `ChatRepository.getConversationById` rather
   /// than trusting a presentation-layer provider to already be warm.
+  ///
+  /// The message itself is already sent by the time `sendMessage` calls
+  /// this — swallowing failures here (recipient lookup or the notification
+  /// write) keeps a delivery hiccup from surfacing as a failed send.
   Future<void> _notifyRecipient({
     required String conversationId,
     required String senderId,
     required String preview,
   }) async {
-    final conversation = await ref
-        .read(chatRepositoryProvider)
-        .getConversationById(conversationId);
-    final recipientId = senderId == conversation.clientId
-        ? conversation.supplierId
-        : conversation.clientId;
-    await ref
-        .read(notificationRepositoryProvider)
-        .add(
-          userId: recipientId,
-          type: NotificationType.newMessage,
-          title: 'Nouveau message',
-          body: preview,
-          referenceId: conversationId,
-        );
+    try {
+      final conversation = await ref
+          .read(chatRepositoryProvider)
+          .getConversationById(conversationId);
+      final recipientId = senderId == conversation.clientId
+          ? conversation.supplierId
+          : conversation.clientId;
+      await ref
+          .read(notificationRepositoryProvider)
+          .add(
+            userId: recipientId,
+            type: NotificationType.newMessage,
+            title: 'Nouveau message',
+            body: preview,
+            referenceId: conversationId,
+          );
+    } catch (e) {
+      debugPrint('ChatController._notifyRecipient failed (ignored): $e');
+    }
   }
 
   Future<void> sendMessage({
@@ -47,9 +56,15 @@ class ChatController extends AsyncNotifier<void> {
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (userId == null || text.trim().isEmpty) return;
+    // Empty text is only a no-op when there's nothing else on the message —
+    // a tagged product with no comment (`ChatComposer.hasPendingAttachment`
+    // lets that reach here with `text` empty) is a real send, same as
+    // `sendImage`/`sendVoiceNote` already allow with their own content.
+    if (userId == null || (text.trim().isEmpty && productId == null)) return;
     await ref
         .read(chatRepositoryProvider)
         .sendMessage(
@@ -60,11 +75,14 @@ class ChatController extends AsyncNotifier<void> {
           productNameSnapshot: productNameSnapshot,
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
+          productVariantId: productVariantId,
+          productVariantNameSnapshot: productVariantNameSnapshot,
         );
+    final trimmed = text.trim();
     await _notifyRecipient(
       conversationId: conversationId,
       senderId: userId,
-      preview: text.trim(),
+      preview: trimmed.isNotEmpty ? trimmed : '📦 $productNameSnapshot',
     );
   }
 
@@ -75,6 +93,8 @@ class ChatController extends AsyncNotifier<void> {
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
     if (userId == null) return;
@@ -96,6 +116,8 @@ class ChatController extends AsyncNotifier<void> {
           productNameSnapshot: productNameSnapshot,
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
+          productVariantId: productVariantId,
+          productVariantNameSnapshot: productVariantNameSnapshot,
         );
     await _notifyRecipient(
       conversationId: conversationId,
@@ -116,6 +138,8 @@ class ChatController extends AsyncNotifier<void> {
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
     if (userId == null) return;
@@ -139,6 +163,8 @@ class ChatController extends AsyncNotifier<void> {
           productNameSnapshot: productNameSnapshot,
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
+          productVariantId: productVariantId,
+          productVariantNameSnapshot: productVariantNameSnapshot,
         );
     await _notifyRecipient(
       conversationId: conversationId,
@@ -167,9 +193,25 @@ class ChatController extends AsyncNotifier<void> {
 
   /// Marks the conversation read on behalf of the current user's own side
   /// — a client reading clears `unreadCountClient`, a supplier reading
-  /// clears `unreadCountSupplier`; the caller never has to know which.
+  /// clears `unreadCountSupplier`; the caller never has to know which. Also
+  /// clears any `newMessage` notification already sent for this
+  /// conversation, so a message that arrives while its thread is open never
+  /// surfaces as an unread badge anywhere — `ChatThreadScreen` calls this
+  /// both on mount and again every time a new message streams in while it
+  /// stays open, not just once.
   Future<void> markRead(String conversationId) async {
-    final user = ref.read(currentUserProvider).valueOrNull;
+    // `await ...future` et non `.valueOrNull` : pendant qu'un changement de
+    // compte est en cours, Riverpod conserve la **valeur précédente** le
+    // temps que la nouvelle arrive. Lue telle quelle, elle faisait marquer
+    // comme lu le mauvais côté de la conversation — le client au lieu du
+    // fournisseur — sans la moindre erreur, le serveur n'ayant rien à
+    // redire à une mise à jour parfaitement valide sur l'autre compteur.
+    //
+    // Se produit chaque fois qu'une action suit de près une connexion :
+    // notification ouverte au lancement de l'app, bascule entre deux comptes
+    // sur le même téléphone. Rare, silencieux, et le compteur de non-lus
+    // restait allumé sans qu'on sache pourquoi.
+    final user = await ref.read(currentUserProvider.future);
     if (user == null) return;
     final readBy = user is ClientUser
         ? ChatParticipant.client
@@ -177,6 +219,9 @@ class ChatController extends AsyncNotifier<void> {
     await ref
         .read(chatRepositoryProvider)
         .markConversationRead(conversationId: conversationId, readBy: readBy);
+    await ref
+        .read(notificationRepositoryProvider)
+        .markReadByReference(userId: user.id, referenceId: conversationId);
   }
 }
 

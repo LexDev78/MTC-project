@@ -54,8 +54,8 @@ void main() {
 
   testWidgets(
     'creating a product through the real form shows it in the list as a '
-    'draft, editing it to active updates the badge, and the stock sheet '
-    'adjusts the quantity shown on the tile',
+    'draft, the stock sheet adjusts the quantity shown on its tile, and '
+    'giving it a variant then switching it to active updates the badge',
     (tester) async {
       await _loginAsFournisseur1(tester);
 
@@ -71,9 +71,11 @@ void main() {
         'Tapis tressé à la main, article de test end-to-end.',
       );
       await tester.enterText(formFields.at(2), '17500'); // Prix
-      await tester.enterText(formFields.at(4), '8'); // Stock
-      await tester.enterText(formFields.at(6), '2.5'); // Poids
-      await tester.enterText(formFields.at(7), 'Bamako'); // Ville
+      // Stock is disabled at creation (starts at 0, set afterwards through
+      // variants) — no longer a `TextFormField` here, so the indices below
+      // shift down by one from what they'd be if it still were.
+      await tester.enterText(formFields.at(5), '2.5'); // Poids
+      await tester.enterText(formFields.at(6), 'Bamako'); // Ville
 
       await tester.scrollUntilVisible(
         find.text('Créer le produit'),
@@ -87,32 +89,14 @@ void main() {
       expect(find.text('Nouveau produit'), findsNothing); // form title gone
       expect(find.text('Tapis tressé test'), findsOneWidget);
       expect(find.text('Brouillon'), findsWidgets);
-      expect(find.text('8 en stock'), findsOneWidget);
-
-      // --- Edit: activate it ---
-      await tester.tap(find.text('Tapis tressé test'));
-      await tester.pumpAndSettle();
-      expect(find.text('Modifier le produit'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Actif'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Actif'));
-      await tester.scrollUntilVisible(
-        find.text('Enregistrer'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Enregistrer'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Actif'), findsWidgets);
+      expect(find.text('0 en stock'), findsOneWidget);
 
       // --- Quick stock adjustment from the list tile ---
-      // The list sorts newest-first, so the product just created above is
-      // the first "Ajuster le stock" button among Bogolan Bamako's tiles.
+      // Deliberately *before* adding a variant below: `adjust_stock`
+      // (`0016_adjust_stock_rpc.sql`) refuses a product-level delta once
+      // `has_variants` is set, since stock is scoped per variant from then
+      // on. The list sorts newest-first, so the product just created above
+      // is the first "Ajuster le stock" button among Bogolan Bamako's tiles.
       await tester.tap(find.byTooltip('Ajuster le stock').first);
       await tester.pumpAndSettle();
       expect(find.text('Tapis tressé test'), findsWidgets);
@@ -126,7 +110,67 @@ void main() {
       await tester.tap(find.text('Confirmer'));
       await tester.pumpAndSettle();
 
-      expect(find.text('13 en stock'), findsOneWidget);
+      expect(find.text('5 en stock'), findsOneWidget);
+
+      // --- Edit: give it a variant, then activate it ---
+      // A product can't reach "Actif" variant-less —
+      // `products_active_requires_variants`
+      // (`0021_backfill_default_variants_and_require_variant.sql`), mirrored
+      // client-side in `_submit`, blocks it with a SnackBar — so composing
+      // one here is part of the activation path, not an extra step.
+      await tester.tap(find.text('Tapis tressé test'));
+      await tester.pumpAndSettle();
+      expect(find.text('Modifier le produit'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Ajouter une variante'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Ajouter une variante'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ajouter un champ'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('add-field-type-dropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Couleur').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('add-field-value-input')),
+        'Naturel',
+      );
+      await tester.tap(find.text('Ajouter').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Ajouter cette variante'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Ajouter cette variante'));
+      await tester.pumpAndSettle();
+      expect(find.text('Variantes (1)'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Actif'),
+        -300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Actif'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Enregistrer'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Enregistrer'));
+      await tester.pumpAndSettle();
+
+      // Back on the list: the save went through (the form popped) and the
+      // product now carries the "Actif" badge instead of "Brouillon".
+      expect(find.text('Modifier le produit'), findsNothing);
+      expect(find.text('Actif'), findsWidgets);
     },
   );
 }

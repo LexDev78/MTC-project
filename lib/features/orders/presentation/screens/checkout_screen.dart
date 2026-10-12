@@ -16,6 +16,7 @@ import '../widgets/delivery_mode_selector.dart';
 import '../widgets/fulfillment_method_selector.dart';
 import '../widgets/home_delivery_form.dart';
 import '../widgets/mobile_money_payment_sheet.dart';
+import '../widgets/order_item_row.dart';
 import '../widgets/payment_method_selector.dart';
 import '../widgets/pickup_point_picker.dart';
 
@@ -116,24 +117,13 @@ class CheckoutScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         for (final item in group.items)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    '${item.quantity} × ${item.productNameSnapshot}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ),
-                                CurrencyText(
-                                  item.unitPriceFcfaSnapshot * item.quantity,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
+                          OrderItemRow(
+                            productId: item.productId,
+                            productNameSnapshot: item.productNameSnapshot,
+                            unitPriceFcfaSnapshot: item.unitPriceFcfaSnapshot,
+                            quantity: item.quantity,
+                            variantId: item.variantId,
+                            variantNameSnapshot: item.variantNameSnapshot,
                           ),
                         if (fulfillmentMethod ==
                             FulfillmentMethod.homeDelivery) ...[

@@ -398,6 +398,12 @@ mixin _$ChatMessage {
   String? get productImageSnapshot => throw _privateConstructorUsedError;
   int? get productPriceFcfaSnapshot => throw _privateConstructorUsedError;
 
+  /// Which variant the message is about, if any — same "denormalized so
+  /// it survives the product/variant changing later" reasoning as the 4
+  /// fields above.
+  String? get productVariantId => throw _privateConstructorUsedError;
+  String? get productVariantNameSnapshot => throw _privateConstructorUsedError;
+
   /// Local file path for an image or voice-note attachment. There's no
   /// real upload backend (this whole app is an in-memory mock), so the
   /// path only stays valid for the current session — same lifetime as
@@ -437,6 +443,8 @@ abstract class $ChatMessageCopyWith<$Res> {
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
     ChatAttachmentType attachmentType,
     String? attachmentPath,
     int? voiceDurationSeconds,
@@ -468,6 +476,8 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
     Object? productNameSnapshot = freezed,
     Object? productImageSnapshot = freezed,
     Object? productPriceFcfaSnapshot = freezed,
+    Object? productVariantId = freezed,
+    Object? productVariantNameSnapshot = freezed,
     Object? attachmentType = null,
     Object? attachmentPath = freezed,
     Object? voiceDurationSeconds = freezed,
@@ -514,6 +524,14 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
                 ? _value.productPriceFcfaSnapshot
                 : productPriceFcfaSnapshot // ignore: cast_nullable_to_non_nullable
                       as int?,
+            productVariantId: freezed == productVariantId
+                ? _value.productVariantId
+                : productVariantId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            productVariantNameSnapshot: freezed == productVariantNameSnapshot
+                ? _value.productVariantNameSnapshot
+                : productVariantNameSnapshot // ignore: cast_nullable_to_non_nullable
+                      as String?,
             attachmentType: null == attachmentType
                 ? _value.attachmentType
                 : attachmentType // ignore: cast_nullable_to_non_nullable
@@ -552,6 +570,8 @@ abstract class _$$ChatMessageImplCopyWith<$Res>
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
     ChatAttachmentType attachmentType,
     String? attachmentPath,
     int? voiceDurationSeconds,
@@ -582,6 +602,8 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
     Object? productNameSnapshot = freezed,
     Object? productImageSnapshot = freezed,
     Object? productPriceFcfaSnapshot = freezed,
+    Object? productVariantId = freezed,
+    Object? productVariantNameSnapshot = freezed,
     Object? attachmentType = null,
     Object? attachmentPath = freezed,
     Object? voiceDurationSeconds = freezed,
@@ -628,6 +650,14 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
             ? _value.productPriceFcfaSnapshot
             : productPriceFcfaSnapshot // ignore: cast_nullable_to_non_nullable
                   as int?,
+        productVariantId: freezed == productVariantId
+            ? _value.productVariantId
+            : productVariantId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        productVariantNameSnapshot: freezed == productVariantNameSnapshot
+            ? _value.productVariantNameSnapshot
+            : productVariantNameSnapshot // ignore: cast_nullable_to_non_nullable
+                  as String?,
         attachmentType: null == attachmentType
             ? _value.attachmentType
             : attachmentType // ignore: cast_nullable_to_non_nullable
@@ -659,6 +689,8 @@ class _$ChatMessageImpl implements _ChatMessage {
     this.productNameSnapshot,
     this.productImageSnapshot,
     this.productPriceFcfaSnapshot,
+    this.productVariantId,
+    this.productVariantNameSnapshot,
     this.attachmentType = ChatAttachmentType.none,
     this.attachmentPath,
     this.voiceDurationSeconds,
@@ -694,6 +726,14 @@ class _$ChatMessageImpl implements _ChatMessage {
   @override
   final int? productPriceFcfaSnapshot;
 
+  /// Which variant the message is about, if any — same "denormalized so
+  /// it survives the product/variant changing later" reasoning as the 4
+  /// fields above.
+  @override
+  final String? productVariantId;
+  @override
+  final String? productVariantNameSnapshot;
+
   /// Local file path for an image or voice-note attachment. There's no
   /// real upload backend (this whole app is an in-memory mock), so the
   /// path only stays valid for the current session — same lifetime as
@@ -711,7 +751,7 @@ class _$ChatMessageImpl implements _ChatMessage {
 
   @override
   String toString() {
-    return 'ChatMessage(id: $id, conversationId: $conversationId, senderId: $senderId, text: $text, sentAt: $sentAt, isRead: $isRead, productId: $productId, productNameSnapshot: $productNameSnapshot, productImageSnapshot: $productImageSnapshot, productPriceFcfaSnapshot: $productPriceFcfaSnapshot, attachmentType: $attachmentType, attachmentPath: $attachmentPath, voiceDurationSeconds: $voiceDurationSeconds)';
+    return 'ChatMessage(id: $id, conversationId: $conversationId, senderId: $senderId, text: $text, sentAt: $sentAt, isRead: $isRead, productId: $productId, productNameSnapshot: $productNameSnapshot, productImageSnapshot: $productImageSnapshot, productPriceFcfaSnapshot: $productPriceFcfaSnapshot, productVariantId: $productVariantId, productVariantNameSnapshot: $productVariantNameSnapshot, attachmentType: $attachmentType, attachmentPath: $attachmentPath, voiceDurationSeconds: $voiceDurationSeconds)';
   }
 
   @override
@@ -738,6 +778,14 @@ class _$ChatMessageImpl implements _ChatMessage {
                   productPriceFcfaSnapshot,
                 ) ||
                 other.productPriceFcfaSnapshot == productPriceFcfaSnapshot) &&
+            (identical(other.productVariantId, productVariantId) ||
+                other.productVariantId == productVariantId) &&
+            (identical(
+                  other.productVariantNameSnapshot,
+                  productVariantNameSnapshot,
+                ) ||
+                other.productVariantNameSnapshot ==
+                    productVariantNameSnapshot) &&
             (identical(other.attachmentType, attachmentType) ||
                 other.attachmentType == attachmentType) &&
             (identical(other.attachmentPath, attachmentPath) ||
@@ -760,6 +808,8 @@ class _$ChatMessageImpl implements _ChatMessage {
     productNameSnapshot,
     productImageSnapshot,
     productPriceFcfaSnapshot,
+    productVariantId,
+    productVariantNameSnapshot,
     attachmentType,
     attachmentPath,
     voiceDurationSeconds,
@@ -791,6 +841,8 @@ abstract class _ChatMessage implements ChatMessage {
     final String? productNameSnapshot,
     final String? productImageSnapshot,
     final int? productPriceFcfaSnapshot,
+    final String? productVariantId,
+    final String? productVariantNameSnapshot,
     final ChatAttachmentType attachmentType,
     final String? attachmentPath,
     final int? voiceDurationSeconds,
@@ -825,6 +877,14 @@ abstract class _ChatMessage implements ChatMessage {
   String? get productImageSnapshot;
   @override
   int? get productPriceFcfaSnapshot;
+
+  /// Which variant the message is about, if any — same "denormalized so
+  /// it survives the product/variant changing later" reasoning as the 4
+  /// fields above.
+  @override
+  String? get productVariantId;
+  @override
+  String? get productVariantNameSnapshot;
 
   /// Local file path for an image or voice-note attachment. There's no
   /// real upload backend (this whole app is an in-memory mock), so the

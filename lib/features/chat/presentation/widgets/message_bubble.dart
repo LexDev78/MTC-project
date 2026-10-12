@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
@@ -7,16 +10,28 @@ import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/core/widgets/resolved_image.dart';
 import 'package:mtc_app/core/widgets/voice_note_player.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
     show ProductImage;
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/chat.dart';
 
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.message, required this.isMine});
+  const MessageBubble({
+    super.key,
+    required this.message,
+    required this.isMine,
+    required this.isClient,
+  });
 
   final ChatMessage message;
   final bool isMine;
+
+  /// Which side is reading this thread — a client taps a product
+  /// attachment into the public listing page, a supplier into their own
+  /// product-management form (see `_ProductAttachment`).
+  final bool isClient;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +68,11 @@ class MessageBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (message.productNameSnapshot != null)
-              _ProductAttachment(message: message, onBubble: onBubble),
+              _ProductAttachment(
+                message: message,
+                onBubble: onBubble,
+                isClient: isClient,
+              ),
             if (message.attachmentType == ChatAttachmentType.image &&
                 message.attachmentPath != null)
               _ImageAttachment(path: message.attachmentPath!),
@@ -105,21 +124,51 @@ class MessageBubble extends StatelessWidget {
 }
 
 /// The product "card" a message carries when the client started (or
-/// continued) the conversation from a product page — tapping it jumps back
-/// to that product so the supplier-side context is one tap away too.
-class _ProductAttachment extends StatelessWidget {
-  const _ProductAttachment({required this.message, required this.onBubble});
+/// continued) the conversation from a product page, or the supplier
+/// attached the item an order was about — tapping it jumps back to that
+/// product so the other side's context is one tap away too. A client goes
+/// to the public listing page; a supplier (who can't reach `/client/...`,
+/// see `route_guards.dart`) goes to their own product-management form for
+/// it instead, which doubles as its detail view.
+class _ProductAttachment extends ConsumerWidget {
+  const _ProductAttachment({
+    required this.message,
+    required this.onBubble,
+    required this.isClient,
+  });
 
   final ChatMessage message;
   final Color onBubble;
+  final bool isClient;
+
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    final productId = message.productId;
+    if (productId == null) return;
+
+    if (isClient) {
+      unawaited(context.push(AppRoutes.productDetail(productId)));
+      return;
+    }
+
+    final router = GoRouter.of(context);
+    final prefix = ref.read(supplierRoutePrefixProvider);
+    try {
+      final product = await ref.read(productRepositoryProvider).getById(productId);
+      unawaited(router.push('$prefix/products/form', extra: product));
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Ce produit n'est plus disponible.")),
+        );
+      }
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return InkWell(
       borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-      onTap: message.productId == null
-          ? null
-          : () => context.push(AppRoutes.productDetail(message.productId!)),
+      onTap: message.productId == null ? null : () => _open(context, ref),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.xs),
         decoration: BoxDecoration(
@@ -156,6 +205,16 @@ class _ProductAttachment extends StatelessWidget {
                       fontSize: 13,
                     ),
                   ),
+                  if (message.productVariantNameSnapshot != null)
+                    Text(
+                      message.productVariantNameSnapshot!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: onBubble.withValues(alpha: 0.85),
+                        fontSize: 11,
+                      ),
+                    ),
                   if (message.productPriceFcfaSnapshot != null)
                     CurrencyText(
                       message.productPriceFcfaSnapshot!,

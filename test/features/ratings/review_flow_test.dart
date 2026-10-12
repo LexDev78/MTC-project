@@ -50,16 +50,16 @@ void main() {
       final canReviewBefore = await container
           .read(reviewRepositoryProvider)
           .canReview(
-            orderId: 'order-awa-delivered',
-            supplierGroupId: 'group-awa-delivered-1',
+            orderId: DemoIds.orderAwaDelivered,
+            supplierGroupId: DemoIds.groupAwaDelivered1,
           );
       expect(canReviewBefore, isTrue);
 
       final success = await container
           .read(reviewControllerProvider.notifier)
           .submit(
-            orderId: 'order-awa-delivered',
-            supplierGroupId: 'group-awa-delivered-1',
+            orderId: DemoIds.orderAwaDelivered,
+            supplierGroupId: DemoIds.groupAwaDelivered1,
             supplierId: supplierId,
             stars: 5,
             comment: 'Excellent service, tissu magnifique !',
@@ -89,8 +89,8 @@ void main() {
       final canReviewAfter = await container
           .read(reviewRepositoryProvider)
           .canReview(
-            orderId: 'order-awa-delivered',
-            supplierGroupId: 'group-awa-delivered-1',
+            orderId: DemoIds.orderAwaDelivered,
+            supplierGroupId: DemoIds.groupAwaDelivered1,
           );
       expect(canReviewAfter, isFalse);
     },

@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
-import 'package:mtc_app/core/widgets/core_widgets.dart';
 
 import 'support/supabase_test_harness.dart';
 
@@ -32,8 +31,6 @@ void main() {
       ),
     );
     await tester.pump();
-
-    expect(find.byType(MtcBrandMark), findsOneWidget);
 
     // Let the splash timer + auth session restore + route transition play
     // out. The welcome screen animates a continuously-running ticker, so it

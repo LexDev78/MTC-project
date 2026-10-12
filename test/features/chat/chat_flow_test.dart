@@ -39,7 +39,7 @@ void main() {
       await container.read(currentUserProvider.future);
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      const conversationId = 'conv-awa-bogolan';
+      const conversationId = DemoIds.convAwaBogolan;
 
       final before = await container
           .read(chatRepositoryProvider)
@@ -108,7 +108,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
     final repo = container.read(chatRepositoryProvider);
-    const conversationId = 'conv-awa-bogolan';
+    const conversationId = DemoIds.convAwaBogolan;
 
     final before = await repo
         .watchConversationsForUser(DemoIds.clientAwa)

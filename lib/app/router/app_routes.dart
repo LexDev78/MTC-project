@@ -53,6 +53,13 @@ abstract final class AppRoutes {
       '/supplier-tiers/messages/:conversationId';
 
   // Supplier principal (MTC staff) shell — same 6 branches.
+  // ---- livreur -------------------------------------------------------------
+  static const String courierHome = '/livreur/courses';
+  static const String courierDelivery = '/livreur/courses/:id';
+  static const String courierProfile = '/livreur/profil';
+
+  static String courierDeliveryPath(String id) => '/livreur/courses/$id';
+
   static const String supplierPrincipalDashboard =
       '/supplier-principal/dashboard';
   static const String supplierPrincipalProducts =
@@ -86,6 +93,15 @@ abstract final class AppRoutes {
   // tiers equivalent, same shape as the KYC queue above.
   static const String supplierPrincipalPayoutQueue =
       '/supplier-principal/finances/payouts';
+
+  // Staff-only review of supplier-proposed characteristic types (fournisseur
+  // principal) — no tiers equivalent, same shape as the KYC queue above.
+  static const String supplierPrincipalCharacteristicTypeQueue =
+      '/supplier-principal/products/characteristic-types';
+
+  /// File des inscriptions livreurs, même forme que la file KYC ci-dessus.
+  static const String supplierPrincipalCourierQueue =
+      '/supplier-principal/couriers';
 
   static String catalogueCategory(String categoryName) =>
       '/client/catalogue/$categoryName';

@@ -57,7 +57,7 @@ void main() {
           .watchPayoutRequests(DemoIds.supplierBogolanBamako)
           .first;
       expect(mine, hasLength(1));
-      expect(mine.single.id, 'payout-bogolan-1');
+      expect(mine.single.id, DemoIds.payoutBogolan1);
 
       final none = await repo
           .watchPayoutRequests(DemoIds.supplierAlimentationSegou)
@@ -65,7 +65,7 @@ void main() {
       expect(none, isEmpty);
 
       final all = await repo.watchAllPayoutRequests().first;
-      expect(all.any((p) => p.id == 'payout-bogolan-1'), isTrue);
+      expect(all.any((p) => p.id == DemoIds.payoutBogolan1), isTrue);
     },
   );
 
@@ -192,7 +192,7 @@ void main() {
       final ok = await container
           .read(supplierFinanceControllerProvider.notifier)
           .reviewPayout(
-            payoutId: 'payout-bogolan-1',
+            payoutId: DemoIds.payoutBogolan1,
             status: PayoutStatus.rejected,
           );
       // Already `paid` (terminal) in the seed — rejecting it is an invalid

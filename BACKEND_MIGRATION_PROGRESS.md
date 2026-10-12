@@ -1306,3 +1306,55 @@ la doc de référence) :
   y compris les nouveaux cas d'annulation client / transition stricte
   dans `order_status_transition_test.dart` et
   `supplier_order_repository_test.dart`.
+
+## Fonctionnalité post-migration — variantes de produit (hors plan d'origine)
+
+Plan complet : `/Users/solomon/.claude/plans/sunny-splashing-token.md`.
+Un produit peut désormais avoir des **caractéristiques** (couleur/
+stockage/taille/poids, + types proposés par un fournisseur et validés
+par le staff) combinées en **variantes** achetables, chacune avec son
+propre prix/stock/photos.
+
+- **Schéma** (`0016_adjust_stock_rpc.sql` → `0019_place_order_variants.sql`) :
+  contrainte `stock_quantity >= 0`, RPC `adjust_stock` atomique (remplace
+  le read-then-write client), dictionnaire `product_characteristic_types`
+  gouverné par un circuit d'approbation cloné du KYC (`pending` →
+  `approved`/`rejected`, notification au proposant), tables
+  `product_characteristics`/`product_characteristic_options`/
+  `product_variants`/`product_variant_options`, agrégation automatique
+  (`products.price_fcfa`/`stock_quantity`/`has_variants`/
+  `max_price_fcfa`/`variant_count`) via trigger dès qu'une variante
+  existe — tout le code qui ne lit que ces champs continue de
+  fonctionner sans changement. `place_order` réécrite en une seule passe
+  de mise à jour conditionnelle atomique (au lieu d'un pré-contrôle puis
+  écriture séparée), fermant une race préexistante en plus de devenir
+  sensible aux variantes.
+- **Entités/repos** : `ProductCharacteristicType`/`ProductCharacteristic`/
+  `ProductVariant` (nouveaux), `Product`/`CartItem`/`OrderItem`/
+  `StockMovement`/`ChatMessage` gagnent des champs nullable
+  (`variantId`/`variantNameSnapshot` etc.) — rétrocompatibles par
+  construction, un produit sans variante n'est affecté nulle part.
+- **Fournisseur** : `SupplierVariantManagerScreen` (définir les
+  caractéristiques + deltas de prix, générer les combinaisons en
+  fusionnant avec les variantes existantes, éditer prix/stock/photos par
+  variante) ; file d'attente staff `CharacteristicTypeReviewQueueScreen`
+  pour approuver/rejeter les types proposés.
+- **Client** : `ProductDetailScreen` remplace l'ancien sélecteur
+  décoratif (`sizes`/`colors`, jamais branché sur prix/stock) par un
+  vrai sélecteur pastilles (couleur, avec photo) + chips (autres
+  caractéristiques), grisant les combinaisons impossibles ; prix/stock/
+  galerie changent en direct avec la variante choisie.
+- **Panier/commande/chat** : dédoublonnage panier par `(product_id,
+  variant_id)`, vérification de stock et snapshot de commande par
+  variante, message de chat indexant aussi la variante concernée
+  (question client ou fournisseur recontactant après une commande).
+
+### Vérification
+- `supabase db reset` (migrations 0016-0019) : propre.
+- `flutter analyze` : aucun souci.
+- `flutter test --tags integration --concurrency=1` sur `orders/`,
+  `catalog/`, `cart/`, `comments/`, `notifications/`,
+  `supplier_onboarding/`, `chat/` : verts (une régression réelle trouvée
+  et corrigée en cours de route — `Product.toJson()` envoyait
+  `characteristics`/`variants` vers `products`, qui n'a pas ces colonnes
+  — et un test préexistant fragilisé par le nouveau timing, durci).

@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/auth/presentation/screens/loading_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/login_screen.dart';
+import 'package:mtc_app/features/delivery/presentation/screens/courier_delivery_screen.dart';
+import 'package:mtc_app/features/delivery/presentation/screens/courier_review_queue_screen.dart';
+import 'package:mtc_app/features/delivery/presentation/screens/courier_home_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/role_selection_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/sign_up_details_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/splash_screen.dart';
@@ -13,6 +16,7 @@ import 'package:mtc_app/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:mtc_app/features/cart/presentation/screens/cart_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/catalogue_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/category_products_screen.dart';
+import 'package:mtc_app/features/catalog/presentation/screens/characteristic_type_review_queue_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/product_detail_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/search_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_form_screen.dart';
@@ -149,6 +153,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _fluidPage(state, const LoadingScreen()),
       ),
+      // ---- livreur ---------------------------------------------------------
+      // Deux routes à plat, sans coquille à onglets : l'app livreur n'a
+      // qu'une liste et le détail d'une course. Une barre de navigation à
+      // deux entrées coûterait plus d'écran qu'elle n'en ferait gagner.
+      GoRoute(
+        path: AppRoutes.courierHome,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const CourierHomeScreen()),
+        routes: [
+          GoRoute(
+            path: ':id',
+            pageBuilder: (context, state) => _fluidPage(
+              state,
+              CourierDeliveryScreen(deliveryId: state.pathParameters['id']!),
+            ),
+          ),
+        ],
+      ),
       GoRoute(
         path: AppRoutes.signUpRole,
         pageBuilder: (context, state) =>
@@ -257,7 +279,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           state,
           ChatThreadScreen(
             conversationId: state.pathParameters['conversationId']!,
-            initialProduct: state.extra as Product?,
+            initialAttachment: state.extra as ChatProductAttachment?,
           ),
         ),
       ),
@@ -272,6 +294,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             _fluidPage(state, const KycReviewQueueScreen()),
       ),
       GoRoute(
+        path: AppRoutes.supplierPrincipalCourierQueue,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const CourierReviewQueueScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.supplierPrincipalKycDetailPath,
         pageBuilder: (context, state) => _fluidPage(
           state,
@@ -282,6 +309,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.supplierPrincipalPayoutQueue,
         pageBuilder: (context, state) =>
             _fluidPage(state, const PayoutReviewQueueScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalCharacteristicTypeQueue,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const CharacteristicTypeReviewQueueScreen()),
       ),
       // Product create/edit — `extra` carries the `Product` being edited,
       // `null` for create mode. Pushed on top of whichever shell the
@@ -366,6 +398,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           state,
           ChatThreadScreen(
             conversationId: state.pathParameters['conversationId']!,
+            initialAttachment: state.extra as ChatProductAttachment?,
           ),
         ),
       ),
@@ -375,6 +408,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           state,
           ChatThreadScreen(
             conversationId: state.pathParameters['conversationId']!,
+            initialAttachment: state.extra as ChatProductAttachment?,
           ),
         ),
       ),

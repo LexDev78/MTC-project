@@ -2,7 +2,9 @@ import 'package:mtc_app/core/utils/id_generator.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
+import '../../domain/entities/product_characteristic.dart';
 import '../../domain/entities/product_status.dart';
+import '../../domain/entities/product_variant.dart';
 import '../../domain/entities/stock_movement.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../datasources/supabase_product_datasource.dart';
@@ -102,13 +104,13 @@ class SupabaseProductRepository implements ProductRepository {
       lowStockThreshold: lowStockThreshold,
       compareAtPriceFcfa: compareAtPriceFcfa,
     );
-    final row = await _datasource.add(product.toJson());
+    final row = await _datasource.add(_stripComputedFields(product.toJson()));
     return Product.fromJson(row);
   }
 
   @override
   Future<void> updateProduct(Product product) {
-    final fields = product.toJson()
+    final fields = _stripComputedFields(product.toJson())
       ..remove('id')
       ..remove('created_at');
     return _datasource.update(product.id, fields);
@@ -124,13 +126,60 @@ class SupabaseProductRepository implements ProductRepository {
     required String id,
     required int quantityDelta,
     required StockMovementReason reason,
+    String? variantId,
     String? note,
   }) {
     return _datasource.adjustStock(
       id: id,
       quantityDelta: quantityDelta,
       reason: _stockReasonToDb(reason),
+      variantId: variantId,
       note: note,
+    );
+  }
+
+  @override
+  Future<void> replaceCharacteristicsAndVariants({
+    required String productId,
+    required List<ProductCharacteristic> characteristics,
+    required List<ProductVariant> variants,
+  }) {
+    return _datasource.replaceCharacteristicsAndVariants(
+      productId: productId,
+      characteristics: [
+        for (final c in characteristics)
+          {
+            'id': c.id,
+            'type_id': c.type.id,
+            'display_order': c.displayOrder,
+            'options': [
+              for (final o in c.options)
+                {
+                  'id': o.id,
+                  'value': o.value,
+                  'price_delta_fcfa': o.priceDeltaFcfa,
+                  'display_order': o.displayOrder,
+                },
+            ],
+          },
+      ],
+      variants: [
+        for (final v in variants)
+          {
+            'id': v.id,
+            'name': v.name,
+            'price_fcfa': v.priceFcfa,
+            'stock_quantity': v.stockQuantity,
+            'image_urls': v.imageUrls,
+            'video_path': v.videoPath,
+            'is_default': v.isDefault,
+            'display_order': v.displayOrder,
+            'option_refs': [
+              for (final r in v.optionRefs)
+                {'characteristic_id': r.characteristicId, 'option_id': r.optionId},
+            ],
+          },
+      ],
     );
   }
 
@@ -171,6 +220,22 @@ class SupabaseProductRepository implements ProductRepository {
     };
   }
 }
+
+/// `Product.toJson()` includes 5 keys that don't belong in a
+/// create/update payload to `products`: [characteristics]/[variants] are
+/// relationship data from `getById`'s nested select, not real columns at
+/// all — sending them makes PostgREST reject the whole request. `has_variants`/
+/// `max_price_fcfa`/`variant_count` ARE real columns, but they're
+/// exclusively trigger-maintained (`0018_product_variants.sql`) — writing
+/// whatever value happened to be on the in-memory [Product] risks
+/// clobbering a fresher aggregate with a stale one if a variant's stock/price
+/// changed between this product being fetched and this write.
+Map<String, dynamic> _stripComputedFields(Map<String, dynamic> fields) => fields
+  ..remove('characteristics')
+  ..remove('variants')
+  ..remove('has_variants')
+  ..remove('max_price_fcfa')
+  ..remove('variant_count');
 
 /// `StockMovementReason.manualAdjustment`'s `@JsonValue` lives on the enum
 /// itself (`stock_movement.dart`, Lot 2) but that mapping is only reachable

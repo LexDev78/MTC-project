@@ -7,7 +7,13 @@ import 'catalog_providers.dart';
 
 /// Every one of the operating supplier's own products, regardless of
 /// status/verification — see `ProductRepository.watchMyProducts`.
-final myProductsProvider = StreamProvider.family<List<Product>, String>((
+/// `autoDispose`: the underlying datasource re-emits only after a write made
+/// through this same client instance (see its doc comment), so a favorite,
+/// order, or view logged from someone else's session never reaches an
+/// already-open dashboard. Disposing once nothing watches it means the next
+/// visit re-subscribes and pulls current `view_count`/etc. from the
+/// database instead of replaying a stale cached snapshot indefinitely.
+final myProductsProvider = StreamProvider.autoDispose.family<List<Product>, String>((
   ref,
   supplierId,
 ) {

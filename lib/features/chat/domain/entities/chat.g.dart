@@ -47,6 +47,9 @@ _$ChatMessageImpl _$$ChatMessageImplFromJson(Map<String, dynamic> json) =>
       productImageSnapshot: json['product_image_snapshot'] as String?,
       productPriceFcfaSnapshot: (json['product_price_fcfa_snapshot'] as num?)
           ?.toInt(),
+      productVariantId: json['product_variant_id'] as String?,
+      productVariantNameSnapshot:
+          json['product_variant_name_snapshot'] as String?,
       attachmentType:
           $enumDecodeNullable(
             _$ChatAttachmentTypeEnumMap,
@@ -69,6 +72,8 @@ Map<String, dynamic> _$$ChatMessageImplToJson(_$ChatMessageImpl instance) =>
       'product_name_snapshot': instance.productNameSnapshot,
       'product_image_snapshot': instance.productImageSnapshot,
       'product_price_fcfa_snapshot': instance.productPriceFcfaSnapshot,
+      'product_variant_id': instance.productVariantId,
+      'product_variant_name_snapshot': instance.productVariantNameSnapshot,
       'attachment_type': _$ChatAttachmentTypeEnumMap[instance.attachmentType]!,
       'attachment_path': instance.attachmentPath,
       'voice_duration_seconds': instance.voiceDurationSeconds,

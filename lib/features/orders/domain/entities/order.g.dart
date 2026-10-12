@@ -12,6 +12,8 @@ _$OrderItemImpl _$$OrderItemImplFromJson(Map<String, dynamic> json) =>
       productNameSnapshot: json['product_name_snapshot'] as String,
       unitPriceFcfaSnapshot: (json['unit_price_fcfa_snapshot'] as num).toInt(),
       quantity: (json['quantity'] as num).toInt(),
+      variantId: json['variant_id'] as String?,
+      variantNameSnapshot: json['variant_name_snapshot'] as String?,
     );
 
 Map<String, dynamic> _$$OrderItemImplToJson(_$OrderItemImpl instance) =>
@@ -20,6 +22,8 @@ Map<String, dynamic> _$$OrderItemImplToJson(_$OrderItemImpl instance) =>
       'product_name_snapshot': instance.productNameSnapshot,
       'unit_price_fcfa_snapshot': instance.unitPriceFcfaSnapshot,
       'quantity': instance.quantity,
+      'variant_id': instance.variantId,
+      'variant_name_snapshot': instance.variantNameSnapshot,
     };
 
 _$OrderSupplierGroupImpl _$$OrderSupplierGroupImplFromJson(

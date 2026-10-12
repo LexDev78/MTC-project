@@ -10,9 +10,12 @@ import 'package:mtc_app/features/suppliers/presentation/providers/supplier_provi
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
+import '../../domain/entities/product_characteristic.dart';
 import '../../domain/entities/product_status.dart';
+import '../../domain/entities/product_variant.dart';
 import '../../domain/entities/stock_movement.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/characteristic_type_providers.dart';
 
 /// Drives every product-management action for the operating supplier (see
 /// `operatingSupplierIdProvider` — the same controller serves both a
@@ -55,7 +58,9 @@ class SupplierProductController extends AsyncNotifier<void> {
         supplierType = SupplierType.principal;
         isSupplierVerified = true;
       case ClientUser():
-        return false; // Route-guarded — a client never reaches this screen.
+      case CourierUser():
+        // Route-guarded — ni un client ni un livreur n'atteint cet écran.
+        return false;
     }
 
     state = const AsyncLoading();
@@ -129,6 +134,7 @@ class SupplierProductController extends AsyncNotifier<void> {
     required String productId,
     required int quantityDelta,
     required StockMovementReason reason,
+    String? variantId,
     String? note,
   }) async {
     state = const AsyncLoading();
@@ -138,9 +144,14 @@ class SupplierProductController extends AsyncNotifier<void> {
         id: productId,
         quantityDelta: quantityDelta,
         reason: reason,
+        variantId: variantId,
         note: note,
       );
 
+      // `updated.stockQuantity` is correct whether this was a product- or
+      // variant-level correction: the aggregate trigger
+      // (`0018_product_variants.sql`) already folds a variant's stock back
+      // into the product's own `stock_quantity` before this re-fetch runs.
       final updated = await productRepository.getById(productId);
       final threshold = updated.lowStockThreshold;
       if (threshold != null && updated.stockQuantity <= threshold) {
@@ -154,6 +165,40 @@ class SupplierProductController extends AsyncNotifier<void> {
             );
       }
     });
+    return !state.hasError;
+  }
+
+  /// Full replace of [productId]'s characteristics/options/variants — see
+  /// `ProductRepository.replaceCharacteristicsAndVariants`.
+  Future<bool> saveCharacteristicsAndVariants({
+    required String productId,
+    required List<ProductCharacteristic> characteristics,
+    required List<ProductVariant> variants,
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref
+          .read(productRepositoryProvider)
+          .replaceCharacteristicsAndVariants(
+            productId: productId,
+            characteristics: characteristics,
+            variants: variants,
+          ),
+    );
+    return !state.hasError;
+  }
+
+  /// Submits a new characteristic type proposal for staff to review — see
+  /// `CharacteristicTypeReviewController` for the approve/reject side.
+  Future<bool> proposeCharacteristicType(String label) async {
+    final supplierId = ref.read(operatingSupplierIdProvider);
+    if (supplierId == null) return false;
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref
+          .read(characteristicTypeRepositoryProvider)
+          .propose(supplierId: supplierId, label: label),
+    );
     return !state.hasError;
   }
 }

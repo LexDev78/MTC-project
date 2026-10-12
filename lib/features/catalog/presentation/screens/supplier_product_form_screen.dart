@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
-import 'package:mtc_app/core/di/providers.dart';
-import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
-import 'package:mtc_app/core/widgets/resolved_image.dart';
-import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
 import '../../domain/entities/product_status.dart';
 import '../../domain/entities/stock_movement.dart';
 import '../controllers/supplier_product_controller.dart';
+import '../providers/catalog_providers.dart';
+import 'supplier_variant_manager_screen.dart';
 
 /// Create/edit form, reached from `SupplierProductListScreen` — `product`
 /// null means create mode. On edit, stock isn't overwritten directly:
@@ -56,12 +53,6 @@ class _SupplierProductFormScreenState
     text: widget.product?.weightKg.toString(),
   );
   late final _cityController = TextEditingController(text: widget.product?.city);
-  late final _sizesController = TextEditingController(
-    text: widget.product?.sizes.join(', '),
-  );
-  late final _colorsController = TextEditingController(
-    text: widget.product?.colors.join(', '),
-  );
 
   late ProductCategory _category =
       widget.product?.category ?? ProductCategory.autre;
@@ -69,11 +60,60 @@ class _SupplierProductFormScreenState
   late bool _allowsSelfDelivery = widget.product?.allowsSelfDelivery ?? true;
   late bool _allowsMtcDelivery = widget.product?.allowsMtcDelivery ?? true;
   late ProductStatus _status = widget.product?.status ?? ProductStatus.draft;
-  late final List<String> _imageUrls = List.of(
-    widget.product?.imageUrls ?? const [],
-  );
+
+  /// Starts as `widget.product` (whatever the caller had on hand — often the
+  /// supplier's product list stream, which does NOT embed
+  /// `characteristics`/`variants`, only the scalar aggregate columns) so the
+  /// price/stock/name fields above render instantly, then gets replaced by a
+  /// `getById` fetch (which DOES embed them) as soon as this screen opens in
+  /// edit mode — see [_loadFreshProduct]. [_variantPanelGeneration] tracks
+  /// how many such fetches have completed; the "Caractéristiques et
+  /// variantes" section waits for the first one before ever constructing
+  /// [VariantManagerPanel], and gets a fresh `key` on every one after that
+  /// (including post-save), so the panel's in-memory draft is always reseeded
+  /// from confirmed database truth rather than silently carrying over
+  /// whatever was in memory from before — that mismatch is exactly what
+  /// caused previously-saved variants to disappear (and then get wiped by
+  /// `saveCharacteristicsAndVariants`'s full-replace) when a supplier left
+  /// and re-entered this screen.
+  Product? _currentProduct;
+  int _variantPanelGeneration = 0;
+
+  /// Re-created every time [_variantPanelGeneration] bumps, alongside the
+  /// panel's own fresh `key` below — gives `_submit` a handle onto whichever
+  /// panel instance is actually on screen right now, to pull its draft via
+  /// `VariantManagerPanelState.buildDraft` when saving.
+  var _variantPanelKey = GlobalKey<VariantManagerPanelState>();
+
+  /// Vrai tant que le panneau compose une variante. Le bouton de validation
+  /// du formulaire s'efface alors : deux actions principales empilées dans
+  /// la même colonne (« Ajouter cette variante » puis « Enregistrer »)
+  /// donnaient un écran surchargé où rien n'indiquait laquelle termine quoi
+  /// — et « Enregistrer » à ce moment-là perd la variante en cours sans le
+  /// dire, puisque `buildDraft` ne lit que les variantes déjà confirmées.
+  var _isComposingVariant = false;
 
   bool get _isEditing => widget.product != null;
+  bool get _hasVariants => _currentProduct?.hasVariants ?? false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentProduct = widget.product;
+    if (_isEditing) {
+      _loadFreshProduct();
+    }
+  }
+
+  Future<void> _loadFreshProduct() async {
+    final fresh = await ref.read(productRepositoryProvider).getById(widget.product!.id);
+    if (!mounted) return;
+    setState(() {
+      _currentProduct = fresh;
+      _variantPanelGeneration++;
+      _variantPanelKey = GlobalKey();
+    });
+  }
 
   @override
   void dispose() {
@@ -85,17 +125,7 @@ class _SupplierProductFormScreenState
     _lowStockThresholdController.dispose();
     _weightController.dispose();
     _cityController.dispose();
-    _sizesController.dispose();
-    _colorsController.dispose();
     super.dispose();
-  }
-
-  List<String> _splitCsv(String text) {
-    return text
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
   }
 
   int? _parseOptionalInt(String text) {
@@ -103,36 +133,33 @@ class _SupplierProductFormScreenState
     return trimmed.isEmpty ? null : int.tryParse(trimmed);
   }
 
-  Future<void> _pickImage() async {
-    try {
-      final file = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-      if (file == null) return;
-      final supplierId = ref.read(operatingSupplierIdProvider);
-      final path = await uploadPickedImage(
-        client: ref.read(supabaseClientProvider),
-        bucket: 'product-images',
-        folder: supplierId!,
-        file: file,
-      );
-      if (mounted) setState(() => _imageUrls.add(path));
-    } catch (_) {
-      if (!mounted) return;
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Read from the panel's live draft, not `_hasVariants` (which only
+    // reflects what's already in the database) — a supplier composing
+    // variants for the very first time and flipping to "Actif" in this same
+    // save hasn't saved anything yet, so `_currentProduct.hasVariants` would
+    // still read `false` at this point even though the save about to happen
+    // will give it variants.
+    final variantDraft = _isEditing ? _variantPanelKey.currentState?.buildDraft() : null;
+    final willHaveVariants = variantDraft?.variants.isNotEmpty ?? _hasVariants;
+
+    // Backed by `products_active_requires_variants`
+    // (`0021_backfill_default_variants_and_require_variant.sql`) — caught
+    // here too so the supplier gets a clear message instead of a raw
+    // Postgres exception from the deferred constraint trigger.
+    if (_status == ProductStatus.active && !willHaveVariants) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            "Impossible d'ajouter cette photo. Vérifiez votre connexion et "
-            "l'autorisation d'accès à la galerie dans les réglages du téléphone.",
+            'Ajoutez au moins une caractéristique et une variante avant de '
+            'passer ce produit en statut "Actif".',
           ),
         ),
       );
+      return;
     }
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
 
     final name = _nameController.text.trim();
     final description = _descriptionController.text.trim();
@@ -148,35 +175,75 @@ class _SupplierProductFormScreenState
       _weightController.text.trim().replaceAll(',', '.'),
     );
     final city = _cityController.text.trim();
-    final sizes = _splitCsv(_sizesController.text);
-    final colors = _splitCsv(_colorsController.text);
 
     final controller = ref.read(supplierProductControllerProvider.notifier);
     bool success;
 
     if (_isEditing) {
-      final original = widget.product!;
-      success = await controller.updateProduct(
-        original.copyWith(
-          name: name,
-          description: description,
-          category: _category,
-          priceFcfa: priceFcfa,
-          compareAtPriceFcfa: compareAtPriceFcfa,
-          weightKg: weightKg,
-          city: city,
-          imageUrls: _imageUrls,
-          allowsSelfDelivery: _allowsSelfDelivery,
-          allowsMtcDelivery: _allowsMtcDelivery,
-          sizes: sizes,
-          colors: colors,
-          region: _region,
-          lowStockThreshold: lowStockThreshold,
-          status: _status,
-        ),
-      );
+      var original = widget.product!;
+
+      // Variants before the product's own fields: flipping `status` to
+      // `active` in this same submit needs `has_variants` to already be
+      // true by the time that update runs, or
+      // `products_active_requires_variants` rejects it — see the guard
+      // above for the client-side version of that same check.
+      success = variantDraft == null
+          ? true
+          : await controller.saveCharacteristicsAndVariants(
+              productId: original.id,
+              characteristics: variantDraft.characteristics,
+              variants: variantDraft.variants,
+            );
+
+      // Once variants exist, `price_fcfa`/`stock_quantity`/`image_urls` on
+      // `products` are trigger-maintained aggregates
+      // (`product_variants_aggregate_products`, `0018_product_variants.sql`)
+      // that the save above just recomputed — `original` is whatever the
+      // caller had *before* this whole edit session (see this class's doc
+      // comment; `_loadFreshProduct` only ever refreshes `_currentProduct`,
+      // a separate reference). Basing the update below directly on it would
+      // silently revert what the trigger just set — concretely, this is
+      // what made a supplier's first variant photo (and its price/stock)
+      // vanish immediately after saving.
+      if (success && willHaveVariants) {
+        original = await ref.read(productRepositoryProvider).getById(original.id);
+      }
+
+      if (success) {
+        success = await controller.updateProduct(
+          // `sizes`/`colors` aren't editable from this form anymore (see
+          // `_submit`'s call site removal) — carried over unchanged rather
+          // than cleared, since old products may still have values in them
+          // and clearing on every save would silently wipe that data.
+          // `imageUrls`/`stockQuantity` are likewise carried over from
+          // `original` unchanged (not listed below) — correct here since,
+          // by this point, `original` is the fresh aggregate whenever
+          // variants are involved, and the plain product-level fields
+          // otherwise.
+          original.copyWith(
+            name: name,
+            description: description,
+            category: _category,
+            priceFcfa: willHaveVariants ? original.priceFcfa : priceFcfa,
+            compareAtPriceFcfa: compareAtPriceFcfa,
+            weightKg: weightKg,
+            city: city,
+            allowsSelfDelivery: _allowsSelfDelivery,
+            allowsMtcDelivery: _allowsMtcDelivery,
+            region: _region,
+            lowStockThreshold: lowStockThreshold,
+            status: _status,
+          ),
+        );
+      }
+      // Only meaningful for a still variant-less product: once
+      // `willHaveVariants` is true (already was, or just became true above),
+      // stock is scoped per-variant — `adjust_stock` itself refuses a
+      // product-level (`variantId: null`) delta once `has_variants` is set,
+      // and the field driving `stockQuantity` is only ever shown editable
+      // (rather than the read-only variants aggregate) while that's false.
       final stockDelta = stockQuantity - original.stockQuantity;
-      if (success && stockDelta != 0) {
+      if (success && !willHaveVariants && stockDelta != 0) {
         success = await controller.adjustStock(
           productId: original.id,
           quantityDelta: stockDelta,
@@ -193,11 +260,17 @@ class _SupplierProductFormScreenState
         stockQuantity: stockQuantity,
         weightKg: weightKg,
         city: city,
-        imageUrls: _imageUrls,
+        // No product-level photo picker anymore — a product with variants
+        // gets its photo from the default variant automatically
+        // (`product_variants_aggregate_products` trigger,
+        // `0018_product_variants.sql`), and one without variants can't
+        // reach `active` at all (`products_active_requires_variants`,
+        // `0021_backfill_default_variants_and_require_variant.sql`).
+        imageUrls: const [],
         allowsSelfDelivery: _allowsSelfDelivery,
         allowsMtcDelivery: _allowsMtcDelivery,
-        sizes: sizes,
-        colors: colors,
+        sizes: const [],
+        colors: const [],
         region: _region,
         lowStockThreshold: lowStockThreshold,
         compareAtPriceFcfa: compareAtPriceFcfa,
@@ -268,10 +341,17 @@ class _SupplierProductFormScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ImagePickerRow(
-                  imageUrls: _imageUrls,
-                  onAdd: _pickImage,
-                  onRemove: (path) => setState(() => _imageUrls.remove(path)),
+                // No product-level photo picker: a product's photos always
+                // come from its default variant (`product_variants_aggregate_products`
+                // trigger, `0018_product_variants.sql`) — managed from
+                // "Caractéristiques et variantes" below, not here.
+                Text(
+                  'Photos gérées depuis les caractéristiques et variantes '
+                  'ci-dessous — ce produit affiche automatiquement celles '
+                  'de sa variante par défaut.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 MtcTextField(
@@ -301,47 +381,89 @@ class _SupplierProductFormScreenState
                       setState(() => _category = value ?? _category),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: MtcTextField(
-                        label: 'Prix (FCFA)',
-                        controller: _priceController,
-                        keyboardType: TextInputType.number,
-                        validator: Validators.positiveInteger,
+                // Once a product has variants, its price/stock are
+                // trigger-maintained aggregates (min price / summed stock
+                // across variants, see `0018_product_variants.sql`) —
+                // editing them here would just get silently overwritten by
+                // the next variant change, so they become read-only and the
+                // supplier edits per variant from the manager screen below.
+                if (_hasVariants) ...[
+                  _ReadOnlyAggregateRow(
+                    priceLabel: _currentProduct!.maxPriceFcfa != null &&
+                            _currentProduct!.maxPriceFcfa !=
+                                _currentProduct!.priceFcfa
+                        ? '${_currentProduct!.priceFcfa} – ${_currentProduct!.maxPriceFcfa} FCFA'
+                        : '${_currentProduct!.priceFcfa} FCFA',
+                    stockLabel:
+                        '${_currentProduct!.stockQuantity} (${_currentProduct!.variantCount} variantes)',
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  MtcTextField(
+                    label: 'Prix barré (optionnel)',
+                    controller: _compareAtPriceController,
+                    keyboardType: TextInputType.number,
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: MtcTextField(
+                          label: 'Prix (FCFA)',
+                          controller: _priceController,
+                          keyboardType: TextInputType.number,
+                          validator: Validators.positiveInteger,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: MtcTextField(
-                        label: 'Prix barré (optionnel)',
-                        controller: _compareAtPriceController,
-                        keyboardType: TextInputType.number,
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: MtcTextField(
+                          label: 'Prix barré (optionnel)',
+                          controller: _compareAtPriceController,
+                          keyboardType: TextInputType.number,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: MtcTextField(
-                        label: 'Stock',
-                        controller: _stockController,
-                        keyboardType: TextInputType.number,
-                        validator: Validators.positiveInteger,
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        // Disabled at creation: a brand-new product has no
+                        // variants yet, so it starts at 0 regardless of
+                        // whatever's typed here — `_stockController`'s
+                        // default text ("0") is exactly what `_submit` reads
+                        // for `createProduct`. The real stock entry point is
+                        // the variant manager below, right after creation;
+                        // this field only becomes editable again once
+                        // editing an existing, still variant-less product
+                        // (see `_isEditing`), for manual corrections via
+                        // `adjustStock`.
+                        child: _isEditing
+                            ? MtcTextField(
+                                label: 'Stock',
+                                controller: _stockController,
+                                keyboardType: TextInputType.number,
+                                validator: Validators.positiveInteger,
+                              )
+                            : _AggregateField(
+                                label: 'Stock',
+                                value: '0',
+                                scheme: Theme.of(context).colorScheme,
+                                helperText:
+                                    'Défini après création, via les variantes',
+                              ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: MtcTextField(
-                        label: 'Seuil stock faible (optionnel)',
-                        controller: _lowStockThresholdController,
-                        keyboardType: TextInputType.number,
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: MtcTextField(
+                          label: 'Seuil stock faible (optionnel)',
+                          controller: _lowStockThresholdController,
+                          keyboardType: TextInputType.number,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   children: [
@@ -364,16 +486,6 @@ class _SupplierProductFormScreenState
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                MtcTextField(
-                  label: 'Tailles (séparées par des virgules, optionnel)',
-                  controller: _sizesController,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                MtcTextField(
-                  label: 'Couleurs (séparées par des virgules, optionnel)',
-                  controller: _colorsController,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<ProductRegion>(
@@ -429,12 +541,46 @@ class _SupplierProductFormScreenState
                         setState(() => _status = selection.first),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.xl),
-                MtcPrimaryButton(
-                  label: _isEditing ? 'Enregistrer' : 'Créer le produit',
-                  isLoading: state.isLoading,
-                  onPressed: _submit,
+                const SizedBox(height: AppSpacing.lg),
+                const Divider(),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Caractéristiques et variantes',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
+                const SizedBox(height: AppSpacing.sm),
+                if (_isEditing)
+                  _variantPanelGeneration == 0
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : VariantManagerPanel(
+                          key: _variantPanelKey,
+                          product: _currentProduct!,
+                          onComposingChanged: (composing) =>
+                              setState(() => _isComposingVariant = composing),
+                        )
+                else
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        'Vous pourrez ajouter des caractéristiques (couleur, '
+                        'stockage, taille…) une fois le produit créé.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.xl),
+                if (!_isComposingVariant)
+                  MtcPrimaryButton(
+                    label: _isEditing ? 'Enregistrer' : 'Créer le produit',
+                    isLoading: state.isLoading,
+                    onPressed: _submit,
+                  ),
               ],
             ),
           ),
@@ -444,72 +590,51 @@ class _SupplierProductFormScreenState
   }
 }
 
-class _ImagePickerRow extends StatelessWidget {
-  const _ImagePickerRow({
-    required this.imageUrls,
-    required this.onAdd,
-    required this.onRemove,
+class _ReadOnlyAggregateRow extends StatelessWidget {
+  const _ReadOnlyAggregateRow({
+    required this.priceLabel,
+    required this.stockLabel,
   });
 
-  final List<String> imageUrls;
-  final VoidCallback onAdd;
-  final ValueChanged<String> onRemove;
+  final String priceLabel;
+  final String stockLabel;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 84,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          for (final path in imageUrls)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    child: SizedBox(
-                      width: 84,
-                      height: 84,
-                      child: ResolvedImage(path: path, bucket: 'product-images'),
-                    ),
-                  ),
-                  Positioned(
-                    top: 2,
-                    right: 2,
-                    child: GestureDetector(
-                      onTap: () => onRemove(path),
-                      child: CircleAvatar(
-                        radius: 10,
-                        backgroundColor: scheme.error,
-                        child: const Icon(
-                          Icons.close_rounded,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          InkWell(
-            onTap: onAdd,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            child: Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                border: Border.all(color: scheme.outlineVariant),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-              ),
-              child: Icon(Icons.add_a_photo_outlined, color: scheme.primary),
-            ),
-          ),
-        ],
-      ),
+    return Row(
+      children: [
+        Expanded(
+          child: _AggregateField(label: 'Prix', value: priceLabel, scheme: scheme),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _AggregateField(label: 'Stock', value: stockLabel, scheme: scheme),
+        ),
+      ],
     );
   }
 }
+
+class _AggregateField extends StatelessWidget {
+  const _AggregateField({
+    required this.label,
+    required this.value,
+    required this.scheme,
+    this.helperText = 'Calculé depuis les variantes',
+  });
+
+  final String label;
+  final String value;
+  final ColorScheme scheme;
+  final String helperText;
+
+  @override
+  Widget build(BuildContext context) {
+    return InputDecorator(
+      decoration: InputDecoration(labelText: label, helperText: helperText),
+      child: Text(value, style: TextStyle(color: scheme.onSurfaceVariant)),
+    );
+  }
+}
+

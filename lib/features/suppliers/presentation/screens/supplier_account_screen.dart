@@ -3,11 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:latlong2/latlong.dart';
+
+import 'package:mtc_app/core/mock_data/malian_locations.dart';
+
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/features/tracking/presentation/screens/location_picker_screen.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/core/widgets/resolved_image.dart';
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
@@ -15,6 +21,43 @@ import 'package:mtc_app/features/suppliers/presentation/providers/operating_supp
 import '../../domain/entities/supplier_profile.dart';
 import '../controllers/supplier_account_controller.dart';
 import '../providers/supplier_providers.dart';
+
+/// Mirrors `order_detail_screen.dart`'s "Annuler cette commande ?" dialog —
+/// the only other irreversible-action confirmation in the app. Mentions the
+/// two blocking conditions from `deactivate_account()`
+/// (`0036_account_deactivation.sql`) up front so a failure isn't a surprise.
+Future<void> _confirmAndDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Supprimer votre compte ?'),
+      content: const Text(
+        'Votre boutique et vos produits seront désactivés et vous serez '
+        'déconnecté. Impossible si vous avez des commandes ou un retrait en '
+        'cours. Cette action est définitive.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Retour'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Supprimer mon compte'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  final success = await ref.read(authControllerProvider.notifier).deleteAccount();
+  if (!success && context.mounted) {
+    final error = ref.read(authControllerProvider).error;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+    );
+  }
+}
 
 /// "Profil" tab of `SupplierShell` — the editable storefront profile
 /// (description, adresse, horaires, zone de livraison, statut
@@ -75,6 +118,24 @@ class SupplierAccountScreen extends ConsumerWidget {
                 icon: const Icon(Icons.logout_rounded),
                 label: const Text('Déconnexion'),
               ),
+              // Staff (`SupplierPrincipalUser`) share this exact screen with
+              // no role branching anywhere else in it — deliberately
+              // excluded here, since a staff account is provisioned
+              // internally and never self-service (`deactivate_account()`
+              // rejects it server-side too, this just keeps the button
+              // from ever being shown to begin with).
+              if (user is SupplierTiersUser) ...[
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: () => _confirmAndDeleteAccount(context, ref),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                    side: BorderSide(color: Theme.of(context).colorScheme.error),
+                  ),
+                  icon: const Icon(Icons.delete_forever_outlined),
+                  label: const Text('Supprimer mon compte'),
+                ),
+              ],
             ],
           ),
         ),
@@ -109,6 +170,10 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
     text: widget.supplier.openingHoursLabel,
   );
   late String? _bannerPath = widget.supplier.bannerUrl;
+
+  /// Point de retrait posé sur la carte pendant cette session d'édition.
+  /// `null` tant qu'on n'y a pas touché : celui déjà enregistré est conservé.
+  LatLng? _pickupPoint;
   late bool _isOpen = widget.supplier.isOpen;
 
   @override
@@ -176,6 +241,7 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
           fullAddress: _addressController.text.trim().isEmpty
               ? null
               : _addressController.text.trim(),
+          pickupPoint: _pickupPoint,
           publicPhoneNumbers: _splitCsv(_phonesController.text),
           deliveryZones: _splitCsv(_zonesController.text),
           openingHoursLabel: _hoursController.text.trim().isEmpty
@@ -224,6 +290,15 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
         MtcTextField(
           label: 'Adresse complète (optionnel)',
           controller: _addressController,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        // Le texte de l'adresse sert à l'humain, le repère sert au livreur.
+        // Les deux sont nécessaires : « Quartier du Fleuve » ne mène nulle
+        // part sur une carte, et des coordonnées seules ne se lisent pas.
+        _PickupPointField(
+          supplier: widget.supplier,
+          chosen: _pickupPoint,
+          onPicked: (point) => setState(() => _pickupPoint = point),
         ),
         const SizedBox(height: AppSpacing.md),
         MtcTextField(
@@ -304,6 +379,80 @@ class _BannerPicker extends StatelessWidget {
                 ],
               ),
       ),
+    );
+  }
+}
+
+/// Bouton de choix du point de retrait, avec son état.
+///
+/// Un fournisseur qui livre par MTC **doit** en avoir un : sans lui, la
+/// remise à la livraison est refusée côté serveur
+/// (`0050_mtc_delivery_requires_pickup_point.sql`). Le dire ici évite de
+/// découvrir le blocage au pire moment, une commande déjà payée en attente.
+class _PickupPointField extends StatelessWidget {
+  const _PickupPointField({
+    required this.supplier,
+    required this.chosen,
+    required this.onPicked,
+  });
+
+  final SupplierProfile supplier;
+  final LatLng? chosen;
+  final ValueChanged<LatLng> onPicked;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final existing = supplier.addressLatitude != null &&
+            supplier.addressLongitude != null
+        ? LatLng(supplier.addressLatitude!, supplier.addressLongitude!)
+        : null;
+    final point = chosen ?? existing;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () async {
+            final picked = await pickLocation(
+              context,
+              initialPoint:
+                  point ??
+                  MalianCity.values
+                      .firstWhere(
+                        (c) =>
+                            c.label.toLowerCase() ==
+                            supplier.city.toLowerCase(),
+                        orElse: () => MalianCity.bamako,
+                      )
+                      .coordinates,
+              title: 'Point de retrait',
+              subtitle:
+                  'Placez le repère sur la porte de votre boutique. C\'est '
+                  'là que le livreur viendra chercher les commandes.',
+            );
+            if (picked != null) onPicked(picked);
+          },
+          icon: Icon(
+            point == null
+                ? Icons.add_location_alt_outlined
+                : Icons.check_circle_outline_rounded,
+          ),
+          label: Text(
+            point == null
+                ? 'Placer le point de retrait'
+                : 'Point de retrait placé — modifier',
+          ),
+        ),
+        if (point == null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(
+              'Obligatoire pour confier vos commandes à la livraison MTC.',
+              style: TextStyle(color: scheme.error, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
 }

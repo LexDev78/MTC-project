@@ -54,6 +54,12 @@ class SupabaseAuthDatasource {
     return _client.from('suppliers').select().eq('id', supplierId).single();
   }
 
+  /// Fiche livreur (`couriers`, `0046_couriers_and_deliveries.sql`) — créée
+  /// à l'inscription par `handle_new_user()`, comme la fiche fournisseur.
+  Future<Map<String, dynamic>> fetchCourierRow(String courierId) {
+    return _client.from('couriers').select().eq('id', courierId).single();
+  }
+
   Future<void> updateSupplierVerificationStatus({
     required String supplierId,
     required String status,
@@ -62,5 +68,13 @@ class SupabaseAuthDatasource {
         .from('suppliers')
         .update({'verification_status': status})
         .eq('id', supplierId);
+  }
+
+  /// Soft-deletes the caller's own account — see `deactivate_account()`
+  /// (`0036_account_deactivation.sql`) for the exact rules (blocks a
+  /// supplier with unresolved orders/payouts, staff accounts can't
+  /// self-delete at all).
+  Future<void> deactivateAccount() {
+    return _client.rpc('deactivate_account');
   }
 }

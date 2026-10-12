@@ -16,6 +16,8 @@ _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
       unitPriceFcfaSnapshot: (json['unit_price_fcfa_snapshot'] as num).toInt(),
       quantity: (json['quantity'] as num).toInt(),
       addedAt: DateTime.parse(json['added_at'] as String),
+      variantId: json['variant_id'] as String?,
+      variantNameSnapshot: json['variant_name_snapshot'] as String?,
     );
 
 Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
@@ -28,4 +30,6 @@ Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
       'unit_price_fcfa_snapshot': instance.unitPriceFcfaSnapshot,
       'quantity': instance.quantity,
       'added_at': instance.addedAt.toIso8601String(),
+      'variant_id': instance.variantId,
+      'variant_name_snapshot': instance.variantNameSnapshot,
     };

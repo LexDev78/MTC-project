@@ -62,7 +62,7 @@ void main() {
 
       final ok = await container
           .read(commentControllerProvider.notifier)
-          .addComment(productId: 'product-001', text: 'Une nouvelle question.');
+          .addComment(productId: DemoIds.product001, text: 'Une nouvelle question.');
       expect(ok, isTrue);
 
       final comments = await container
@@ -85,6 +85,24 @@ void main() {
     'resolves the product name, flagging which ones already got a supplier '
     'reply',
     () async {
+      // Both dependencies are `autoDispose` — without a listener held open
+      // across the two reads below, either can be torn down the instant its
+      // own `.future` resolves (no more subscribers), so
+      // `supplierCommentInboxProvider`'s `ref.watch` a moment later can end
+      // up creating a *fresh* instance (back to `AsyncLoading`) instead of
+      // reusing the one just awaited. `container.listen` keeps both alive
+      // for the rest of the test, same as a still-mounted screen would.
+      final commentsSub = container.listen(
+        supplierProductCommentsProvider(DemoIds.supplierBogolanBamako),
+        (_, _) {},
+      );
+      addTearDown(commentsSub.close);
+      final productsSub = container.listen(
+        myProductsProvider(DemoIds.supplierBogolanBamako),
+        (_, _) {},
+      );
+      addTearDown(productsSub.close);
+
       await container.read(
         supplierProductCommentsProvider(DemoIds.supplierBogolanBamako).future,
       );
@@ -102,11 +120,11 @@ void main() {
       expect(items, hasLength(2));
       expect(items.every((i) => i.productName == 'Tissu Bogolan traditionnel'), isTrue);
 
-      final answered = items.firstWhere((i) => i.comment.id == 'comment-001');
+      final answered = items.firstWhere((i) => i.comment.id == DemoIds.comment001);
       expect(answered.hasSupplierReply, isTrue);
       expect(answered.replies, hasLength(1));
 
-      final unanswered = items.firstWhere((i) => i.comment.id == 'comment-003');
+      final unanswered = items.firstWhere((i) => i.comment.id == DemoIds.comment003);
       expect(unanswered.hasSupplierReply, isFalse);
       expect(unanswered.replies, isEmpty);
     },

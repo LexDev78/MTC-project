@@ -20,7 +20,6 @@ _$SupplierProfileImpl _$$SupplierProfileImplFromJson(
     _$VerificationStatusEnumMap,
     json['verification_status'],
   ),
-  avatarUrl: json['avatar_url'] as String?,
   legalType: $enumDecodeNullable(
     _$SupplierLegalTypeEnumMap,
     json['legal_type'],
@@ -56,7 +55,6 @@ Map<String, dynamic> _$$SupplierProfileImplToJson(
   'product_count': instance.productCount,
   'verification_status':
       _$VerificationStatusEnumMap[instance.verificationStatus],
-  'avatar_url': instance.avatarUrl,
   'legal_type': _$SupplierLegalTypeEnumMap[instance.legalType],
   'description': instance.description,
   'banner_url': instance.bannerUrl,

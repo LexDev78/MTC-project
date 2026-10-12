@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,13 @@ class CartLineItem extends ConsumerWidget {
     final brightness = Theme.of(context).brightness;
     final controller = ref.read(cartControllerProvider.notifier);
     final product = ref.watch(productDetailProvider(item.productId)).valueOrNull;
+    final variant = product?.variants.firstWhereOrNull((v) => v.id == item.variantId);
+    // The variant's own stock when this line has one, falling back to the
+    // product's (either a plain variant-less product, or a variant that's
+    // since been removed by the supplier) — `null` only while [product]
+    // itself hasn't loaded yet, in which case the stepper below stays
+    // unconstrained rather than blocking on a still-loading limit.
+    final resolvedStock = variant?.stockQuantity ?? product?.stockQuantity;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
@@ -41,9 +49,9 @@ class CartLineItem extends ConsumerWidget {
               width: 64,
               height: 64,
               child: ProductImage(
-                imageUrl: product == null || product.imageUrls.isEmpty
-                    ? null
-                    : product.imageUrls.first,
+                imageUrl:
+                    variant?.imageUrls.firstOrNull ??
+                    product?.imageUrls.firstOrNull,
                 icon: Icons.inventory_2_outlined,
               ),
             ),
@@ -61,6 +69,15 @@ class CartLineItem extends ConsumerWidget {
                     context,
                   ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
+                if (item.variantNameSnapshot != null)
+                  Text(
+                    item.variantNameSnapshot!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 const SizedBox(height: 2),
                 CurrencyText(
                   item.unitPriceFcfaSnapshot,
@@ -68,6 +85,17 @@ class CartLineItem extends ConsumerWidget {
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
+                if (resolvedStock != null)
+                  Text(
+                    resolvedStock > 0
+                        ? '$resolvedStock en stock'
+                        : 'Rupture de stock',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: resolvedStock > 0
+                          ? scheme.onSurfaceVariant
+                          : scheme.error,
+                    ),
+                  ),
                 const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
@@ -114,6 +142,7 @@ class CartLineItem extends ConsumerWidget {
               ),
               QuantityStepper(
                 quantity: item.quantity,
+                maxQuantity: resolvedStock,
                 onChanged: (value) => controller.updateQuantity(item.id, value),
               ),
             ],

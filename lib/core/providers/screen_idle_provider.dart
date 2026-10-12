@@ -5,11 +5,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Whether the client has gone [idleThreshold] without any real pointer
 /// activity (tap, drag, scroll — anywhere on the screen, not just on one
 /// widget). `ScreenIdleDetector` (core/widgets) feeds this by reporting
-/// every pointer event it sees; `_AutoScrollingProductRow`
-/// (features/catalog/presentation/screens/catalog_tab_screen.dart) only
-/// auto-advances while this is `true`, so browsing never fights an
-/// auto-scroll happening underneath it — the row only moves once the
-/// client has genuinely stopped interacting with the page.
+/// every pointer event it sees.
+///
+/// ATTENTION — plus aucun lecteur aujourd'hui. Son unique consommateur
+/// était `_AutoScrollingProductRow`, dans les rangées par catégorie de
+/// l'accueil : elles n'auto-avançaient que pendant l'inactivité, pour que
+/// le défilement ne se batte jamais avec la navigation du client. La
+/// restructuration de l'accueil a remplacé ces rangées par une grille
+/// plate (`CatalogTabScreen` → `ProductGrid`) et ce widget a disparu.
+///
+/// Il reste donc un `Timer` périodique qui bascule un état que personne ne
+/// regarde. Conservé tel quel plutôt que supprimé — à réutiliser si un
+/// comportement « au repos » revient (carrousel, rafraîchissement
+/// discret…), à supprimer avec `ScreenIdleDetector` et son usage dans
+/// `ClientHomeScreen` sinon.
 class ScreenIdleNotifier extends Notifier<bool> {
   static const idleThreshold = Duration(seconds: 10);
 

@@ -26,6 +26,11 @@ mixin _$OrderItem {
   int get unitPriceFcfaSnapshot => throw _privateConstructorUsedError;
   int get quantity => throw _privateConstructorUsedError;
 
+  /// Which variant was ordered, if the product had variants at order
+  /// time — `null` for a variant-less product.
+  String? get variantId => throw _privateConstructorUsedError;
+  String? get variantNameSnapshot => throw _privateConstructorUsedError;
+
   /// Serializes this OrderItem to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -46,6 +51,8 @@ abstract class $OrderItemCopyWith<$Res> {
     String productNameSnapshot,
     int unitPriceFcfaSnapshot,
     int quantity,
+    String? variantId,
+    String? variantNameSnapshot,
   });
 }
 
@@ -68,6 +75,8 @@ class _$OrderItemCopyWithImpl<$Res, $Val extends OrderItem>
     Object? productNameSnapshot = null,
     Object? unitPriceFcfaSnapshot = null,
     Object? quantity = null,
+    Object? variantId = freezed,
+    Object? variantNameSnapshot = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -87,6 +96,14 @@ class _$OrderItemCopyWithImpl<$Res, $Val extends OrderItem>
                 ? _value.quantity
                 : quantity // ignore: cast_nullable_to_non_nullable
                       as int,
+            variantId: freezed == variantId
+                ? _value.variantId
+                : variantId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            variantNameSnapshot: freezed == variantNameSnapshot
+                ? _value.variantNameSnapshot
+                : variantNameSnapshot // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -107,6 +124,8 @@ abstract class _$$OrderItemImplCopyWith<$Res>
     String productNameSnapshot,
     int unitPriceFcfaSnapshot,
     int quantity,
+    String? variantId,
+    String? variantNameSnapshot,
   });
 }
 
@@ -128,6 +147,8 @@ class __$$OrderItemImplCopyWithImpl<$Res>
     Object? productNameSnapshot = null,
     Object? unitPriceFcfaSnapshot = null,
     Object? quantity = null,
+    Object? variantId = freezed,
+    Object? variantNameSnapshot = freezed,
   }) {
     return _then(
       _$OrderItemImpl(
@@ -147,6 +168,14 @@ class __$$OrderItemImplCopyWithImpl<$Res>
             ? _value.quantity
             : quantity // ignore: cast_nullable_to_non_nullable
                   as int,
+        variantId: freezed == variantId
+            ? _value.variantId
+            : variantId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        variantNameSnapshot: freezed == variantNameSnapshot
+            ? _value.variantNameSnapshot
+            : variantNameSnapshot // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -160,6 +189,8 @@ class _$OrderItemImpl implements _OrderItem {
     required this.productNameSnapshot,
     required this.unitPriceFcfaSnapshot,
     required this.quantity,
+    this.variantId,
+    this.variantNameSnapshot,
   });
 
   factory _$OrderItemImpl.fromJson(Map<String, dynamic> json) =>
@@ -174,9 +205,16 @@ class _$OrderItemImpl implements _OrderItem {
   @override
   final int quantity;
 
+  /// Which variant was ordered, if the product had variants at order
+  /// time — `null` for a variant-less product.
+  @override
+  final String? variantId;
+  @override
+  final String? variantNameSnapshot;
+
   @override
   String toString() {
-    return 'OrderItem(productId: $productId, productNameSnapshot: $productNameSnapshot, unitPriceFcfaSnapshot: $unitPriceFcfaSnapshot, quantity: $quantity)';
+    return 'OrderItem(productId: $productId, productNameSnapshot: $productNameSnapshot, unitPriceFcfaSnapshot: $unitPriceFcfaSnapshot, quantity: $quantity, variantId: $variantId, variantNameSnapshot: $variantNameSnapshot)';
   }
 
   @override
@@ -191,7 +229,11 @@ class _$OrderItemImpl implements _OrderItem {
             (identical(other.unitPriceFcfaSnapshot, unitPriceFcfaSnapshot) ||
                 other.unitPriceFcfaSnapshot == unitPriceFcfaSnapshot) &&
             (identical(other.quantity, quantity) ||
-                other.quantity == quantity));
+                other.quantity == quantity) &&
+            (identical(other.variantId, variantId) ||
+                other.variantId == variantId) &&
+            (identical(other.variantNameSnapshot, variantNameSnapshot) ||
+                other.variantNameSnapshot == variantNameSnapshot));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -202,6 +244,8 @@ class _$OrderItemImpl implements _OrderItem {
     productNameSnapshot,
     unitPriceFcfaSnapshot,
     quantity,
+    variantId,
+    variantNameSnapshot,
   );
 
   /// Create a copy of OrderItem
@@ -224,6 +268,8 @@ abstract class _OrderItem implements OrderItem {
     required final String productNameSnapshot,
     required final int unitPriceFcfaSnapshot,
     required final int quantity,
+    final String? variantId,
+    final String? variantNameSnapshot,
   }) = _$OrderItemImpl;
 
   factory _OrderItem.fromJson(Map<String, dynamic> json) =
@@ -237,6 +283,13 @@ abstract class _OrderItem implements OrderItem {
   int get unitPriceFcfaSnapshot;
   @override
   int get quantity;
+
+  /// Which variant was ordered, if the product had variants at order
+  /// time — `null` for a variant-less product.
+  @override
+  String? get variantId;
+  @override
+  String? get variantNameSnapshot;
 
   /// Create a copy of OrderItem
   /// with the given fields replaced by the non-null parameter values.

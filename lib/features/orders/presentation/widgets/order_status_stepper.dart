@@ -12,6 +12,26 @@ const _steps = [
   OrderStatus.delivered,
 ];
 
+/// Glyphs already used for the same concept elsewhere in this app
+/// (`eta_banner.dart`'s delivered/in-transit icons, `order_detail_screen.dart`'s
+/// "Suivre la livraison"/paid-status icons, `order_item_row.dart`'s package
+/// icon) — kept local to this widget since it's the only place that needs a
+/// full one-icon-per-status mapping.
+extension _OrderStatusIcon on OrderStatus {
+  IconData get icon => switch (this) {
+    OrderStatus.pending => Icons.schedule_rounded,
+    OrderStatus.confirmed => Icons.check_circle_outline_rounded,
+    OrderStatus.preparing => Icons.inventory_2_outlined,
+    OrderStatus.inTransit => Icons.local_shipping_rounded,
+    OrderStatus.delivered => Icons.check_circle_rounded,
+    OrderStatus.cancelled => Icons.cancel_rounded,
+  };
+}
+
+/// The order's progress through [_steps] — an icon per stage rather than a
+/// word, so it reads at a glance instead of needing translation/reading time;
+/// the step's actual name is still available as text via the status badge
+/// shown elsewhere on the same screen (`group.status.label`).
 class OrderStatusStepper extends StatelessWidget {
   const OrderStatusStepper({super.key, required this.status});
 
@@ -34,36 +54,17 @@ class OrderStatusStepper extends StatelessWidget {
     final currentIndex = _steps.indexOf(status);
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         for (var i = 0; i < _steps.length; i++) ...[
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOutCubic,
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: i <= currentIndex
-                        ? scheme.primary
-                        : scheme.surfaceContainerHighest,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _steps[i].label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: i == currentIndex
-                        ? FontWeight.w700
-                        : FontWeight.w400,
-                    color: i <= currentIndex
-                        ? scheme.onSurface
-                        : scheme.onSurfaceVariant,
-                  ),
+                _StepIcon(
+                  icon: _steps[i].icon,
+                  reached: i <= currentIndex,
+                  current: i == currentIndex,
                 ),
               ],
             ),
@@ -74,7 +75,6 @@ class OrderStatusStepper extends StatelessWidget {
                 duration: const Duration(milliseconds: 400),
                 curve: Curves.easeOutCubic,
                 height: 2,
-                margin: const EdgeInsets.only(bottom: 16),
                 color: i < currentIndex
                     ? scheme.primary
                     : scheme.surfaceContainerHighest,
@@ -82,6 +82,41 @@ class OrderStatusStepper extends StatelessWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+class _StepIcon extends StatelessWidget {
+  const _StepIcon({
+    required this.icon,
+    required this.reached,
+    required this.current,
+  });
+
+  final IconData icon;
+  final bool reached;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final size = current ? 34.0 : 28.0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: reached ? scheme.primary : scheme.surfaceContainerHighest,
+        border: current ? Border.all(color: scheme.primary, width: 2) : null,
+      ),
+      child: Icon(
+        icon,
+        size: current ? 20 : 16,
+        color: reached ? scheme.onPrimary : scheme.onSurfaceVariant,
+      ),
     );
   }
 }

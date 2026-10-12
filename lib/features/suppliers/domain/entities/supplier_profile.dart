@@ -22,7 +22,6 @@ class SupplierProfile with _$SupplierProfile {
     required int ratingCount,
     required int productCount,
     VerificationStatus? verificationStatus,
-    String? avatarUrl,
     // Null for `SupplierType.principal` (MTC itself has no legal form to
     // register) — only ever set for `SupplierType.tiers`.
     SupplierLegalType? legalType,

@@ -8,7 +8,7 @@ import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart
 
 import '../../domain/entities/supplier_kyc.dart';
 import '../controllers/kyc_review_controller.dart';
-import '../widgets/document_upload_tile.dart';
+import '../widgets/kyc_document_viewer.dart';
 
 /// One dossier's full detail for a staff reviewer, reached from
 /// `KycReviewQueueScreen` (which passes the [SupplierKyc] via `extra` — it
@@ -114,15 +114,18 @@ class _KycReviewDetailScreenState
           if (kyc is SupplierKycCompany) ..._companyFields(context, kyc),
           Text('Documents', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.sm),
+          if (kyc.documents.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                'Aucune pièce transmise.',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           for (final document in kyc.documents)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: DocumentUploadTile(
-                type: document.type,
-                existing: document,
-                onPicked: (_) {},
-                onRemove: null,
-              ),
+              child: KycDocumentViewer(document: document),
             ),
           const SizedBox(height: AppSpacing.xl),
           Row(

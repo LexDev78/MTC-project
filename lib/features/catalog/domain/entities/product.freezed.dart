@@ -85,6 +85,36 @@ mixin _$Product {
   /// dashboard, not client-facing anywhere.
   int get viewCount => throw _privateConstructorUsedError;
 
+  /// Trigger-maintained (`0018_product_variants.sql`) — the only
+  /// reliable "does this product have variants" signal, true even from
+  /// list queries (`watchProducts`/`watchMyProducts`) that don't embed
+  /// [characteristics]/[variants] below. Never infer this from
+  /// `characteristics.isEmpty`/`variants.isEmpty`: those are only
+  /// populated by `getById`'s nested select.
+  bool get hasVariants => throw _privateConstructorUsedError;
+
+  /// Trigger-maintained max variant price — `null` unless [hasVariants].
+  /// Paired with [priceFcfa] (trigger-maintained min variant price once
+  /// variants exist) to render "à partir de" range pricing without
+  /// fetching [variants].
+  int? get maxPriceFcfa => throw _privateConstructorUsedError;
+
+  /// Trigger-maintained count of this product's variants — `0` unless
+  /// [hasVariants]. Lets list views show "N variantes" without embedding
+  /// the full [variants] list.
+  int get variantCount => throw _privateConstructorUsedError;
+
+  /// This product's characteristics (couleur/stockage/...), each with its
+  /// own options — only populated via `getById`'s nested select (product
+  /// detail, cart line, checkout, favorites resolve, chat attachment,
+  /// stock-adjust sheet). Always empty from list queries.
+  List<ProductCharacteristic> get characteristics =>
+      throw _privateConstructorUsedError;
+
+  /// This product's purchasable variants — same nested-select-only
+  /// population as [characteristics].
+  List<ProductVariant> get variants => throw _privateConstructorUsedError;
+
   /// Serializes this Product to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -125,6 +155,11 @@ abstract class $ProductCopyWith<$Res> {
     int? lowStockThreshold,
     int? compareAtPriceFcfa,
     int viewCount,
+    bool hasVariants,
+    int? maxPriceFcfa,
+    int variantCount,
+    List<ProductCharacteristic> characteristics,
+    List<ProductVariant> variants,
   });
 }
 
@@ -168,6 +203,11 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
     Object? lowStockThreshold = freezed,
     Object? compareAtPriceFcfa = freezed,
     Object? viewCount = null,
+    Object? hasVariants = null,
+    Object? maxPriceFcfa = freezed,
+    Object? variantCount = null,
+    Object? characteristics = null,
+    Object? variants = null,
   }) {
     return _then(
       _value.copyWith(
@@ -271,6 +311,26 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
                 ? _value.viewCount
                 : viewCount // ignore: cast_nullable_to_non_nullable
                       as int,
+            hasVariants: null == hasVariants
+                ? _value.hasVariants
+                : hasVariants // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            maxPriceFcfa: freezed == maxPriceFcfa
+                ? _value.maxPriceFcfa
+                : maxPriceFcfa // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            variantCount: null == variantCount
+                ? _value.variantCount
+                : variantCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+            characteristics: null == characteristics
+                ? _value.characteristics
+                : characteristics // ignore: cast_nullable_to_non_nullable
+                      as List<ProductCharacteristic>,
+            variants: null == variants
+                ? _value.variants
+                : variants // ignore: cast_nullable_to_non_nullable
+                      as List<ProductVariant>,
           )
           as $Val,
     );
@@ -311,6 +371,11 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
     int? lowStockThreshold,
     int? compareAtPriceFcfa,
     int viewCount,
+    bool hasVariants,
+    int? maxPriceFcfa,
+    int variantCount,
+    List<ProductCharacteristic> characteristics,
+    List<ProductVariant> variants,
   });
 }
 
@@ -353,6 +418,11 @@ class __$$ProductImplCopyWithImpl<$Res>
     Object? lowStockThreshold = freezed,
     Object? compareAtPriceFcfa = freezed,
     Object? viewCount = null,
+    Object? hasVariants = null,
+    Object? maxPriceFcfa = freezed,
+    Object? variantCount = null,
+    Object? characteristics = null,
+    Object? variants = null,
   }) {
     return _then(
       _$ProductImpl(
@@ -456,6 +526,26 @@ class __$$ProductImplCopyWithImpl<$Res>
             ? _value.viewCount
             : viewCount // ignore: cast_nullable_to_non_nullable
                   as int,
+        hasVariants: null == hasVariants
+            ? _value.hasVariants
+            : hasVariants // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        maxPriceFcfa: freezed == maxPriceFcfa
+            ? _value.maxPriceFcfa
+            : maxPriceFcfa // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        variantCount: null == variantCount
+            ? _value.variantCount
+            : variantCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+        characteristics: null == characteristics
+            ? _value._characteristics
+            : characteristics // ignore: cast_nullable_to_non_nullable
+                  as List<ProductCharacteristic>,
+        variants: null == variants
+            ? _value._variants
+            : variants // ignore: cast_nullable_to_non_nullable
+                  as List<ProductVariant>,
       ),
     );
   }
@@ -490,9 +580,16 @@ class _$ProductImpl implements _Product {
     this.lowStockThreshold,
     this.compareAtPriceFcfa,
     this.viewCount = 0,
+    this.hasVariants = false,
+    this.maxPriceFcfa,
+    this.variantCount = 0,
+    final List<ProductCharacteristic> characteristics = const [],
+    final List<ProductVariant> variants = const [],
   }) : _imageUrls = imageUrls,
        _sizes = sizes,
-       _colors = colors;
+       _colors = colors,
+       _characteristics = characteristics,
+       _variants = variants;
 
   factory _$ProductImpl.fromJson(Map<String, dynamic> json) =>
       _$$ProductImplFromJson(json);
@@ -614,9 +711,65 @@ class _$ProductImpl implements _Product {
   @JsonKey()
   final int viewCount;
 
+  /// Trigger-maintained (`0018_product_variants.sql`) — the only
+  /// reliable "does this product have variants" signal, true even from
+  /// list queries (`watchProducts`/`watchMyProducts`) that don't embed
+  /// [characteristics]/[variants] below. Never infer this from
+  /// `characteristics.isEmpty`/`variants.isEmpty`: those are only
+  /// populated by `getById`'s nested select.
+  @override
+  @JsonKey()
+  final bool hasVariants;
+
+  /// Trigger-maintained max variant price — `null` unless [hasVariants].
+  /// Paired with [priceFcfa] (trigger-maintained min variant price once
+  /// variants exist) to render "à partir de" range pricing without
+  /// fetching [variants].
+  @override
+  final int? maxPriceFcfa;
+
+  /// Trigger-maintained count of this product's variants — `0` unless
+  /// [hasVariants]. Lets list views show "N variantes" without embedding
+  /// the full [variants] list.
+  @override
+  @JsonKey()
+  final int variantCount;
+
+  /// This product's characteristics (couleur/stockage/...), each with its
+  /// own options — only populated via `getById`'s nested select (product
+  /// detail, cart line, checkout, favorites resolve, chat attachment,
+  /// stock-adjust sheet). Always empty from list queries.
+  final List<ProductCharacteristic> _characteristics;
+
+  /// This product's characteristics (couleur/stockage/...), each with its
+  /// own options — only populated via `getById`'s nested select (product
+  /// detail, cart line, checkout, favorites resolve, chat attachment,
+  /// stock-adjust sheet). Always empty from list queries.
+  @override
+  @JsonKey()
+  List<ProductCharacteristic> get characteristics {
+    if (_characteristics is EqualUnmodifiableListView) return _characteristics;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_characteristics);
+  }
+
+  /// This product's purchasable variants — same nested-select-only
+  /// population as [characteristics].
+  final List<ProductVariant> _variants;
+
+  /// This product's purchasable variants — same nested-select-only
+  /// population as [characteristics].
+  @override
+  @JsonKey()
+  List<ProductVariant> get variants {
+    if (_variants is EqualUnmodifiableListView) return _variants;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_variants);
+  }
+
   @override
   String toString() {
-    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, weightKg: $weightKg, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region, status: $status, lowStockThreshold: $lowStockThreshold, compareAtPriceFcfa: $compareAtPriceFcfa, viewCount: $viewCount)';
+    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, weightKg: $weightKg, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region, status: $status, lowStockThreshold: $lowStockThreshold, compareAtPriceFcfa: $compareAtPriceFcfa, viewCount: $viewCount, hasVariants: $hasVariants, maxPriceFcfa: $maxPriceFcfa, variantCount: $variantCount, characteristics: $characteristics, variants: $variants)';
   }
 
   @override
@@ -668,7 +821,18 @@ class _$ProductImpl implements _Product {
             (identical(other.compareAtPriceFcfa, compareAtPriceFcfa) ||
                 other.compareAtPriceFcfa == compareAtPriceFcfa) &&
             (identical(other.viewCount, viewCount) ||
-                other.viewCount == viewCount));
+                other.viewCount == viewCount) &&
+            (identical(other.hasVariants, hasVariants) ||
+                other.hasVariants == hasVariants) &&
+            (identical(other.maxPriceFcfa, maxPriceFcfa) ||
+                other.maxPriceFcfa == maxPriceFcfa) &&
+            (identical(other.variantCount, variantCount) ||
+                other.variantCount == variantCount) &&
+            const DeepCollectionEquality().equals(
+              other._characteristics,
+              _characteristics,
+            ) &&
+            const DeepCollectionEquality().equals(other._variants, _variants));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -700,6 +864,11 @@ class _$ProductImpl implements _Product {
     lowStockThreshold,
     compareAtPriceFcfa,
     viewCount,
+    hasVariants,
+    maxPriceFcfa,
+    variantCount,
+    const DeepCollectionEquality().hash(_characteristics),
+    const DeepCollectionEquality().hash(_variants),
   ]);
 
   /// Create a copy of Product
@@ -743,6 +912,11 @@ abstract class _Product implements Product {
     final int? lowStockThreshold,
     final int? compareAtPriceFcfa,
     final int viewCount,
+    final bool hasVariants,
+    final int? maxPriceFcfa,
+    final int variantCount,
+    final List<ProductCharacteristic> characteristics,
+    final List<ProductVariant> variants,
   }) = _$ProductImpl;
 
   factory _Product.fromJson(Map<String, dynamic> json) = _$ProductImpl.fromJson;
@@ -835,6 +1009,40 @@ abstract class _Product implements Product {
   /// dashboard, not client-facing anywhere.
   @override
   int get viewCount;
+
+  /// Trigger-maintained (`0018_product_variants.sql`) — the only
+  /// reliable "does this product have variants" signal, true even from
+  /// list queries (`watchProducts`/`watchMyProducts`) that don't embed
+  /// [characteristics]/[variants] below. Never infer this from
+  /// `characteristics.isEmpty`/`variants.isEmpty`: those are only
+  /// populated by `getById`'s nested select.
+  @override
+  bool get hasVariants;
+
+  /// Trigger-maintained max variant price — `null` unless [hasVariants].
+  /// Paired with [priceFcfa] (trigger-maintained min variant price once
+  /// variants exist) to render "à partir de" range pricing without
+  /// fetching [variants].
+  @override
+  int? get maxPriceFcfa;
+
+  /// Trigger-maintained count of this product's variants — `0` unless
+  /// [hasVariants]. Lets list views show "N variantes" without embedding
+  /// the full [variants] list.
+  @override
+  int get variantCount;
+
+  /// This product's characteristics (couleur/stockage/...), each with its
+  /// own options — only populated via `getById`'s nested select (product
+  /// detail, cart line, checkout, favorites resolve, chat attachment,
+  /// stock-adjust sheet). Always empty from list queries.
+  @override
+  List<ProductCharacteristic> get characteristics;
+
+  /// This product's purchasable variants — same nested-select-only
+  /// population as [characteristics].
+  @override
+  List<ProductVariant> get variants;
 
   /// Create a copy of Product
   /// with the given fields replaced by the non-null parameter values.

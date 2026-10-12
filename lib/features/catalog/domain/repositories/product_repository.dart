@@ -1,6 +1,8 @@
 import '../entities/product.dart';
 import '../entities/product_category.dart';
+import '../entities/product_characteristic.dart';
 import '../entities/product_status.dart';
+import '../entities/product_variant.dart';
 import '../entities/stock_movement.dart';
 
 /// A product's favorite ("j'aime") and order counts, aggregated
@@ -71,15 +73,28 @@ abstract interface class ProductRepository {
   Future<void> setStatus({required String id, required ProductStatus status});
 
   /// The single write path for every stock change, manual or automatic
-  /// (`CheckoutController.placeOrder` calls this with
-  /// `StockMovementReason.sale`) — so [watchStockMovements] always reflects
-  /// the complete history. Throws `InsufficientStockException` if
-  /// [quantityDelta] would take stock below zero.
+  /// (`place_order` decrements on its own atomically — see
+  /// `0019_place_order_variants.sql` — this is the manual-correction path:
+  /// the supplier form, `SupplierStockAdjustSheet`) — so
+  /// [watchStockMovements] always reflects the complete history. Throws
+  /// `InsufficientStockException` if [quantityDelta] would take stock below
+  /// zero. [variantId] targets that variant's own stock instead of the
+  /// product's — required once the product `hasVariants`.
   Future<void> adjustStock({
     required String id,
     required int quantityDelta,
     required StockMovementReason reason,
+    String? variantId,
     String? note,
+  });
+
+  /// Full replace of [productId]'s characteristics/options/variants — see
+  /// `SupabaseProductDatasource.replaceCharacteristicsAndVariants` for the
+  /// exact semantics (not a diff/patch).
+  Future<void> replaceCharacteristicsAndVariants({
+    required String productId,
+    required List<ProductCharacteristic> characteristics,
+    required List<ProductVariant> variants,
   });
 
   Stream<List<StockMovement>> watchStockMovements(String productId);

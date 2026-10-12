@@ -48,7 +48,7 @@ void main() {
       final repo = container.read(reviewRepositoryProvider);
 
       await repo.reply(
-        reviewId: 'seed-review-1',
+        reviewId: DemoIds.seedReview1,
         supplierId: DemoIds.supplierBogolanBamako,
         reply: 'Merci pour votre confiance !',
       );
@@ -56,13 +56,13 @@ void main() {
       final reviews = await repo
           .watchForSupplier(DemoIds.supplierBogolanBamako)
           .first;
-      final review = reviews.firstWhere((r) => r.id == 'seed-review-1');
+      final review = reviews.firstWhere((r) => r.id == DemoIds.seedReview1);
       expect(review.supplierReply, 'Merci pour votre confiance !');
       expect(review.supplierRepliedAt, isNotNull);
 
       await expectLater(
         repo.reply(
-          reviewId: 'seed-review-1',
+          reviewId: DemoIds.seedReview1,
           supplierId: DemoIds.supplierAlimentationSegou,
           reply: "Ce n'est pas mon avis",
         ),
@@ -84,7 +84,7 @@ void main() {
       final ok = await container
           .read(reviewControllerProvider.notifier)
           .replyToReview(
-            reviewId: 'seed-review-1',
+            reviewId: DemoIds.seedReview1,
             reply: 'Merci beaucoup !',
           );
       expect(ok, isTrue);
@@ -94,7 +94,7 @@ void main() {
           .watchForSupplier(DemoIds.supplierBogolanBamako)
           .first;
       expect(
-        reviews.firstWhere((r) => r.id == 'seed-review-1').supplierReply,
+        reviews.firstWhere((r) => r.id == DemoIds.seedReview1).supplierReply,
         'Merci beaucoup !',
       );
     },
@@ -105,12 +105,12 @@ void main() {
     final repo = container.read(reviewRepositoryProvider);
 
     await repo.reply(
-      reviewId: 'seed-review-1',
+      reviewId: DemoIds.seedReview1,
       supplierId: DemoIds.supplierBogolanBamako,
       reply: 'Premier brouillon.',
     );
     await repo.reply(
-      reviewId: 'seed-review-1',
+      reviewId: DemoIds.seedReview1,
       supplierId: DemoIds.supplierBogolanBamako,
       reply: 'Version corrigée.',
     );
@@ -119,11 +119,11 @@ void main() {
         .watchForSupplier(DemoIds.supplierBogolanBamako)
         .first;
     expect(
-      reviews.where((r) => r.id == 'seed-review-1'),
+      reviews.where((r) => r.id == DemoIds.seedReview1),
       hasLength(1),
     );
     expect(
-      reviews.firstWhere((r) => r.id == 'seed-review-1').supplierReply,
+      reviews.firstWhere((r) => r.id == DemoIds.seedReview1).supplierReply,
       'Version corrigée.',
     );
   });

@@ -61,6 +61,7 @@ class ResolvedImage extends ConsumerWidget {
         path,
         fit: fit,
         errorBuilder: onError,
+        frameBuilder: _frameBuilder,
         cacheWidth: cacheWidth,
         cacheHeight: cacheHeight,
       );
@@ -72,6 +73,7 @@ class ResolvedImage extends ConsumerWidget {
         url,
         fit: fit,
         errorBuilder: onError,
+        frameBuilder: _frameBuilder,
         cacheWidth: cacheWidth,
         cacheHeight: cacheHeight,
       );
@@ -88,10 +90,44 @@ class ResolvedImage extends ConsumerWidget {
           snapshot.data!,
           fit: fit,
           errorBuilder: onError,
+          frameBuilder: _frameBuilder,
           cacheWidth: cacheWidth,
           cacheHeight: cacheHeight,
         );
       },
+    );
+  }
+
+  /// Tient la place de l'image tant que sa première frame n'est pas
+  /// décodée. Sans ça, `Image` ne peint **rien** pendant ce laps de temps —
+  /// pas une image grise, un trou transparent — et la carte s'affiche avec
+  /// un vide à la place de la photo. C'est visible sur un vrai appareil dès
+  /// que la liste défile ou que le réseau traîne (constaté sur le tableau
+  /// de bord fournisseur, où les deux dernières vignettes manquaient alors
+  /// que les mêmes produits s'affichaient bien ailleurs).
+  ///
+  /// `StackFit.passthrough` transmet les contraintes du parent aux deux
+  /// enfants : le substitut occupe exactement la boîte que l'image
+  /// occupera, donc rien ne bouge au moment de la bascule.
+  Widget _frameBuilder(
+    BuildContext context,
+    Widget child,
+    int? frame,
+    bool wasSynchronouslyLoaded,
+  ) {
+    // Déjà en cache : peint du premier coup, aucun substitut à montrer
+    // (et aucun fondu, qui ne ferait que retarder une image prête).
+    if (wasSynchronouslyLoaded) return child;
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        ColoredBox(color: Theme.of(context).colorScheme.surfaceContainerHigh),
+        AnimatedOpacity(
+          opacity: frame == null ? 0 : 1,
+          duration: const Duration(milliseconds: 180),
+          child: child,
+        ),
+      ],
     );
   }
 }

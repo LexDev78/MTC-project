@@ -14,6 +14,7 @@ _$StockMovementImpl _$$StockMovementImplFromJson(Map<String, dynamic> json) =>
       reason: $enumDecode(_$StockMovementReasonEnumMap, json['reason']),
       occurredAt: DateTime.parse(json['occurred_at'] as String),
       note: json['note'] as String?,
+      variantId: json['variant_id'] as String?,
     );
 
 Map<String, dynamic> _$$StockMovementImplToJson(_$StockMovementImpl instance) =>
@@ -24,6 +25,7 @@ Map<String, dynamic> _$$StockMovementImplToJson(_$StockMovementImpl instance) =>
       'reason': _$StockMovementReasonEnumMap[instance.reason]!,
       'occurred_at': instance.occurredAt.toIso8601String(),
       'note': instance.note,
+      'variant_id': instance.variantId,
     };
 
 const _$StockMovementReasonEnumMap = {

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -13,6 +12,7 @@ import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/app_notification.dart';
+import '../../domain/notification_route_resolver.dart';
 import '../controllers/notification_controller.dart';
 import '../providers/notification_providers.dart';
 
@@ -111,30 +111,20 @@ class _NotificationTile extends ConsumerWidget {
     NotificationType.payoutDecision => Icons.account_balance_wallet_outlined,
     NotificationType.newReview => Icons.star_outline_rounded,
     NotificationType.orderStatusUpdate => Icons.local_shipping_outlined,
+    NotificationType.newComment => Icons.forum_outlined,
+    NotificationType.characteristicTypeDecision => Icons.tune_rounded,
   };
 
-  /// Where tapping this notification should land — the conversation for a
-  /// `newMessage`, the order for a `newOrder`/`orderStatusUpdate`, `null`
-  /// for every other type (no detail route to send those to yet) or when
-  /// [AppNotification.referenceId] is missing (notifications created
-  /// before this field existed). Branches on client vs. supplier exactly
-  /// like `ConversationTile`, since this screen now serves both.
+  /// Where tapping this notification should land — see
+  /// `resolveNotificationRoute`, shared with the push tap handler so both
+  /// paths route identically.
   String? _routeFor(WidgetRef ref) {
-    final referenceId = notification.referenceId;
-    if (referenceId == null) return null;
-    final isClient = ref.read(currentUserProvider).valueOrNull is ClientUser;
-    final prefix = ref.read(supplierRoutePrefixProvider);
-    return switch (notification.type) {
-      NotificationType.newMessage =>
-        isClient ? AppRoutes.chatThread(referenceId) : '$prefix/messages/$referenceId',
-      NotificationType.newOrder ||
-      NotificationType.orderStatusUpdate =>
-        isClient ? AppRoutes.orderDetail(referenceId) : '$prefix/orders/$referenceId',
-      NotificationType.lowStock ||
-      NotificationType.kycDecision ||
-      NotificationType.payoutDecision ||
-      NotificationType.newReview => null,
-    };
+    return resolveNotificationRoute(
+      type: notification.type,
+      referenceId: notification.referenceId,
+      isClient: ref.read(currentUserProvider).valueOrNull is ClientUser,
+      supplierRoutePrefix: ref.read(supplierRoutePrefixProvider),
+    );
   }
 
   Future<void> _handleTap(BuildContext context, WidgetRef ref) async {

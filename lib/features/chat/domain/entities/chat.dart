@@ -54,6 +54,12 @@ class ChatMessage with _$ChatMessage {
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
 
+    /// Which variant the message is about, if any — same "denormalized so
+    /// it survives the product/variant changing later" reasoning as the 4
+    /// fields above.
+    String? productVariantId,
+    String? productVariantNameSnapshot,
+
     /// Local file path for an image or voice-note attachment. There's no
     /// real upload backend (this whole app is an in-memory mock), so the
     /// path only stays valid for the current session — same lifetime as

@@ -6,6 +6,8 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 
+import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
+
 import '../controllers/cart_controller.dart';
 import '../providers/cart_providers.dart';
 import '../widgets/cart_line_item.dart';
@@ -77,7 +79,14 @@ class CartScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: hasItems
           ? CartSummaryBar(
-              onCheckout: () => context.push(AppRoutes.clientCheckout),
+              onCheckout: () {
+                // Clears any single-item "Acheter" override left over from
+                // an abandoned buy-now attempt — this is the real cart, so
+                // checkout must build its groups from every item in it, not
+                // just whichever product was last tapped "Acheter" on.
+                ref.read(buyNowItemProvider.notifier).state = null;
+                context.push(AppRoutes.clientCheckout);
+              },
             )
           : null,
     );

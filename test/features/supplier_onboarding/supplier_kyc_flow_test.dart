@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:mtc_app/core/auth/pseudo_email.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
@@ -52,6 +53,61 @@ void main() {
     await container.read(currentUserProvider.future);
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
+
+  // L'écran de vérification du staff affichait « Document ajouté » et une
+  // coche : l'agent devait trancher sans jamais voir la pièce. Il montre
+  // maintenant l'image, via une URL signée puisque le bucket est privé.
+  //
+  // Ce qui se vérifie ici n'est pas l'affichage mais ce dont il dépend :
+  // qu'un agent puisse réellement **récupérer** un document déposé par un
+  // fournisseur. Sans ce droit, la vignette n'afficherait qu'une erreur.
+  test(
+    'un agent MTC peut télécharger une pièce déposée par un fournisseur',
+    () async {
+      await container
+          .read(authRepositoryProvider)
+          .login(usernameOrPhone: 'fournisseur3', password: 'password123');
+      final user =
+          await container.read(currentUserProvider.future) as SupplierTiersUser;
+
+      final controller = container.read(supplierKycControllerProvider.notifier);
+      await controller.ensureDraftStarted(
+        supplierId: user.id,
+        legalType: user.legalType,
+      );
+      await controller.addDocument(
+        supplierId: user.id,
+        type: SupplierDocumentType.nationalIdFront,
+        file: await _fakeDocumentFile('piece.jpg'),
+      );
+
+      final dossier = await container
+          .read(supplierKycRepositoryProvider)
+          .watchForSupplier(user.id)
+          .first;
+      final chemin = dossier!.documents.single.filePath;
+      // Un vrai objet de stockage, pas un chemin de démonstration.
+      expect(chemin, isNot(startsWith('seed://')));
+
+      // Session du staff : c'est elle qui doit pouvoir lire.
+      final staff = createTestSupabaseClient();
+      await staff.auth.signInWithPassword(
+        email: pseudoEmail('agent1'),
+        password: 'password123',
+      );
+      final url = await staff.storage
+          .from('kyc-documents')
+          .createSignedUrl(chemin, 60);
+      expect(url, contains('token='));
+
+      final octets = await staff.storage
+          .from('kyc-documents')
+          .download(chemin);
+      expect(octets, isNotEmpty);
+
+      await staff.dispose();
+    },
+  );
 
   test(
     'a fresh individual (fournisseur libre) account has no dossier until it '

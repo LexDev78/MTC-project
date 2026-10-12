@@ -35,6 +35,18 @@ sealed class AppUser with _$AppUser {
     required SupplierLegalType legalType,
   }) = SupplierTiersUser;
 
+  const factory AppUser.courier({
+    required String id,
+    required String displayName,
+    required String usernameOrPhone,
+    required String phoneNumber,
+    required DateTime createdAt,
+    required CourierStatus courierStatus,
+    required String city,
+    required bool isOnline,
+    String? vehicleLabel,
+  }) = CourierUser;
+
   const factory AppUser.supplierPrincipal({
     required String id,
     required String displayName,
@@ -50,7 +62,15 @@ extension AppUserRoleX on AppUser {
     ClientUser() => UserRole.client,
     SupplierTiersUser() => UserRole.supplierTiers,
     SupplierPrincipalUser() => UserRole.supplierPrincipal,
+    CourierUser() => UserRole.livreur,
   };
+}
+
+extension CourierUserX on CourierUser {
+  /// Tant que le dossier n'est pas validé, l'app livreur se limite à
+  /// l'écran d'attente : aucune course ne lui sera proposée de toute façon
+  /// (`offer_delivery_to_next_courier` ne retient que les `approved`).
+  bool get canTakeDeliveries => courierStatus == CourierStatus.approved;
 }
 
 extension SupplierTiersUserOnboardingX on SupplierTiersUser {

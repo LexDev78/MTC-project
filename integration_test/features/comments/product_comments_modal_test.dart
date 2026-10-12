@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:mtc_app/core/mock_data/demo_ids.dart';
 import 'package:mtc_app/core/auth/pseudo_email.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/features/comments/presentation/widgets/product_comments_modal.dart';
@@ -34,7 +35,7 @@ Future<void> _openModal(WidgetTester tester) async {
             builder: (context) => Center(
               child: ElevatedButton(
                 onPressed: () =>
-                    showProductCommentsModal(context, productId: 'product-001'),
+                    showProductCommentsModal(context, productId: DemoIds.product001),
                 child: const Text('Ouvrir les commentaires'),
               ),
             ),

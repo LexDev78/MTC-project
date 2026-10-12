@@ -183,32 +183,25 @@ class _SupplierProductTile extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        CurrencyText(
-                          product.priceFcfa,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: scheme.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        if (product.compareAtPriceFcfa != null &&
-                            product.compareAtPriceFcfa! > product.priceFcfa) ...[
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            CurrencyFormatter.formatFcfa(
-                              product.compareAtPriceFcfa!,
+                    product.hasVariants &&
+                            product.maxPriceFcfa != null &&
+                            product.maxPriceFcfa != product.priceFcfa
+                        ? Text(
+                            '${CurrencyFormatter.formatFcfa(product.priceFcfa)} – '
+                            '${CurrencyFormatter.formatFcfa(product.maxPriceFcfa!)}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
                             ),
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  decoration: TextDecoration.lineThrough,
-                                  color: scheme.onSurfaceVariant,
-                                ),
+                          )
+                        : CurrencyText(
+                            product.priceFcfa,
+                            compareAtAmountFcfa: product.compareAtPriceFcfa,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ],
-                      ],
-                    ),
                     const SizedBox(height: 4),
                     Wrap(
                       spacing: AppSpacing.xs,
@@ -220,9 +213,14 @@ class _SupplierProductTile extends ConsumerWidget {
                           icon: Icons.circle,
                         ),
                         RoleBadge(
-                          label: isLowStock
-                              ? '${product.stockQuantity} en stock — faible'
-                              : '${product.stockQuantity} en stock',
+                          label: [
+                            if (isLowStock)
+                              '${product.stockQuantity} en stock — faible'
+                            else
+                              '${product.stockQuantity} en stock',
+                            if (product.hasVariants)
+                              '(${product.variantCount} variantes)',
+                          ].join(' '),
                           color: isLowStock ? scheme.error : scheme.onSurfaceVariant,
                           icon: isLowStock
                               ? Icons.warning_amber_rounded

@@ -40,4 +40,6 @@ const _$NotificationTypeEnumMap = {
   NotificationType.payoutDecision: 'payout_decision',
   NotificationType.newReview: 'new_review',
   NotificationType.orderStatusUpdate: 'order_status_update',
+  NotificationType.newComment: 'new_comment',
+  NotificationType.characteristicTypeDecision: 'characteristic_type_decision',
 };

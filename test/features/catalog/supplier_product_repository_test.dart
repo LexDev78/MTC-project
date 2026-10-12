@@ -9,6 +9,9 @@ import 'package:mtc_app/core/mock_data/demo_ids.dart';
 import 'package:mtc_app/features/catalog/data/datasources/supabase_product_datasource.dart';
 import 'package:mtc_app/features/catalog/data/repositories/supabase_product_repository.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_variant.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_characteristic_type.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_characteristic.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_status.dart';
 import 'package:mtc_app/features/catalog/domain/entities/stock_movement.dart';
 import 'package:mtc_app/features/catalog/domain/repositories/product_repository.dart';
@@ -104,6 +107,9 @@ void main() {
     'activating a draft product makes it appear in the client-facing query',
     () async {
       final id = await createDraftProduct();
+      // `products_active_requires_variants` (0021) — a product needs at
+      // least one variant before it can go `active`.
+      await giveProductADefaultVariantAsAdmin(id);
       await asFournisseur1.setStatus(id: id, status: ProductStatus.active);
 
       final visibleToClients = await asClient
@@ -217,4 +223,69 @@ void main() {
       expect(after.every((p) => p.isSupplierVerified), isTrue);
     },
   );
+
+  // La RPC d'enregistrement réécrit l'intégralité des variantes d'un produit
+  // à chaque sauvegarde (`0024`, `0044`) : une colonne qu'elle oublie n'est
+  // pas « ignorée », elle est vidée dès la modification suivante. Ce test
+  // vérifie donc l'aller-retour complet de `video_path` — entité, mapping,
+  // RPC, colonne — plutôt que la seule écriture.
+  test('a variant keeps its video and its photos across a full save/reload', () async {
+    final id = await createDraftProduct();
+
+    const characteristicId = 'carac-video-test';
+    const optionId = 'option-video-test';
+    const variantId = 'variante-video-test';
+    const videoPath = '${DemoIds.supplierBogolanBamako}/presentation.mp4';
+
+    await asFournisseur1.replaceCharacteristicsAndVariants(
+      productId: id,
+      characteristics: [
+        ProductCharacteristic(
+          id: characteristicId,
+          productId: id,
+          type: ProductCharacteristicType(
+            id: 'couleur',
+            label: 'Couleur',
+            status: CharacteristicTypeStatus.approved,
+            createdAt: DateTime.now(),
+          ),
+          displayOrder: 0,
+          options: const [
+            ProductCharacteristicOption(
+              id: optionId,
+              characteristicId: characteristicId,
+              value: 'Rouge',
+              priceDeltaFcfa: 0,
+              displayOrder: 0,
+            ),
+          ],
+        ),
+      ],
+      variants: [
+        ProductVariant(
+          id: variantId,
+          productId: id,
+          name: 'Rouge',
+          priceFcfa: 10000,
+          stockQuantity: 3,
+          imageUrls: const ['photo-1.jpg', 'photo-2.jpg', 'photo-3.jpg'],
+          videoPath: videoPath,
+          isDefault: true,
+          optionRefs: const [
+            ProductVariantOptionRef(
+              characteristicId: characteristicId,
+              optionId: optionId,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final saved = await asFournisseur1.getById(id);
+    final variant = saved.variants.single;
+    expect(variant.videoPath, videoPath);
+    // Plusieurs photos d'un coup : la sélection multiple ne sert à rien si
+    // seule la première survit.
+    expect(variant.imageUrls, ['photo-1.jpg', 'photo-2.jpg', 'photo-3.jpg']);
+  });
 }

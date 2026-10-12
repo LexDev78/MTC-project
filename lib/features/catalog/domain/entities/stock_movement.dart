@@ -38,6 +38,10 @@ class StockMovement with _$StockMovement {
     required StockMovementReason reason,
     required DateTime occurredAt,
     String? note,
+
+    /// Which variant this movement targeted — `null` for a variant-less
+    /// product's own stock.
+    String? variantId,
   }) = _StockMovement;
 
   factory StockMovement.fromJson(Map<String, dynamic> json) =>

@@ -8,13 +8,16 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_shadows.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/cart/domain/entities/cart_item.dart';
 import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
     show ProductImage;
+import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
 
-import '../controllers/favorite_controller.dart';
 import '../providers/favorite_providers.dart';
+import 'favorite_toggle_button.dart';
 
 class FavoriteLineItem extends ConsumerWidget {
   const FavoriteLineItem({
@@ -45,30 +48,30 @@ class FavoriteLineItem extends ConsumerWidget {
     }
   }
 
-  Future<void> _buyNow(BuildContext context, WidgetRef ref, int quantity) async {
-    await ref
-        .read(cartControllerProvider.notifier)
-        .addProduct(product, quantity: quantity);
-    if (context.mounted) {
-      unawaited(context.push(AppRoutes.clientCheckout));
-    }
+  void _buyNow(BuildContext context, WidgetRef ref, int quantity) {
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) return;
+    // Stages a buy-now override instead of adding to the shared cart — see
+    // `buyNowItemProvider`'s doc comment — so checkout purchases just this
+    // product, not whatever else is already in the cart.
+    ref.read(buyNowItemProvider.notifier).state = CartItem(
+      id: 'buy-now-${product.id}',
+      userId: user.id,
+      productId: product.id,
+      supplierId: product.supplierId,
+      productNameSnapshot: product.name,
+      unitPriceFcfaSnapshot: product.priceFcfa,
+      quantity: quantity,
+      addedAt: DateTime.now(),
+    );
+    unawaited(context.push(AppRoutes.clientCheckout));
   }
-
-  static const _compactButtonStyle = ButtonStyle(
-    padding: WidgetStatePropertyAll(
-      EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-    ),
-    minimumSize: WidgetStatePropertyAll(Size.zero),
-    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12)),
-  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final brightness = Theme.of(context).brightness;
-    final isCompact =
-        MediaQuery.sizeOf(context).width < AppSpacing.compactScreenWidth;
     final quantity = ref.watch(favoriteQuantityProvider(product.id));
 
     return Material(
@@ -78,7 +81,7 @@ class FavoriteLineItem extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         onTap: selectionMode ? onSelectToggle : null,
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: isSelected ? scheme.primaryContainer : scheme.surface,
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -87,122 +90,124 @@ class FavoriteLineItem extends ConsumerWidget {
                 : null,
             boxShadow: AppShadows.soft(brightness),
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              InkWell(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                onTap: selectionMode
-                    ? onSelectToggle
-                    : () => context.push(AppRoutes.productDetail(product.id)),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                  child: SizedBox(
-                    width: 64,
-                    height: 64,
-                    child: ProductImage(
-                      imageUrl: product.imageUrls.isEmpty
-                          ? null
-                          : product.imageUrls.first,
-                      icon: Icons.inventory_2_outlined,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    CurrencyText(
-                      product.priceFcfa,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    QuantityStepper(
-                      quantity: quantity,
-                      minQuantity: 1,
-                      maxQuantity: product.stockQuantity,
-                      onChanged: (value) => ref
-                          .read(favoriteQuantityProvider(product.id).notifier)
-                          .state = value,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    IgnorePointer(
-                      ignoring: selectionMode,
-                      child: Opacity(
-                        opacity: selectionMode ? 0.5 : 1,
-                        child: SizedBox(
-                          height: 32,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Tooltip(
-                                  message: 'Acheter',
-                                  child: OutlinedButton(
-                                    style: _compactButtonStyle,
-                                    onPressed: () =>
-                                        _buyNow(context, ref, quantity),
-                                    child: isCompact
-                                        ? const Icon(
-                                            Icons.shopping_bag_outlined,
-                                            size: 16,
-                                          )
-                                        : const Text('Acheter'),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Expanded(
-                                child: Tooltip(
-                                  message: 'Ajouter au panier',
-                                  child: FilledButton.tonal(
-                                    style: _compactButtonStyle,
-                                    onPressed: () =>
-                                        _addToCart(context, ref, quantity),
-                                    child: isCompact
-                                        ? const Icon(
-                                            Icons.add_shopping_cart_rounded,
-                                            size: 16,
-                                          )
-                                        : const Text('Ajouter au panier'),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    onTap: selectionMode
+                        ? onSelectToggle
+                        : () =>
+                              context.push(AppRoutes.productDetail(product.id)),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      child: SizedBox(
+                        width: 96,
+                        height: 96,
+                        child: ProductImage(
+                          imageUrl: product.imageUrls.isEmpty
+                              ? null
+                              : product.imageUrls.first,
+                          icon: Icons.inventory_2_outlined,
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                product.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.25,
+                                ),
+                              ),
+                            ),
+                            if (selectionMode)
+                              Padding(
+                                padding: const EdgeInsets.only(left: AppSpacing.xs),
+                                child: Checkbox(
+                                  value: isSelected,
+                                  onChanged: (_) => onSelectToggle?.call(),
+                                ),
+                              )
+                            else
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  // Optically balances `FavoriteToggleButton`'s
+                                  // own internal `IconButton` padding against
+                                  // the title's baseline instead of sitting
+                                  // noticeably higher than it.
+                                  top: 4,
+                                ),
+                                child: FavoriteToggleButton(
+                                  productId: product.id,
+                                  size: 22,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        CurrencyText(
+                          product.priceFcfa,
+                          compareAtAmountFcfa: product.compareAtPriceFcfa,
+                          style: textTheme.titleSmall?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              IgnorePointer(
+                ignoring: selectionMode,
+                child: Opacity(
+                  opacity: selectionMode ? 0.5 : 1,
+                  child: Row(
+                    children: [
+                      QuantityStepper(
+                        quantity: quantity,
+                        minQuantity: 1,
+                        maxQuantity: product.stockQuantity,
+                        onChanged: (value) => ref
+                            .read(favoriteQuantityProvider(product.id).notifier)
+                            .state = value,
+                      ),
+                      const Spacer(),
+                      Tooltip(
+                        message: 'Acheter',
+                        child: IconButton.outlined(
+                          onPressed: () => _buyNow(context, ref, quantity),
+                          icon: const Icon(Icons.shopping_bag_outlined),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Tooltip(
+                        message: 'Ajouter au panier',
+                        child: IconButton.filledTonal(
+                          onPressed: () => _addToCart(context, ref, quantity),
+                          icon: const Icon(Icons.add_shopping_cart_rounded),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.xs),
-              if (selectionMode)
-                Checkbox(
-                  value: isSelected,
-                  onChanged: (_) => onSelectToggle?.call(),
-                )
-              else
-                IconButton(
-                  icon: Icon(Icons.favorite_rounded, color: scheme.error),
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Retirer des favoris',
-                  onPressed: () => ref
-                      .read(favoriteControllerProvider.notifier)
-                      .toggle(product.id),
-                ),
             ],
           ),
         ),

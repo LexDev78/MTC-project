@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:latlong2/latlong.dart';
+
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/features/tracking/presentation/screens/location_picker_screen.dart';
 import 'package:mtc_app/core/mock_data/malian_locations.dart';
 import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -74,12 +77,18 @@ class ManageAddressesScreen extends ConsumerWidget {
     final detailsController = TextEditingController();
     final cityController = TextEditingController(text: MalianCity.bamako.label);
     final formKey = GlobalKey<FormState>();
+    // Le point précis, posé sur la carte. Tant qu'il est nul, l'adresse ne
+    // peut pas être enregistrée : sans lui on retomberait sur le centre de
+    // la ville, c'est-à-dire au même endroit que tout le monde, et le
+    // livreur n'aurait aucune chance de trouver la porte.
+    LatLng? point;
 
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) {
-        return Padding(
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) => Padding(
           padding: EdgeInsets.only(
             left: AppSpacing.lg,
             right: AppSpacing.lg,
@@ -115,24 +124,51 @@ class ManageAddressesScreen extends ConsumerWidget {
                   controller: detailsController,
                   validator: Validators.required,
                 ),
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final chosen = await pickLocation(
+                      sheetContext,
+                      initialPoint: point ?? _cityCenter(cityController.text),
+                      title: 'Situer l\'adresse',
+                      subtitle:
+                          'Déplacez la carte pour placer le repère sur votre '
+                          'porte. C\'est ce point que le livreur suivra.',
+                    );
+                    if (chosen != null) setSheetState(() => point = chosen);
+                  },
+                  icon: Icon(
+                    point == null
+                        ? Icons.add_location_alt_outlined
+                        : Icons.check_circle_outline_rounded,
+                  ),
+                  label: Text(
+                    point == null
+                        ? 'Placer sur la carte'
+                        : 'Point enregistré — modifier',
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 MtcPrimaryButton(
                   label: 'Enregistrer',
                   onPressed: () {
                     if (!formKey.currentState!.validate()) return;
+                    final chosen = point;
+                    if (chosen == null) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Placez d\'abord le repère sur la carte.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     final userId = ref
                         .read(currentUserProvider)
                         .valueOrNull
                         ?.id;
                     if (userId == null) return;
-                    final coordinates = MalianCity.values
-                        .firstWhere(
-                          (c) =>
-                              c.label.toLowerCase() ==
-                              cityController.text.trim().toLowerCase(),
-                          orElse: () => MalianCity.bamako,
-                        )
-                        .coordinates;
                     ref
                         .read(addressRepositoryProvider)
                         .addAddress(
@@ -140,8 +176,8 @@ class ManageAddressesScreen extends ConsumerWidget {
                           label: labelController.text.trim(),
                           city: cityController.text.trim(),
                           details: detailsController.text.trim(),
-                          latitude: coordinates.latitude,
-                          longitude: coordinates.longitude,
+                          latitude: chosen.latitude,
+                          longitude: chosen.longitude,
                         );
                     Navigator.of(sheetContext).pop();
                   },
@@ -149,8 +185,20 @@ class ManageAddressesScreen extends ConsumerWidget {
               ],
             ),
           ),
+          ),
         );
       },
     );
+  }
+
+  /// Point de départ de la carte : le centre de la ville saisie. C'est un
+  /// point de **départ** pour viser, plus jamais la valeur enregistrée.
+  static LatLng _cityCenter(String city) {
+    return MalianCity.values
+        .firstWhere(
+          (c) => c.label.toLowerCase() == city.trim().toLowerCase(),
+          orElse: () => MalianCity.bamako,
+        )
+        .coordinates;
   }
 }

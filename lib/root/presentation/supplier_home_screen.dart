@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/delivery/presentation/providers/delivery_providers.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/domain/repositories/product_repository.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/characteristic_type_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/supplier_product_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
     show ProductCategoryIcon, ProductImage;
@@ -35,13 +37,29 @@ class SupplierHomeScreen extends ConsumerWidget {
         title: const Text('Tableau de bord'),
         actions: [if (supplierId != null) _NotificationBellButton(supplierId: supplierId)],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: switch (user) {
-          SupplierTiersUser() => _TiersHome(user: user, supplierId: supplierId),
-          SupplierPrincipalUser() => _PrincipalHome(user: user, supplierId: supplierId),
-          _ => const SizedBox.shrink(),
+      body: RefreshIndicator(
+        // Both product providers below are `autoDispose` but this tab
+        // usually stays mounted (just offstage) while switching bottom-nav
+        // tabs, so nothing naturally re-triggers them on every visit — a
+        // pull-to-refresh gives a guaranteed way to pull fresh
+        // views/j'aime/commandes counts logged from someone else's session
+        // (a client favoriting/ordering/viewing) without waiting on a full
+        // app restart.
+        onRefresh: () async {
+          if (supplierId == null) return;
+          ref.invalidate(productStatsProvider(supplierId));
+          ref.invalidate(myProductsProvider(supplierId));
+          await ref.read(myProductsProvider(supplierId).future);
         },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: switch (user) {
+            SupplierTiersUser() => _TiersHome(user: user, supplierId: supplierId),
+            SupplierPrincipalUser() => _PrincipalHome(user: user, supplierId: supplierId),
+            _ => const SizedBox.shrink(),
+          },
+        ),
       ),
     );
   }
@@ -108,6 +126,10 @@ class _PrincipalHome extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         const _KycQueueButton(),
+        const SizedBox(height: AppSpacing.sm),
+        const _CharacteristicTypeQueueButton(),
+        const SizedBox(height: AppSpacing.sm),
+        const _CourierQueueButton(),
         // MTC staff also manage the shared "MTC Officiel" storefront's own
         // products, via the same `operatingSupplierIdProvider` resolution
         // as a fournisseur tiers (see that provider's doc comment) — same
@@ -190,6 +212,43 @@ class _KycQueueButton extends ConsumerWidget {
         queue.isEmpty
             ? 'Vérification des fournisseurs'
             : 'Vérification des fournisseurs (${queue.length})',
+      ),
+    );
+  }
+}
+
+class _CourierQueueButton extends ConsumerWidget {
+  const _CourierQueueButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queue = ref.watch(pendingCouriersProvider).valueOrNull ?? const [];
+    return OutlinedButton.icon(
+      onPressed: () => context.push(AppRoutes.supplierPrincipalCourierQueue),
+      icon: const Icon(Icons.delivery_dining_outlined),
+      label: Text(
+        queue.isEmpty
+            ? 'Validation des livreurs'
+            : 'Validation des livreurs (${queue.length})',
+      ),
+    );
+  }
+}
+
+class _CharacteristicTypeQueueButton extends ConsumerWidget {
+  const _CharacteristicTypeQueueButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queue = ref.watch(characteristicTypeQueueProvider).valueOrNull ?? const [];
+    return OutlinedButton.icon(
+      onPressed: () =>
+          context.push(AppRoutes.supplierPrincipalCharacteristicTypeQueue),
+      icon: const Icon(Icons.tune_rounded),
+      label: Text(
+        queue.isEmpty
+            ? 'Types de caractéristiques'
+            : 'Types de caractéristiques (${queue.length})',
       ),
     );
   }

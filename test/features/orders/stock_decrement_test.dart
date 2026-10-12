@@ -51,8 +51,8 @@ void main() {
     'cart quantity and logs a sale movement for each line',
     () async {
       final productRepository = container.read(productRepositoryProvider);
-      final riceBefore = await productRepository.getById('product-015');
-      final phoneBefore = await productRepository.getById('product-011');
+      final riceBefore = await productRepository.getById(DemoIds.product015);
+      final phoneBefore = await productRepository.getById(DemoIds.product011);
       expect(riceBefore.stockQuantity, 200);
       expect(phoneBefore.stockQuantity, 30);
 
@@ -61,15 +61,15 @@ void main() {
           .placeOrder();
       expect(success, isTrue);
 
-      final riceAfter = await productRepository.getById('product-015');
-      final phoneAfter = await productRepository.getById('product-011');
+      final riceAfter = await productRepository.getById(DemoIds.product015);
+      final phoneAfter = await productRepository.getById(DemoIds.product011);
       expect(riceAfter.stockQuantity, 198); // 200 - 2
       expect(phoneAfter.stockQuantity, 29); // 30 - 1
 
       // `stock_movements` is the owning supplier's private ledger — client2
       // didn't sell the rice, so RLS wouldn't let them read it back via the
       // normal repository; the admin backdoor is for this assertion only.
-      final riceMovements = await fetchStockMovementsAsAdmin('product-015');
+      final riceMovements = await fetchStockMovementsAsAdmin(DemoIds.product015);
       expect(riceMovements, hasLength(1));
       expect(riceMovements.single['quantity_delta'], -2);
       expect(riceMovements.single['reason'], 'sale');
@@ -87,8 +87,8 @@ void main() {
       // account in the seed data at all), so this must go through the
       // admin backdoor rather than `productRepository.adjustStock` —
       // real RLS would otherwise (rightly) reject it.
-      await adjustStockAsAdmin(productId: 'product-011', quantityDelta: -30);
-      final phoneBefore = await productRepository.getById('product-011');
+      await adjustStockAsAdmin(productId: DemoIds.product011, quantityDelta: -30);
+      final phoneBefore = await productRepository.getById(DemoIds.product011);
       expect(phoneBefore.stockQuantity, 0);
 
       final ordersBefore = await container
@@ -109,7 +109,7 @@ void main() {
       // The rice line was perfectly valid on its own — it must stay
       // untouched because validation happens for every line before any
       // line is written.
-      final riceAfter = await productRepository.getById('product-015');
+      final riceAfter = await productRepository.getById(DemoIds.product015);
       expect(riceAfter.stockQuantity, 200);
 
       final ordersAfter = await container
