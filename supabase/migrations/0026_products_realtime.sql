@@ -1,0 +1,12 @@
+-- `products` wasn't in the realtime publication — `watchProducts`/
+-- `watchMyProducts` only ever re-fetched on a write made through that same
+-- `SupabaseProductDatasource` instance (`_notify()`, a local broadcast, not
+-- Postgres Realtime — see that class's own doc comment). That's fine for a
+-- supplier seeing their own edit reflected instantly, but a *different*
+-- session — a client browsing the catalog while a supplier changes which
+-- variant is default elsewhere — never saw the row change at all short of
+-- leaving and re-entering the screen. `product_variants_aggregate_products`
+-- (0018/0025) already keeps `products.image_urls` mirroring the default
+-- variant correctly; this is what's needed for a session that isn't the one
+-- making the change to ever see that new photo without a manual refresh.
+alter publication supabase_realtime add table public.products;
