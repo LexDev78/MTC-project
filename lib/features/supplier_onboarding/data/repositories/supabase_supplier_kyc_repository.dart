@@ -97,12 +97,12 @@ class SupabaseSupplierKycRepository implements SupplierKycRepository {
         'Complétez tous les documents requis avant de soumettre votre dossier.',
       );
     }
-    await _datasource.submit(supplierId: supplierId);
+    await _datasource.submit();
   }
 
   @override
-  Future<void> startReview({required String kycId, required String staffId}) {
-    return _datasource.startReview(kycId: kycId, staffId: staffId);
+  Future<void> startReview({required String kycId}) {
+    return _datasource.startReview(kycId: kycId);
   }
 
   @override

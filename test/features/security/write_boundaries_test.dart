@@ -285,4 +285,88 @@ void main() {
       await supplier.dispose();
     },
   );
+
+  test(
+    'un fournisseur ne peut pas faire avancer son propre dossier de '
+    'vérification',
+    () async {
+      final supplier = await _signIn('fournisseur3');
+      final kyc = await supplier
+          .from('supplier_kyc')
+          .select('id, status')
+          .limit(1)
+          .maybeSingle();
+      if (kyc == null) {
+        await supplier.dispose();
+        return;
+      }
+
+      // Le statut n'est plus dans ses droits d'écriture (`0075`). Sans cela,
+      // il sortait son dossier de la file du staff — sa boutique ne devenait
+      // pas vérifiée, mais plus personne ne l'examinait, et l'écran lui
+      // annonçait une validation qui n'avait pas eu lieu.
+      try {
+        await supplier
+            .from('supplier_kyc')
+            .update({'status': 'approved'})
+            .eq('id', kyc['id'] as String);
+      } on PostgrestException {
+        // refusé d'emblée : très bien
+      }
+
+      final after = await supplier
+          .from('supplier_kyc')
+          .select('status')
+          .eq('id', kyc['id'] as String)
+          .single();
+      expect(after['status'], kyc['status']);
+
+      // Son dossier reste le sien à compléter : ce sont les colonnes de
+      // décision qui sont fermées, pas le dossier.
+      await supplier
+          .from('supplier_kyc')
+          .update({'tax_id': 'NIF-TEST-1'})
+          .eq('id', kyc['id'] as String);
+
+      await supplier.dispose();
+    },
+  );
+
+  test(
+    'un agent ne peut pas valider un dossier en écrivant son statut à la main',
+    () async {
+      final staff = await _signIn('agent1');
+      final kyc = await staff
+          .from('supplier_kyc')
+          .select('id, status, supplier_id')
+          .eq('status', 'submitted')
+          .limit(1)
+          .maybeSingle();
+      if (kyc == null) {
+        await staff.dispose();
+        return;
+      }
+
+      // Écrire `approved` directement laisserait la fiche fournisseur et la
+      // visibilité de ses produits en arrière — l'état à moitié validé que
+      // `review_supplier_kyc` existe pour empêcher.
+      try {
+        await staff
+            .from('supplier_kyc')
+            .update({'status': 'approved'})
+            .eq('id', kyc['id'] as String);
+      } on PostgrestException {
+        // refusé d'emblée : très bien
+      }
+
+      final after = await staff
+          .from('supplier_kyc')
+          .select('status')
+          .eq('id', kyc['id'] as String)
+          .single();
+      expect(after['status'], 'submitted');
+
+      await staff.dispose();
+    },
+  );
 }

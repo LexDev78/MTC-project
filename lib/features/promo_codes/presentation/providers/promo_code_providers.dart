@@ -25,3 +25,14 @@ final myPromoCodesProvider = StreamProvider.autoDispose<List<PromoCode>>((ref) {
   ref.watch(operatingSupplierIdProvider);
   return ref.watch(promoCodeRepositoryProvider).watchMine();
 });
+
+/// Les codes appliqués sur une commande, par groupe fournisseur.
+///
+/// Lecture ponctuelle : une commande passée ne change plus de code.
+final orderPromoCodesProvider = FutureProvider.autoDispose
+    .family<Map<String, ({String code, int discountFcfa})>, String>((
+      ref,
+      orderId,
+    ) {
+      return ref.watch(promoCodeRepositoryProvider).fetchForOrder(orderId);
+    });

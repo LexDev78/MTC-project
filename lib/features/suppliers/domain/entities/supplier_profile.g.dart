@@ -27,6 +27,9 @@ _$SupplierProfileImpl _$$SupplierProfileImplFromJson(
   description: json['description'] as String?,
   bannerUrl: json['banner_url'] as String?,
   fullAddress: json['full_address'] as String?,
+  positionConfirmedAt: json['position_confirmed_at'] == null
+      ? null
+      : DateTime.parse(json['position_confirmed_at'] as String),
   addressLatitude: (json['address_latitude'] as num?)?.toDouble(),
   addressLongitude: (json['address_longitude'] as num?)?.toDouble(),
   publicPhoneNumbers:
@@ -59,6 +62,7 @@ Map<String, dynamic> _$$SupplierProfileImplToJson(
   'description': instance.description,
   'banner_url': instance.bannerUrl,
   'full_address': instance.fullAddress,
+  'position_confirmed_at': instance.positionConfirmedAt?.toIso8601String(),
   'address_latitude': instance.addressLatitude,
   'address_longitude': instance.addressLongitude,
   'public_phone_numbers': instance.publicPhoneNumbers,

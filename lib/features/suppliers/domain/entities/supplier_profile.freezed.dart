@@ -43,6 +43,11 @@ mixin _$SupplierProfile {
   /// `ManageAddressesScreen` uses for a client address) rather than typed
   /// in by hand — no map picker in this app, and every seeded city
   /// already has known coordinates. Usable with `GeoDistance`.
+  /// Quand le point de retrait a été réellement pointé sur la carte.
+  /// `null` sur les fiches antérieures au sélecteur : leurs coordonnées
+  /// valent le centre de la ville, pas l'adresse — et c'est là que les
+  /// livreurs se rendent (`0079`).
+  DateTime? get positionConfirmedAt => throw _privateConstructorUsedError;
   double? get addressLatitude => throw _privateConstructorUsedError;
   double? get addressLongitude => throw _privateConstructorUsedError;
   List<String> get publicPhoneNumbers => throw _privateConstructorUsedError;
@@ -80,6 +85,7 @@ abstract class $SupplierProfileCopyWith<$Res> {
     String? description,
     String? bannerUrl,
     String? fullAddress,
+    DateTime? positionConfirmedAt,
     double? addressLatitude,
     double? addressLongitude,
     List<String> publicPhoneNumbers,
@@ -116,6 +122,7 @@ class _$SupplierProfileCopyWithImpl<$Res, $Val extends SupplierProfile>
     Object? description = freezed,
     Object? bannerUrl = freezed,
     Object? fullAddress = freezed,
+    Object? positionConfirmedAt = freezed,
     Object? addressLatitude = freezed,
     Object? addressLongitude = freezed,
     Object? publicPhoneNumbers = null,
@@ -173,6 +180,10 @@ class _$SupplierProfileCopyWithImpl<$Res, $Val extends SupplierProfile>
                 ? _value.fullAddress
                 : fullAddress // ignore: cast_nullable_to_non_nullable
                       as String?,
+            positionConfirmedAt: freezed == positionConfirmedAt
+                ? _value.positionConfirmedAt
+                : positionConfirmedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
             addressLatitude: freezed == addressLatitude
                 ? _value.addressLatitude
                 : addressLatitude // ignore: cast_nullable_to_non_nullable
@@ -225,6 +236,7 @@ abstract class _$$SupplierProfileImplCopyWith<$Res>
     String? description,
     String? bannerUrl,
     String? fullAddress,
+    DateTime? positionConfirmedAt,
     double? addressLatitude,
     double? addressLongitude,
     List<String> publicPhoneNumbers,
@@ -260,6 +272,7 @@ class __$$SupplierProfileImplCopyWithImpl<$Res>
     Object? description = freezed,
     Object? bannerUrl = freezed,
     Object? fullAddress = freezed,
+    Object? positionConfirmedAt = freezed,
     Object? addressLatitude = freezed,
     Object? addressLongitude = freezed,
     Object? publicPhoneNumbers = null,
@@ -317,6 +330,10 @@ class __$$SupplierProfileImplCopyWithImpl<$Res>
             ? _value.fullAddress
             : fullAddress // ignore: cast_nullable_to_non_nullable
                   as String?,
+        positionConfirmedAt: freezed == positionConfirmedAt
+            ? _value.positionConfirmedAt
+            : positionConfirmedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
         addressLatitude: freezed == addressLatitude
             ? _value.addressLatitude
             : addressLatitude // ignore: cast_nullable_to_non_nullable
@@ -362,6 +379,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     this.description,
     this.bannerUrl,
     this.fullAddress,
+    this.positionConfirmedAt,
     this.addressLatitude,
     this.addressLongitude,
     final List<String> publicPhoneNumbers = const <String>[],
@@ -408,6 +426,12 @@ class _$SupplierProfileImpl implements _SupplierProfile {
   /// `ManageAddressesScreen` uses for a client address) rather than typed
   /// in by hand — no map picker in this app, and every seeded city
   /// already has known coordinates. Usable with `GeoDistance`.
+  /// Quand le point de retrait a été réellement pointé sur la carte.
+  /// `null` sur les fiches antérieures au sélecteur : leurs coordonnées
+  /// valent le centre de la ville, pas l'adresse — et c'est là que les
+  /// livreurs se rendent (`0079`).
+  @override
+  final DateTime? positionConfirmedAt;
   @override
   final double? addressLatitude;
   @override
@@ -439,7 +463,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
 
   @override
   String toString() {
-    return 'SupplierProfile(id: $id, businessName: $businessName, supplierType: $supplierType, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, productCount: $productCount, verificationStatus: $verificationStatus, legalType: $legalType, description: $description, bannerUrl: $bannerUrl, fullAddress: $fullAddress, addressLatitude: $addressLatitude, addressLongitude: $addressLongitude, publicPhoneNumbers: $publicPhoneNumbers, deliveryZones: $deliveryZones, openingHoursLabel: $openingHoursLabel, isOpen: $isOpen)';
+    return 'SupplierProfile(id: $id, businessName: $businessName, supplierType: $supplierType, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, productCount: $productCount, verificationStatus: $verificationStatus, legalType: $legalType, description: $description, bannerUrl: $bannerUrl, fullAddress: $fullAddress, positionConfirmedAt: $positionConfirmedAt, addressLatitude: $addressLatitude, addressLongitude: $addressLongitude, publicPhoneNumbers: $publicPhoneNumbers, deliveryZones: $deliveryZones, openingHoursLabel: $openingHoursLabel, isOpen: $isOpen)';
   }
 
   @override
@@ -469,6 +493,8 @@ class _$SupplierProfileImpl implements _SupplierProfile {
                 other.bannerUrl == bannerUrl) &&
             (identical(other.fullAddress, fullAddress) ||
                 other.fullAddress == fullAddress) &&
+            (identical(other.positionConfirmedAt, positionConfirmedAt) ||
+                other.positionConfirmedAt == positionConfirmedAt) &&
             (identical(other.addressLatitude, addressLatitude) ||
                 other.addressLatitude == addressLatitude) &&
             (identical(other.addressLongitude, addressLongitude) ||
@@ -488,7 +514,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     runtimeType,
     id,
     businessName,
@@ -502,13 +528,14 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     description,
     bannerUrl,
     fullAddress,
+    positionConfirmedAt,
     addressLatitude,
     addressLongitude,
     const DeepCollectionEquality().hash(_publicPhoneNumbers),
     const DeepCollectionEquality().hash(_deliveryZones),
     openingHoursLabel,
     isOpen,
-  );
+  ]);
 
   /// Create a copy of SupplierProfile
   /// with the given fields replaced by the non-null parameter values.
@@ -541,6 +568,7 @@ abstract class _SupplierProfile implements SupplierProfile {
     final String? description,
     final String? bannerUrl,
     final String? fullAddress,
+    final DateTime? positionConfirmedAt,
     final double? addressLatitude,
     final double? addressLongitude,
     final List<String> publicPhoneNumbers,
@@ -584,6 +612,12 @@ abstract class _SupplierProfile implements SupplierProfile {
   /// `ManageAddressesScreen` uses for a client address) rather than typed
   /// in by hand — no map picker in this app, and every seeded city
   /// already has known coordinates. Usable with `GeoDistance`.
+  /// Quand le point de retrait a été réellement pointé sur la carte.
+  /// `null` sur les fiches antérieures au sélecteur : leurs coordonnées
+  /// valent le centre de la ville, pas l'adresse — et c'est là que les
+  /// livreurs se rendent (`0079`).
+  @override
+  DateTime? get positionConfirmedAt;
   @override
   double? get addressLatitude;
   @override

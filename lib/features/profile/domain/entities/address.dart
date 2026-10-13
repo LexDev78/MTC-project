@@ -14,6 +14,9 @@ class Address with _$Address {
     required String label,
     required String city,
     required String details,
+    /// Quand la position a été réellement pointée sur la carte — `null`
+    /// pour une adresse antérieure au sélecteur (`0079`).
+    DateTime? positionConfirmedAt,
     required double latitude,
     required double longitude,
   }) = _Address;

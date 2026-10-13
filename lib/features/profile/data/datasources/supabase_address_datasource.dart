@@ -38,4 +38,18 @@ class SupabaseAddressDatasource {
     await _client.from('addresses').delete().eq('id', addressId);
     _notify();
   }
+
+  /// Repose le point d'une adresse. La RLS limite déjà l'appelant à ses
+  /// propres adresses ; la date de confirmation est posée par un trigger
+  /// (`0079`), pas envoyée d'ici.
+  Future<void> updatePosition({
+    required String addressId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    await _client
+        .from('addresses')
+        .update({'latitude': latitude, 'longitude': longitude})
+        .eq('id', addressId);
+  }
 }

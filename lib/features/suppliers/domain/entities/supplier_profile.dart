@@ -37,6 +37,11 @@ class SupplierProfile with _$SupplierProfile {
     /// `ManageAddressesScreen` uses for a client address) rather than typed
     /// in by hand — no map picker in this app, and every seeded city
     /// already has known coordinates. Usable with `GeoDistance`.
+    /// Quand le point de retrait a été réellement pointé sur la carte.
+    /// `null` sur les fiches antérieures au sélecteur : leurs coordonnées
+    /// valent le centre de la ville, pas l'adresse — et c'est là que les
+    /// livreurs se rendent (`0079`).
+    DateTime? positionConfirmedAt,
     double? addressLatitude,
     double? addressLongitude,
     @Default(<String>[]) List<String> publicPhoneNumbers,

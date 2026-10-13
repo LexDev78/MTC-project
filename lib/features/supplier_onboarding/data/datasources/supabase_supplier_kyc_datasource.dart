@@ -168,23 +168,25 @@ class SupabaseSupplierKycDatasource {
     _notify();
   }
 
-  Future<void> submit({required String supplierId}) async {
-    await _client
-        .from('supplier_kyc')
-        .update({
-          'status': 'submitted',
-          'submitted_at': DateTime.now().toUtc().toIso8601String(),
-          'rejection_reason': null,
-        })
-        .eq('supplier_id', supplierId);
+  /// Soumet le dossier par `submit_supplier_kyc` (`0075`).
+  ///
+  /// Le statut n'est plus écrit à la main : les colonnes de décision sont
+  /// sorties des droits d'écriture, parce qu'un fournisseur pouvait passer
+  /// son propre dossier à `approved` — sa boutique n'en devenait pas
+  /// vérifiée, mais son dossier quittait la file du staff et plus personne
+  /// ne l'examinait.
+  ///
+  /// `supplierId` n'est plus transmis : le serveur prend le fournisseur en
+  /// activité.
+  Future<void> submit() async {
+    await _client.rpc('submit_supplier_kyc');
     _notify();
   }
 
-  Future<void> startReview({required String kycId, required String staffId}) async {
-    await _client
-        .from('supplier_kyc')
-        .update({'status': 'under_review', 'reviewed_by_staff_id': staffId})
-        .eq('id', kycId);
+  /// Prend le dossier en examen (`start_kyc_review`). L'agent est celui de
+  /// la session : on ne s'attribue pas le dossier d'un collègue.
+  Future<void> startReview({required String kycId}) async {
+    await _client.rpc('start_kyc_review', params: {'p_kyc_id': kycId});
     _notify();
   }
 

@@ -9,6 +9,8 @@ import 'package:mtc_app/features/delivery/presentation/providers/delivery_provid
 import 'package:mtc_app/features/delivery/presentation/providers/courier_history_providers.dart';
 import 'package:mtc_app/features/delivery/presentation/widgets/courier_rating_sheet.dart';
 import 'package:mtc_app/features/delivery/presentation/widgets/delivery_code_qr.dart';
+import 'package:mtc_app/core/utils/currency_formatter.dart';
+import 'package:mtc_app/features/promo_codes/presentation/providers/promo_code_providers.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/core/widgets/voice_note_player.dart';
@@ -152,6 +154,9 @@ class _OrderDetailBody extends ConsumerWidget {
                       variantNameSnapshot: item.variantNameSnapshot,
                     ),
                   const Divider(),
+                  // Le code utilisé, s'il y en avait un : sans cela le
+                  // client relit un sous-total remisé sans savoir pourquoi.
+                  _PromoCodeLine(orderId: order.id, groupId: group.id),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -430,6 +435,46 @@ class _RateCourierButton extends ConsumerWidget {
         existing == null
             ? 'Noter le livreur'
             : 'Livreur noté ${existing.stars}/5 — modifier',
+      ),
+    );
+  }
+}
+
+/// Le code promo appliqué à ce groupe, sur la commande passée.
+///
+/// Lu par une RPC et non dans la table des codes : celle-ci est fermée au
+/// client — c'est ce qui l'empêche d'énumérer les codes en vigueur — et le
+/// libellé vient de l'instantané figé au moment de la commande (`0077`).
+class _PromoCodeLine extends ConsumerWidget {
+  const _PromoCodeLine({required this.orderId, required this.groupId});
+
+  final String orderId;
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final codes = ref.watch(orderPromoCodesProvider(orderId)).valueOrNull;
+    final applied = codes?[groupId];
+    if (applied == null) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_activity_rounded, size: 16, color: scheme.error),
+              const SizedBox(width: AppSpacing.xs),
+              Text('Code ${applied.code}'),
+            ],
+          ),
+          Text(
+            '-${CurrencyFormatter.formatFcfa(applied.discountFcfa)}',
+            style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

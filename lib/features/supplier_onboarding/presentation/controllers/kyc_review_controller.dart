@@ -15,15 +15,10 @@ class KycReviewController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<bool> startReview({
-    required String kycId,
-    required String staffId,
-  }) async {
+  Future<bool> startReview({required String kycId}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref
-          .read(supplierKycRepositoryProvider)
-          .startReview(kycId: kycId, staffId: staffId),
+      () => ref.read(supplierKycRepositoryProvider).startReview(kycId: kycId),
     );
     return !state.hasError;
   }

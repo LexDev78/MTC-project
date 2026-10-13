@@ -52,6 +52,20 @@ class SupabasePromoCodeRepository implements PromoCodeRepository {
   Future<void> delete(String id) => _datasource.delete(id);
 
   @override
+  Future<Map<String, ({String code, int discountFcfa})>> fetchForOrder(
+    String orderId,
+  ) async {
+    final rows = await _datasource.fetchForOrder(orderId);
+    return {
+      for (final row in rows)
+        row['supplier_group_id'] as String: (
+          code: row['code'] as String,
+          discountFcfa: (row['discount_fcfa'] as num).toInt(),
+        ),
+    };
+  }
+
+  @override
   Future<PromoCodePreview> preview({
     required String code,
     required List<({String productId, String? variantId, int quantity})> lines,

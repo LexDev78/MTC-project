@@ -297,7 +297,7 @@ void main() {
       final kycId = (await repository.getForSupplier(supplierId)).id;
 
       await loginAs('admin1');
-      await repository.startReview(kycId: kycId, staffId: DemoIds.staffAdmin);
+      await repository.startReview(kycId: kycId);
       await repository.review(kycId: kycId, approve: true);
 
       final kyc = await repository.getForSupplier(supplierId);

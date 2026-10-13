@@ -51,7 +51,9 @@ abstract interface class SupplierKycRepository {
   /// `kyc_requirements.isComplete`).
   Future<void> submit({required String supplierId});
 
-  Future<void> startReview({required String kycId, required String staffId});
+  /// Prend le dossier en examen. L'agent est celui de la session : on ne
+  /// s'attribue pas le dossier d'un collègue (`start_kyc_review`, `0075`).
+  Future<void> startReview({required String kycId});
 
   /// Only updates the dossier's own status/review fields — propagating the
   /// decision to `AppUser.verificationStatus`, `SupplierProfile`, and

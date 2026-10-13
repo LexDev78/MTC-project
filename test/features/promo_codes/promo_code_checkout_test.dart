@@ -18,6 +18,7 @@ import 'package:mtc_app/features/promo_codes/data/datasources/supabase_promo_cod
 import 'package:mtc_app/features/promo_codes/domain/entities/promo_code.dart';
 import 'package:mtc_app/features/promo_codes/data/repositories/supabase_promo_code_repository.dart';
 import 'package:mtc_app/features/promo_codes/presentation/providers/applied_promo_code_provider.dart';
+import 'package:mtc_app/features/promo_codes/presentation/providers/promo_code_providers.dart';
 
 import '../../support/supabase_test_harness.dart';
 
@@ -219,4 +220,30 @@ void main() {
         .placeOrder();
     expect(success, isTrue, reason: 'sans code, la commande passe');
   });
+
+  test(
+    'le client relit sur sa commande quel code il a utilisé',
+    () async {
+      await createCode(code: 'SEGOU', percent: 20);
+      await placeOrderWithCode('SEGOU');
+
+      final orders = await container
+          .read(orderRepositoryProvider)
+          .watchOrdersForUser(DemoIds.clientMoussa)
+          .first;
+      final order = orders.first;
+
+      // La trace ne porte qu'un identifiant de code, et `promo_codes` est
+      // fermée au client : sans l'instantané figé à la commande, il verrait
+      // une remise sans savoir laquelle (`0077`).
+      final codes = await container
+          .read(promoCodeRepositoryProvider)
+          .fetchForOrder(order.id);
+      final group = order.supplierGroups.firstWhere(
+        (g) => g.items.any((i) => i.productId == riz),
+      );
+      expect(codes[group.id]?.code, 'SEGOU');
+      expect(codes[group.id]?.discountFcfa, 2500 * 2);
+    },
+  );
 }

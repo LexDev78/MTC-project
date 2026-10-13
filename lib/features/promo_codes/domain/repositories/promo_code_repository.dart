@@ -25,6 +25,12 @@ abstract interface class PromoCodeRepository {
 
   Future<void> delete(String id);
 
+  /// Les codes utilisés sur une commande, indexés par groupe fournisseur —
+  /// pour que le client relise ce qu'il a appliqué.
+  Future<Map<String, ({String code, int discountFcfa})>> fetchForOrder(
+    String orderId,
+  );
+
   /// Ce qu'un code vaut sur ces lignes de panier, sans le consommer.
   Future<PromoCodePreview> preview({
     required String code,

@@ -9,6 +9,7 @@ import 'package:mtc_app/core/mock_data/malian_locations.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/features/tracking/presentation/screens/location_picker_screen.dart';
+import 'package:mtc_app/features/tracking/presentation/widgets/position_to_confirm_banner.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -407,6 +408,27 @@ class _PickupPointField extends StatelessWidget {
   final LatLng? chosen;
   final ValueChanged<LatLng> onPicked;
 
+  /// Ouvre le sélecteur de carte. Partagé par le bouton et par le bandeau :
+  /// deux chemins vers le même geste, une seule définition de ce qu'il fait.
+  Future<void> _pick(BuildContext context, LatLng? point) async {
+    final picked = await pickLocation(
+      context,
+      initialPoint:
+          point ??
+          MalianCity.values
+              .firstWhere(
+                (c) => c.label.toLowerCase() == supplier.city.toLowerCase(),
+                orElse: () => MalianCity.bamako,
+              )
+              .coordinates,
+      title: 'Point de retrait',
+      subtitle:
+          'Placez le repère sur la porte de votre boutique. C\'est là que le '
+          'livreur viendra chercher les commandes.',
+    );
+    if (picked != null) onPicked(picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -419,27 +441,24 @@ class _PickupPointField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Une fiche dont le point n'a jamais été pointé porte les
+        // coordonnées du centre de sa ville : le livreur s'y rend
+        // littéralement. Le bandeau disparaît dès que le repère bouge
+        // (`0079`).
+        if (supplier.positionConfirmedAt == null && chosen == null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: PositionToConfirmBanner(
+              message:
+                  'Votre point de retrait n\'a jamais été placé sur la carte. '
+                  'Tant qu\'il ne l\'est pas, les livreurs se présentent au '
+                  'centre de ${supplier.city}.',
+              actionLabel: 'Placer mon point de retrait',
+              onFix: () => _pick(context, point),
+            ),
+          ),
         OutlinedButton.icon(
-          onPressed: () async {
-            final picked = await pickLocation(
-              context,
-              initialPoint:
-                  point ??
-                  MalianCity.values
-                      .firstWhere(
-                        (c) =>
-                            c.label.toLowerCase() ==
-                            supplier.city.toLowerCase(),
-                        orElse: () => MalianCity.bamako,
-                      )
-                      .coordinates,
-              title: 'Point de retrait',
-              subtitle:
-                  'Placez le repère sur la porte de votre boutique. C\'est '
-                  'là que le livreur viendra chercher les commandes.',
-            );
-            if (picked != null) onPicked(picked);
-          },
+          onPressed: () => _pick(context, point),
           icon: Icon(
             point == null
                 ? Icons.add_location_alt_outlined

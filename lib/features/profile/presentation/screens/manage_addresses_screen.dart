@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/features/tracking/presentation/screens/location_picker_screen.dart';
+
+import '../../domain/entities/address.dart';
 import 'package:mtc_app/core/mock_data/malian_locations.dart';
 import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -37,11 +39,31 @@ class ManageAddressesScreen extends ConsumerWidget {
             separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) {
               final address = addresses[index];
+              // Une adresse dont le point n'a jamais été posé porte les
+              // coordonnées du centre de sa ville : le livreur s'y rend
+              // littéralement. On le dit sur la tuile, avec de quoi
+              // corriger (`0079`).
+              final aVerifier = address.positionConfirmedAt == null;
               return Card(
                 child: ListTile(
-                  leading: const Icon(Icons.location_on_outlined),
+                  leading: Icon(
+                    aVerifier
+                        ? Icons.wrong_location_outlined
+                        : Icons.location_on_outlined,
+                    color: aVerifier
+                        ? Theme.of(context).colorScheme.tertiary
+                        : null,
+                  ),
                   title: Text(address.label),
-                  subtitle: Text('${address.details}, ${address.city}'),
+                  subtitle: Text(
+                    aVerifier
+                        ? '${address.details}, ${address.city}\n'
+                              'Point jamais placé : les livreurs iront au '
+                              'centre de ${address.city}.'
+                        : '${address.details}, ${address.city}',
+                  ),
+                  isThreeLine: aVerifier,
+                  onTap: () => _replacePoint(context, ref, address),
                   trailing: IconButton(
                     icon: Icon(
                       Icons.delete_outline_rounded,
@@ -70,6 +92,34 @@ class ManageAddressesScreen extends ConsumerWidget {
         label: const Text('Ajouter'),
       ),
     );
+  }
+
+  /// Repose le point d'une adresse existante.
+  ///
+  /// Le seul chemin de correction était de supprimer puis recréer l'adresse,
+  /// ce que personne ne fait — les positions héritées restaient donc en
+  /// place indéfiniment.
+  Future<void> _replacePoint(
+    BuildContext context,
+    WidgetRef ref,
+    Address address,
+  ) async {
+    final picked = await pickLocation(
+      context,
+      initialPoint: LatLng(address.latitude, address.longitude),
+      title: address.label,
+      subtitle:
+          'Placez le repère sur votre porte. C\'est là que le livreur '
+          'viendra.',
+    );
+    if (picked == null) return;
+    await ref
+        .read(addressRepositoryProvider)
+        .updatePosition(
+          addressId: address.id,
+          latitude: picked.latitude,
+          longitude: picked.longitude,
+        );
   }
 
   void _showAddAddressSheet(BuildContext context, WidgetRef ref) {

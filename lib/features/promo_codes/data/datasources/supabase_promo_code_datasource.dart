@@ -96,4 +96,18 @@ class SupabasePromoCodeDatasource {
     );
     return Map<String, dynamic>.from(result as Map);
   }
+
+  /// Les codes utilisés sur une commande, par groupe fournisseur.
+  ///
+  /// Passe par une RPC parce que la trace ne porte qu'un identifiant de
+  /// code : `promo_codes` est fermée au client — c'est ce qui l'empêche
+  /// d'énumérer les codes en vigueur — et le libellé vient donc de
+  /// l'instantané figé à la commande.
+  Future<List<Map<String, dynamic>>> fetchForOrder(String orderId) async {
+    final rows = await _client.rpc(
+      'fetch_order_promo_codes',
+      params: {'p_order_id': orderId},
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
 }

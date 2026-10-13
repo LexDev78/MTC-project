@@ -35,6 +35,19 @@ class SupabaseAddressRepository implements AddressRepository {
   }
 
   @override
+  Future<void> updatePosition({
+    required String addressId,
+    required double latitude,
+    required double longitude,
+  }) {
+    return _datasource.updatePosition(
+      addressId: addressId,
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
+
+  @override
   Future<void> removeAddress({
     required String userId,
     required String addressId,

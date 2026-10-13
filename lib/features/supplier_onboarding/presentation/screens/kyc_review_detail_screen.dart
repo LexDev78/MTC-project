@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
-import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 
 import '../../domain/entities/supplier_kyc.dart';
 import '../controllers/kyc_review_controller.dart';
@@ -31,12 +30,12 @@ class _KycReviewDetailScreenState
   void initState() {
     super.initState();
     if (widget.kyc.status == KycReviewStatus.submitted) {
+      // L'agent n'est plus transmis : `start_kyc_review` (`0075`) prend
+      // celui de la session, et refuse un dossier qui n'attend pas d'examen.
       Future.microtask(() {
-        final staffId = ref.read(currentUserProvider).valueOrNull?.id;
-        if (staffId == null) return;
         ref
             .read(kycReviewControllerProvider.notifier)
-            .startReview(kycId: widget.kyc.id, staffId: staffId);
+            .startReview(kycId: widget.kyc.id);
       });
     }
   }
