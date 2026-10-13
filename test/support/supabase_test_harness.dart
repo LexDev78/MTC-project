@@ -232,6 +232,71 @@ Future<List<Map<String, dynamic>>> fetchStockMovementsAsAdmin(
 /// sont produites par l'événement qui les justifie. Les tests qui vérifient
 /// l'**affichage** et le marquage comme lu ont pourtant besoin d'en créer,
 /// d'où cette RPC réservée à `service_role`.
+/// Écrit l'empreinte d'un produit, comme le ferait la fonction edge
+/// d'indexation.
+///
+/// Les tests de recherche par photo n'appellent aucun modèle : ce qui se
+/// vérifie ici, c'est le **rapprochement** — l'ordre des résultats, le
+/// seuil, et les produits qui n'ont rien à y faire. Le vecteur peut donc
+/// être fabriqué, à condition d'avoir la bonne dimension.
+Future<void> upsertEmbeddingAsAdmin({
+  required String productId,
+  required List<double> embedding,
+  String model = 'test-model',
+  String sourceImageUrl = 'test://image',
+}) async {
+  await _adminClient.rpc(
+    'upsert_product_embedding',
+    params: {
+      'p_product_id': productId,
+      'p_embedding': '[${embedding.join(',')}]',
+      'p_model': model,
+      'p_source_image_url': sourceImageUrl,
+    },
+  );
+}
+
+/// Les produits qu'il reste à indexer, comme la fonction edge les demande.
+Future<List<({String productId, String name, String? imageUrl})>>
+fetchProductsNeedingEmbeddingAsAdmin({int limit = 200}) async {
+  final rows = await _adminClient.rpc(
+    'products_needing_embedding',
+    params: {'p_limit': limit},
+  );
+  return [
+    for (final row in (rows as List).cast<Map<String, dynamic>>())
+      (
+        productId: row['product_id'] as String,
+        name: row['name'] as String,
+        imageUrl: row['image_url'] as String?,
+      ),
+  ];
+}
+
+/// Rapproche un vecteur du catalogue, comme la fonction edge le fait après
+/// avoir calculé l'empreinte d'une photo.
+Future<List<({String productId, double similarity})>> searchByEmbeddingAsAdmin({
+  required List<double> embedding,
+  int limit = 24,
+  double minSimilarity = 0.25,
+}) async {
+  final rows = await _adminClient.rpc(
+    'search_products_by_embedding',
+    params: {
+      'p_embedding': '[${embedding.join(',')}]',
+      'p_limit': limit,
+      'p_min_similarity': minSimilarity,
+    },
+  );
+  return [
+    for (final row in (rows as List).cast<Map<String, dynamic>>())
+      (
+        productId: row['product_id'] as String,
+        similarity: (row['similarity'] as num).toDouble(),
+      ),
+  ];
+}
+
 /// Pose une course déjà livrée sur un groupe fournisseur.
 ///
 /// Évite d'ouvrir quatre sessions sur l'appareil pour lire et scanner deux

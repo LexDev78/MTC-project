@@ -27,6 +27,7 @@ import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart';
 import 'package:mtc_app/features/comments/presentation/screens/supplier_comment_inbox_screen.dart';
 import 'package:mtc_app/features/promo_codes/presentation/screens/supplier_promo_codes_screen.dart';
+import 'package:mtc_app/features/visual_search/presentation/screens/visual_search_screen.dart';
 import 'package:mtc_app/features/ratings/presentation/screens/supplier_review_management_screen.dart';
 import 'package:mtc_app/features/supplier_finance/presentation/screens/payout_review_queue_screen.dart';
 import 'package:mtc_app/features/chat/presentation/screens/conversation_list_screen.dart';
@@ -206,6 +207,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.clientSearch,
         pageBuilder: (context, state) => _fluidPage(state, const SearchScreen()),
+        routes: [
+          GoRoute(
+            path: 'photo',
+            pageBuilder: (context, state) =>
+                _fluidPage(state, const VisualSearchScreen()),
+          ),
+        ],
       ),
       GoRoute(
         path: AppRoutes.clientCatalogueCategory,

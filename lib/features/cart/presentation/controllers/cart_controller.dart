@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_variant.dart';
+import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
 
 import '../providers/cart_providers.dart';
 
@@ -44,6 +47,13 @@ class CartController extends AsyncNotifier<void> {
             variantName: effectiveVariant?.name,
           );
     });
+    // Seulement si l'ajout a réussi : un ajout refusé n'est pas un signal
+    // d'achat.
+    if (!state.hasError) {
+      unawaited(
+        ref.read(recommendationRepositoryProvider).logCartAdd(product.id),
+      );
+    }
   }
 
   Future<void> updateQuantity(String cartItemId, int quantity) async {

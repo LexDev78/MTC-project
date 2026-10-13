@@ -1,10 +1,14 @@
+import 'package:mtc_app/app/router/app_routes.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
+import 'package:mtc_app/features/recommendations/domain/repositories/recommendation_repository.dart';
+import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
 
 import '../providers/catalog_providers.dart';
 import '../widgets/product_grid.dart';
@@ -20,11 +24,33 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   Timer? _debounce;
 
+  /// Lu une fois ici : `dispose` journalise la dernière recherche, et `ref`
+  /// n'y est plus utilisable.
+  late final RecommendationRepository _recommendations;
+  String _lastLoggedQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _recommendations = ref.read(recommendationRepositoryProvider);
+  }
+
   @override
   void dispose() {
+    _logQuery();
     _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Une recherche est journalisée quand elle est validée ou quand le client
+  /// quitte l'écran avec — pas à chaque pause de frappe, qui enregistrerait
+  /// « bog », « bogo », « bogolan » comme trois intentions.
+  void _logQuery() {
+    final query = _controller.text.trim();
+    if (query.isEmpty || query == _lastLoggedQuery) return;
+    _lastLoggedQuery = query;
+    unawaited(_recommendations.logSearch(query));
   }
 
   /// Without this, every keystroke tears down the previous Postgres `ilike`
@@ -52,7 +78,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             border: InputBorder.none,
           ),
           onChanged: _onQueryChanged,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _logQuery(),
         ),
+        actions: [
+          // Posé ici parce que c'est là qu'on arrive en ne sachant pas quoi
+          // taper : chercher par photo est le recours quand le mot manque.
+          IconButton(
+            icon: const Icon(Icons.photo_camera_outlined),
+            tooltip: 'Rechercher par photo',
+            onPressed: () => context.push(AppRoutes.clientVisualSearch),
+          ),
+        ],
       ),
       body: AsyncValueWidget(
         value: resultsAsync,

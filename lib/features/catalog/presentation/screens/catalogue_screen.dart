@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
 
 import '../../domain/entities/product_category.dart';
 import '../widgets/product_card.dart' show ProductCategoryIcon, ProductCategoryImage;
@@ -44,13 +48,13 @@ class CatalogueScreen extends StatelessWidget {
   }
 }
 
-class _CategoryTile extends StatelessWidget {
+class _CategoryTile extends ConsumerWidget {
   const _CategoryTile({required this.category});
 
   final ProductCategory category;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final imageAsset = category.imageAsset;
 
@@ -59,8 +63,12 @@ class _CategoryTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       color: scheme.primaryContainer,
       child: InkWell(
-        onTap: () =>
-            context.push(AppRoutes.catalogueCategory(category.name)),
+        onTap: () {
+          unawaited(
+            ref.read(recommendationRepositoryProvider).logCategoryOpen(category),
+          );
+          context.push(AppRoutes.catalogueCategory(category.name));
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [

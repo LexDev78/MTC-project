@@ -3,7 +3,9 @@ import '../entities/suggestion_reason.dart';
 
 abstract interface class RecommendationRepository {
   /// Le fil « Pour vous » : des produits visibles, classés, chacun avec sa
-  /// justification. Liste vide si personne n'est connecté.
+  /// justification. Réservé aux comptes connectés : `anon` n'a pas le droit
+  /// d'exécuter la fonction, et c'est `recommendedFeedProvider` qui rend une
+  /// liste vide sans appeler quand personne n'est connecté.
   ///
   /// Jamais vide pour un compte connecté dès que le catalogue contient un
   /// produit visible : la source « populaire » sert de filet (voir `0082`).

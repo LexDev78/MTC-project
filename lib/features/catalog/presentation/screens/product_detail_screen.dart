@@ -23,6 +23,7 @@ import 'package:mtc_app/features/ratings/presentation/widgets/product_reviews_se
 import 'package:mtc_app/features/comments/presentation/widgets/product_comments_modal.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
 import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
+import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_characteristic.dart';
@@ -223,6 +224,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // a failed view-count bump shouldn't block or error the actual page.
     unawaited(
       ref.read(productRepositoryProvider).incrementViewCount(widget.productId),
+    );
+    // Le compteur ci-dessus dit combien de fois le produit a été vu ; cette
+    // trace dit *par qui*, pour le fil « Pour vous » (`0081`).
+    unawaited(
+      ref
+          .read(recommendationRepositoryProvider)
+          .logProductView(widget.productId),
     );
   }
 

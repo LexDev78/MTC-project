@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +17,8 @@ import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
     show ProductCategoryIcon;
 import 'package:mtc_app/features/catalog/presentation/widgets/product_filter_sheet.dart';
 import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
+import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
+import 'package:mtc_app/features/recommendations/presentation/widgets/recommended_feed.dart';
 
 import 'widgets/promo_hero_banner.dart';
 
@@ -70,7 +74,14 @@ class _ClientHomeScreenState extends ConsumerState<ClientHomeScreen>
   void _toggleCategory(ProductCategory category) {
     final provider = catalogCategoryProvider(_activeSupplierType);
     final current = ref.read(provider);
-    ref.read(provider.notifier).state = current == category ? null : category;
+    final next = current == category ? null : category;
+    ref.read(provider.notifier).state = next;
+    // Choisir une catégorie est un signal d'intérêt ; la désélectionner, non.
+    if (next != null) {
+      unawaited(
+        ref.read(recommendationRepositoryProvider).logCategoryOpen(next),
+      );
+    }
   }
 
   void _clearCategory() {
@@ -118,6 +129,10 @@ class _ClientHomeScreenState extends ConsumerState<ClientHomeScreen>
         body: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
             const SliverToBoxAdapter(child: PromoHeroBanner()),
+            // Au-dessus des onglets et non dans chacun : les suggestions
+            // mêlent les deux types de fournisseurs, et les répéter sous
+            // chaque onglet les afficherait deux fois pour une seule liste.
+            const SliverToBoxAdapter(child: RecommendedFeed()),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(

@@ -16,6 +16,11 @@ abstract final class AppRoutes {
   static const String clientCatalogueCategory = '/client/catalogue/:category';
   static const String clientProductDetail = '/client/product/:productId';
   static const String clientSearch = '/client/search';
+
+  /// Recherche par photo. Une route à part et non un mode de l'écran de
+  /// recherche : elle a son propre quota, ses propres refus à expliquer, et
+  /// un état qui ne se mélange pas à une recherche texte.
+  static const String clientVisualSearch = '/client/search/photo';
   static const String clientFavorites = '/client/favorites';
   static const String clientCart = '/client/cart';
   static const String clientCheckout = '/client/checkout';
