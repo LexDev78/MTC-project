@@ -569,7 +569,7 @@ class _ProductDetailContentState
                     ),
                 ],
               ),
-              _NextQuantityStepHint(
+              _PromotionLine(
                 product: product,
                 basePriceFcfa: selectedVariant?.priceFcfa ?? product.priceFcfa,
               ),
@@ -1573,33 +1573,30 @@ class _PromotionalPrice extends ConsumerWidget {
       );
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: CurrencyText(
-            priceUnderPromotion(
-              basePriceFcfa: basePriceFcfa,
-              promotion: promotion,
-            ),
-            compareAtAmountFcfa: basePriceFcfa,
-            style: style,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        PromotionBadge(promotion: promotion),
-      ],
+    // Le prix seul sur cette ligne, qu'il partage déjà avec le sélecteur de
+    // quantité. Le badge est allé en dessous (`_PromotionLine`) : à côté, il
+    // laissait au prix une colonne de quelques dizaines de pixels, et
+    // « 20 000 FCFA » s'y imprimait un caractère par ligne.
+    return CurrencyText(
+      priceUnderPromotion(basePriceFcfa: basePriceFcfa, promotion: promotion),
+      compareAtAmountFcfa: basePriceFcfa,
+      style: style,
     );
   }
 }
 
-/// « Encore 3 pour -20% » : une remise sur quantité que personne ne voit ne
-/// fait pas vendre une unité de plus.
-class _NextQuantityStepHint extends ConsumerWidget {
-  const _NextQuantityStepHint({
-    required this.product,
-    required this.basePriceFcfa,
-  });
+/// Sous le prix : la remise appliquée, et le palier suivant à atteindre.
+///
+/// Sur sa propre ligne, pleine largeur. Le badge a d'abord été posé à côté
+/// du prix : avec un intitulé un peu long (« -20% dès 10 · Gros volume »)
+/// il ne restait au prix qu'une colonne de quelques dizaines de pixels, et
+/// celui-ci s'imprimait un caractère par ligne. Un test de widget ne l'aurait
+/// pas vu — la surface y est assez grande pour que tout tienne.
+///
+/// L'incitation (« Encore 3 unités pour… ») vaut d'être montrée : une remise
+/// sur quantité que personne ne voit ne fait pas vendre une unité de plus.
+class _PromotionLine extends ConsumerWidget {
+  const _PromotionLine({required this.product, required this.basePriceFcfa});
 
   final Product product;
   final int basePriceFcfa;
@@ -1607,35 +1604,50 @@ class _NextQuantityStepHint extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quantity = ref.watch(_selectedQuantityProvider(product.id));
+    final applied = bestPromotionFor(
+      promotions: product.promotions,
+      basePriceFcfa: basePriceFcfa,
+      quantity: quantity,
+    );
     final step = nextQuantityStep(
       promotions: product.promotions,
       basePriceFcfa: basePriceFcfa,
       quantity: quantity,
     );
-    if (step == null) return const SizedBox.shrink();
+    if (applied == null && step == null) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
-    final price = priceUnderPromotion(
-      basePriceFcfa: basePriceFcfa,
-      promotion: step.promotion,
-    );
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs),
-      child: Row(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.trending_down_rounded, size: 16, color: scheme.tertiary),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Text(
-              'Encore ${step.unitsMissing} '
-              '${step.unitsMissing > 1 ? 'unités' : 'unité'} pour '
-              '${CurrencyFormatter.formatFcfa(price)} l\'unité',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: scheme.tertiary,
+          if (applied != null) PromotionBadge(promotion: applied),
+          if (step != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.trending_down_rounded,
+                    size: 16,
+                    color: scheme.tertiary,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Encore ${step.unitsMissing} '
+                      '${step.unitsMissing > 1 ? 'unités' : 'unité'} pour '
+                      '${CurrencyFormatter.formatFcfa(priceUnderPromotion(basePriceFcfa: basePriceFcfa, promotion: step.promotion))} l\'unité',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: scheme.tertiary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
         ],
       ),
     );

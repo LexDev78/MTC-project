@@ -41,9 +41,7 @@ class CourierHistoryScreen extends ConsumerWidget {
           children: [
             _StatsHeader(),
             Expanded(
-              child: TabBarView(
-                children: [_HistoryTab(), _RatingsTab()],
-              ),
+              child: TabBarView(children: [_HistoryTab(), _RatingsTab()]),
             ),
           ],
         ),
@@ -74,38 +72,44 @@ class _StatsHeader extends ConsumerWidget {
         AppSpacing.md,
         AppSpacing.sm,
       ),
-      child: Row(
-        children: [
-          _StatTile(
-            icon: Icons.check_circle_outline_rounded,
-            label: 'Livrées',
-            value: '${stats.deliveredCount}',
-            detail: '${stats.monthDeliveredCount} ce mois',
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          _StatTile(
-            icon: Icons.payments_outlined,
-            label: 'Frais perçus',
-            value: CurrencyFormatter.formatFcfa(stats.deliveredFeesFcfa),
-            detail:
-                '${CurrencyFormatter.formatFcfa(stats.monthFeesFcfa)} ce mois',
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          _StatTile(
-            icon: Icons.star_rounded,
-            iconColor: Colors.amber,
-            label: 'Note',
-            // Zéro note n'est pas « 0 sur 5 » : le dire ainsi ferait croire
-            // à un mauvais livreur là où il n'y a encore rien.
-            value: stats.ratingCount == 0
-                ? '—'
-                : stats.ratingAverage.toStringAsFixed(1),
-            detail: stats.ratingCount == 0
-                ? 'pas encore notée'
-                : '${stats.ratingCount} avis',
-            detailColor: scheme.onSurfaceVariant,
-          ),
-        ],
+      child: IntrinsicHeight(
+        child: Row(
+          // Les trois cartes prennent la hauteur de la plus haute : le détail
+          // du milieu passe à deux lignes (« 2 000 FCFA ce mois ») et laissait
+          // sinon ses voisines flotter plus court.
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _StatTile(
+              icon: Icons.check_circle_outline_rounded,
+              label: 'Livrées',
+              value: '${stats.deliveredCount}',
+              detail: '${stats.monthDeliveredCount} ce mois',
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            _StatTile(
+              icon: Icons.payments_outlined,
+              label: 'Frais perçus',
+              value: CurrencyFormatter.formatFcfa(stats.deliveredFeesFcfa),
+              detail:
+                  '${CurrencyFormatter.formatFcfa(stats.monthFeesFcfa)} ce mois',
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            _StatTile(
+              icon: Icons.star_rounded,
+              iconColor: Colors.amber,
+              label: 'Note',
+              // Zéro note n'est pas « 0 sur 5 » : le dire ainsi ferait croire
+              // à un mauvais livreur là où il n'y a encore rien.
+              value: stats.ratingCount == 0
+                  ? '—'
+                  : stats.ratingAverage.toStringAsFixed(1),
+              detail: stats.ratingCount == 0
+                  ? 'pas encore notée'
+                  : '${stats.ratingCount} avis',
+              detailColor: scheme.onSurfaceVariant,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -276,16 +280,10 @@ class _HistoryCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 if (entry.clientStars != null)
-                  _StarsChip(
-                    label: 'Client',
-                    stars: entry.clientStars!,
-                  ),
+                  _StarsChip(label: 'Client', stars: entry.clientStars!),
                 if (entry.supplierStars != null) ...[
                   const SizedBox(width: AppSpacing.xs),
-                  _StarsChip(
-                    label: 'Fournisseur',
-                    stars: entry.supplierStars!,
-                  ),
+                  _StarsChip(label: 'Fournisseur', stars: entry.supplierStars!),
                 ],
               ],
             ),
@@ -321,9 +319,9 @@ class _StarsChip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(width: AppSpacing.xs),
           const Icon(Icons.star_rounded, size: 13, color: Colors.amber),
@@ -380,6 +378,8 @@ class _RatingsTab extends ConsumerWidget {
                             MtcRatingStars(
                               rating: rating.stars.toDouble(),
                               showValue: false,
+                              asStars: true,
+                              size: 15,
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             Text(

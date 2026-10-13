@@ -41,3 +41,4 @@ select public.test_seed_couriers();
 -- être confiée à la livraison MTC (voir `0050`).
 select public.test_seed_supplier_pickup_points();
 grant execute on function public.test_insert_notification(uuid, text, text, text, text) to service_role;
+grant execute on function public.test_seed_delivered_delivery(text, uuid) to service_role;

@@ -191,6 +191,8 @@ class ReviewCard extends ConsumerWidget {
                 MtcRatingStars(
                   rating: review.stars.toDouble(),
                   showValue: false,
+                  asStars: true,
+                  size: 15,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(

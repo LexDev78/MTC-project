@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -230,6 +232,44 @@ Future<List<Map<String, dynamic>>> fetchStockMovementsAsAdmin(
 /// sont produites par l'événement qui les justifie. Les tests qui vérifient
 /// l'**affichage** et le marquage comme lu ont pourtant besoin d'en créer,
 /// d'où cette RPC réservée à `service_role`.
+/// Pose une course déjà livrée sur un groupe fournisseur.
+///
+/// Évite d'ouvrir quatre sessions sur l'appareil pour lire et scanner deux
+/// codes QR : les parcours visuels qui s'intéressent à l'après-livraison
+/// partent de là. Le chemin réel reste couvert par `delivery_codes_test`.
+Future<String> seedDeliveredDeliveryAsAdmin({
+  required String groupId,
+  required String courierId,
+}) async {
+  final id = await _adminClient.rpc(
+    'test_seed_delivered_delivery',
+    params: {'p_group_id': groupId, 'p_courier_id': courierId},
+  );
+  return id as String;
+}
+
+/// Dépose un fichier dans un bucket Storage sans session utilisateur.
+///
+/// Les parcours visuels ont besoin de **vraies** images pour montrer ce
+/// qu'un acheteur voit : un chemin qui ne pointe sur rien ne rend qu'une
+/// icône d'image cassée, ce qui ne dit rien de la mise en page. Le
+/// sélecteur de photos, lui, n'est pas pilotable depuis un test (c'est une
+/// feuille native), d'où ce dépôt direct.
+Future<void> uploadToBucketAsAdmin({
+  required String bucket,
+  required String path,
+  required Uint8List bytes,
+  String contentType = 'image/jpeg',
+}) async {
+  await _adminClient.storage
+      .from(bucket)
+      .uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(contentType: contentType, upsert: true),
+      );
+}
+
 Future<void> insertNotificationAsAdmin({
   required String userId,
   required String type,
