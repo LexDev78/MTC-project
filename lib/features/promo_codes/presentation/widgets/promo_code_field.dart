@@ -84,34 +84,15 @@ class _PromoCodeFieldState extends ConsumerState<PromoCodeField> {
       );
     }
 
+    // Le bouton sous le champ, pleine largeur, et non à côté : le thème
+    // donne à tout `OutlinedButton` une largeur minimale infinie
+    // (`Size.fromHeight(56)`), donc un bouton posé en voisin d'un `Expanded`
+    // réclame une largeur infinie et la disposition échoue. Vu en parcours
+    // visuel — l'écran de paiement jetait une assertion de rendu.
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: MtcTextField(
-                controller: _controller,
-                label: 'Code promo',
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: OutlinedButton(
-                onPressed: _checking ? null : _apply,
-                child: _checking
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Appliquer'),
-              ),
-            ),
-          ],
-        ),
+        MtcTextField(controller: _controller, label: 'Code promo'),
         if (applied != null && !applied.valid && applied.reason != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -122,6 +103,17 @@ class _PromoCodeFieldState extends ConsumerState<PromoCodeField> {
               ),
             ),
           ),
+        const SizedBox(height: AppSpacing.sm),
+        OutlinedButton(
+          onPressed: _checking ? null : _apply,
+          child: _checking
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Appliquer le code'),
+        ),
       ],
     );
   }
