@@ -102,19 +102,23 @@ void main() {
       await etapeVisuelle(tester, 'promos-02-section-vide', () async {
         await toucher(tester, find.text(_produit), pas: 10);
         await attendre(tester, find.text('Promotions'));
-        await cadrer(tester, find.text('Aucune promotion en cours.'));
+        await cadrer(tester, find.text('Aucune promotion.'));
         expect(find.text('Créer une promotion'), findsOneWidget);
       });
 
       await etapeVisuelle(tester, 'promos-03-feuille-vide', () async {
         await toucher(tester, find.text('Créer une promotion'), pas: 10);
-        await attendre(tester, find.text('Nouvelle promotion'));
-        expect(find.textContaining('prix de base'), findsOneWidget);
+        await attendre(tester, find.textContaining('prix de base'));
+        // Le formulaire est replié : la feuille s'ouvre sur l'état des
+        // promotions, pas sur une saisie.
+        expect(find.text('Remise (%)'), findsNothing);
       });
 
       // L'aperçu est le vrai contrôle de saisie : c'est lui qu'on vient
       // regarder, pas le pourcentage tapé.
       await etapeVisuelle(tester, 'promos-04-apercu-prix', () async {
+        await toucher(tester, find.text('Créer une promotion').last, pas: 8);
+        await attendre(tester, find.text('Nouvelle promotion'));
         await creerPromotion(
           tester,
           pourcentage: 15,
@@ -134,6 +138,8 @@ void main() {
       // coexistence des deux qui se lit mal, et que la feuille doit
       // expliquer (« le client paie la plus avantageuse »).
       await etapeVisuelle(tester, 'promos-06-deux-remises', () async {
+        await toucher(tester, find.text('Ajouter une promotion'), pas: 8);
+        await attendre(tester, find.text('Nouvelle promotion'));
         await creerPromotion(
           tester,
           pourcentage: 20,
@@ -144,6 +150,19 @@ void main() {
         await attendre(tester, find.text('Gros volume'));
         await cadrer(tester, find.textContaining('ne s\'additionnent pas'));
         expect(find.text('Gros volume'), findsWidgets);
+      });
+
+      // Retour au formulaire : ce qu'il résume doit s'accorder avec ce que
+      // la feuille vient d'enregistrer.
+      await etapeVisuelle(tester, 'promos-06b-resume-formulaire', () async {
+        await tester.pageBack();
+        await avancer(tester, pas: 8);
+        await cadrer(tester, find.text('Promotions'));
+        // Le résumé du formulaire doit s'accorder avec ce que la feuille
+        // vient d'enregistrer : il lisait une copie figée du produit et
+        // annonçait encore « Aucune promotion ».
+        expect(find.text('Gérer les promotions (2)'), findsOneWidget);
+        expect(find.textContaining('Aucune promotion'), findsNothing);
       });
 
       // ---- côté client -------------------------------------------------

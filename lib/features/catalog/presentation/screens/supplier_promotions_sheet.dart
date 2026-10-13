@@ -54,19 +54,35 @@ class SupplierPromotionsSheet extends ConsumerWidget {
   }
 }
 
-class _Body extends ConsumerWidget {
+class _Body extends ConsumerStatefulWidget {
   const _Body({required this.product, required this.scrollController});
 
   final Product product;
   final ScrollController scrollController;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Body> createState() => _BodyState();
+}
+
+class _BodyState extends ConsumerState<_Body> {
+  /// Le formulaire de création n'est pas affiché en permanence.
+  ///
+  /// Il l'était, et c'était trompeur : la feuille montrait côte à côte la
+  /// liste des promotions et un formulaire déjà rempli de valeurs par
+  /// défaut, de sorte qu'on ne savait plus si « Créer la promotion »
+  /// modifiait celle du dessus ou en ajoutait une seconde. Il se déplie
+  /// maintenant sur un bouton, et se replie dès que la promotion est
+  /// enregistrée — le résultat apparaissant dans la liste au-dessus.
+  bool _composing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final product = widget.product;
     final scheme = Theme.of(context).colorScheme;
     final promotions = product.promotions;
 
     return ListView(
-      controller: scrollController,
+      controller: widget.scrollController,
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         Text('Promotions', style: Theme.of(context).textTheme.titleLarge),
@@ -99,7 +115,22 @@ class _Body extends ConsumerWidget {
             _PromotionTile(promotion: promotion, product: product),
         ],
         const Divider(height: AppSpacing.xl),
-        _NewPromotionForm(product: product),
+        if (_composing)
+          _NewPromotionForm(
+            product: product,
+            onCreated: () => setState(() => _composing = false),
+            onCancel: () => setState(() => _composing = false),
+          )
+        else
+          FilledButton.tonalIcon(
+            onPressed: () => setState(() => _composing = true),
+            icon: const Icon(Icons.add_rounded),
+            label: Text(
+              promotions.isEmpty
+                  ? 'Créer une promotion'
+                  : 'Ajouter une promotion',
+            ),
+          ),
       ],
     );
   }
@@ -234,9 +265,20 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _NewPromotionForm extends ConsumerStatefulWidget {
-  const _NewPromotionForm({required this.product});
+  const _NewPromotionForm({
+    required this.product,
+    required this.onCreated,
+    required this.onCancel,
+  });
 
   final Product product;
+
+  /// Prévient la feuille qu'une promotion est enregistrée, pour qu'elle
+  /// replie le formulaire : la nouvelle est désormais visible dans la liste
+  /// au-dessus, et laisser le formulaire ouvert invitait à la créer deux
+  /// fois.
+  final VoidCallback onCreated;
+  final VoidCallback onCancel;
 
   @override
   ConsumerState<_NewPromotionForm> createState() => _NewPromotionFormState();
@@ -319,11 +361,7 @@ class _NewPromotionFormState extends ConsumerState<_NewPromotionForm> {
         );
     if (!mounted) return;
     if (ok) {
-      setState(() {
-        _label.clear();
-        _startsAt = null;
-        _endsAt = null;
-      });
+      widget.onCreated();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Promotion enregistrée.')),
       );
@@ -474,6 +512,10 @@ class _NewPromotionFormState extends ConsumerState<_NewPromotionForm> {
           label: 'Créer la promotion',
           isLoading: isLoading,
           onPressed: value == null ? null : _submit,
+        ),
+        TextButton(
+          onPressed: isLoading ? null : widget.onCancel,
+          child: const Text('Annuler'),
         ),
       ],
     );

@@ -108,6 +108,25 @@ class _SupplierProductFormScreenState
     }
   }
 
+  /// Relit le produit après une écriture faite **ailleurs** que dans ce
+  /// formulaire — aujourd'hui la feuille des promotions.
+  ///
+  /// Sans cela, le résumé des promotions reste celui d'avant l'ouverture de
+  /// la feuille : après en avoir créé deux, l'écran annonçait toujours
+  /// « Aucune promotion » et proposait d'en créer une.
+  ///
+  /// Ne touche pas à [_variantPanelGeneration], contrairement à
+  /// [_loadFreshProduct] : recréer le panneau de variantes ferait disparaître
+  /// une composition en cours.
+  Future<void> _reloadProductOnly() async {
+    if (!_isEditing) return;
+    final fresh = await ref
+        .read(productRepositoryProvider)
+        .getById(widget.product!.id);
+    if (!mounted) return;
+    setState(() => _currentProduct = fresh);
+  }
+
   Future<void> _loadFreshProduct() async {
     final fresh = await ref.read(productRepositoryProvider).getById(widget.product!.id);
     if (!mounted) return;
@@ -588,7 +607,10 @@ class _SupplierProductFormScreenState
                 // part et non ici, parce qu'on ne retouche pas ses
                 // promotions au même moment qu'on corrige un libellé.
                 if (_isEditing)
-                  _PromotionsEntry(product: _currentProduct ?? widget.product!)
+                  _PromotionsEntry(
+                    product: _currentProduct ?? widget.product!,
+                    onClosed: _reloadProductOnly,
+                  )
                 else
                   Card(
                     child: Padding(
@@ -671,18 +693,28 @@ class _AggregateField extends StatelessWidget {
 ///
 /// Résume au lieu de lister : le formulaire sert à décrire le produit, et
 /// une liste de remises au milieu en ferait perdre le fil.
+///
+/// Le libellé distingue **trois** états et non deux. « Aucune promotion en
+/// cours » à côté d'un bouton « Gérer les promotions (1) » se lit comme une
+/// contradiction : une promotion programmée, terminée ou arrêtée existe sans
+/// s'appliquer, et c'est cela qu'il faut dire.
 class _PromotionsEntry extends StatelessWidget {
-  const _PromotionsEntry({required this.product});
+  const _PromotionsEntry({required this.product, required this.onClosed});
 
   final Product product;
+
+  /// Appelé quand la feuille se referme : le produit doit être relu, sinon
+  /// ce résumé reste celui d'avant.
+  final Future<void> Function() onClosed;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final running = [
+    final enCours = [
       for (final promotion in product.promotions)
         if (promotion.isRunningAt()) promotion,
     ];
+    final total = product.promotions.length;
 
     return Card(
       child: Padding(
@@ -690,33 +722,40 @@ class _PromotionsEntry extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (running.isEmpty)
-              Text(
-                'Aucune promotion en cours.',
-                style: TextStyle(color: scheme.onSurfaceVariant),
-              )
-            else
+            if (enCours.isNotEmpty)
               Wrap(
                 spacing: AppSpacing.xs,
                 runSpacing: AppSpacing.xs,
                 children: [
-                  for (final promotion in running)
+                  for (final promotion in enCours)
                     PromotionBadge(promotion: promotion),
                 ],
+              )
+            else
+              Text(
+                total == 0
+                    ? 'Aucune promotion.'
+                    : '$total promotion${total > 1 ? 's' : ''} '
+                          'enregistrée${total > 1 ? 's' : ''}, aucune en cours.',
+                style: TextStyle(color: scheme.onSurfaceVariant),
               ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                showDragHandle: true,
-                builder: (_) => SupplierPromotionsSheet(productId: product.id),
-              ),
+              onPressed: () async {
+                await showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  showDragHandle: true,
+                  builder: (_) =>
+                      SupplierPromotionsSheet(productId: product.id),
+                );
+                await onClosed();
+              },
               icon: const Icon(Icons.local_offer_outlined),
               label: Text(
-                product.promotions.isEmpty
+                total == 0
                     ? 'Créer une promotion'
-                    : 'Gérer les promotions (${product.promotions.length})',
+                    : 'Gérer les promotions ($total)',
               ),
             ),
           ],
