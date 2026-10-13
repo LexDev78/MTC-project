@@ -39,6 +39,20 @@ class SupabaseProductRepository implements ProductRepository {
   }
 
   @override
+  Future<List<Product>> fetchByIds(List<String> ids) async {
+    final rows = await _datasource.fetchByIds(ids);
+    // Indexé puis relu dans l'ordre de [ids] : la base rend les lignes dans
+    // l'ordre qui l'arrange, alors que le classement est précisément ce que
+    // l'appelant veut préserver. Les identifiants sans ligne correspondante
+    // (produit devenu invisible) tombent d'eux-mêmes.
+    final byId = {for (final row in rows) row['id'] as String: row};
+    return [
+      for (final id in ids)
+        if (byId[id] case final row?) Product.fromJson(row),
+    ];
+  }
+
+  @override
   Future<void> updateSupplierRating({
     required String supplierId,
     required double ratingAverage,

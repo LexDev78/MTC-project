@@ -24,6 +24,14 @@ abstract interface class ProductRepository {
 
   Future<Product> getById(String id);
 
+  /// Les produits de [ids], dans l'ordre où ils sont demandés — et sans les
+  /// manquants. Un identifiant dont le produit n'est plus visible (retiré du
+  /// catalogue, fournisseur dévérifié) est simplement absent du résultat :
+  /// l'appelant obtient une liste plus courte, jamais un trou.
+  ///
+  /// Comme [watchProducts], ne rend que ce qu'un client a le droit de voir.
+  Future<List<Product>> fetchByIds(List<String> ids);
+
   /// Propagates a supplier's newly recomputed rating to every one of their
   /// products — `Product.ratingAverage/ratingCount` is a denormalized copy
   /// (so catalog sorting/filtering never needs a supplier join), and a

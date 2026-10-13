@@ -151,6 +151,22 @@ class SupabaseProductDatasource {
     return _client.from('products').select(_nestedSelect).eq('id', id).single();
   }
 
+  /// Les produits de [ids], avec le même `_listSelect` que les listes — donc
+  /// leurs promotions imbriquées. Sert le fil « Pour vous » :
+  /// `get_recommended_products` ne rend que des identifiants ordonnés, et
+  /// c'est ici que les vignettes reprennent leur forme habituelle.
+  ///
+  /// L'ordre rendu n'est pas celui du classement (`in` ne promet aucun tri) :
+  /// le réordonnancement se fait chez l'appelant, qui détient la liste de
+  /// référence. Les filtres de visibilité publique restent portés par la RLS
+  /// `products_select_public` — un produit désactivé entre le classement et
+  /// cette lecture disparaît simplement du fil, au lieu d'y apparaître à
+  /// moitié rempli.
+  Future<List<Map<String, dynamic>>> fetchByIds(List<String> ids) async {
+    if (ids.isEmpty) return const [];
+    return _client.from('products').select(_listSelect).inFilter('id', ids);
+  }
+
   Future<void> updateSupplierRating({
     required String supplierId,
     required double ratingAverage,
