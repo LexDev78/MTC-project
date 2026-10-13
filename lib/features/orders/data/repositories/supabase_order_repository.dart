@@ -63,6 +63,7 @@ class SupabaseOrderRepository implements OrderRepository {
     PaymentMethod paymentMethod = PaymentMethod.onDelivery,
     PaymentStatus paymentStatus = PaymentStatus.pendingOnDelivery,
     MobileMoneyProvider? mobileMoneyProvider,
+    String? promoCode,
   }) async {
     // `clientId` is never sent to the RPC — it trusts `auth.uid()` alone
     // (see `place_order()`, `0003_orders_rpc.sql`), so a client can never
@@ -112,6 +113,7 @@ class SupabaseOrderRepository implements OrderRepository {
         'p_mobile_money_provider': mobileMoneyProvider == null
             ? null
             : _mobileMoneyProviderToDb(mobileMoneyProvider),
+        'p_promo_code': promoCode,
       });
     } on PostgrestException catch (e) {
       if (e.message.contains('Stock insuffisant')) {

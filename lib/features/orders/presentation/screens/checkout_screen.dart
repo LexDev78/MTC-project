@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/promo_codes/presentation/widgets/promo_code_field.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
 
 import '../../domain/entities/fulfillment.dart';
@@ -56,6 +57,13 @@ class CheckoutScreen extends ConsumerWidget {
       }
       return sum + (isMtc ? g.mtcDeliveryFeeFcfa : 0);
     });
+    // Déjà soustrait de `subtotalFcfa` : affiché à part pour que le client
+    // voie ce que son code lui a fait gagner, pas pour être retranché deux
+    // fois.
+    final promoDiscount = groupsForTotals.fold<int>(
+      0,
+      (sum, g) => sum + g.promoDiscountFcfa,
+    );
     final priorityFee = isPriority ? priorityOrderFeeFcfa : 0;
     final total = subtotal + deliveryFees + priorityFee;
 
@@ -146,10 +154,13 @@ class CheckoutScreen extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
+              const PromoCodeField(),
+              const SizedBox(height: AppSpacing.md),
               _TotalsCard(
                 subtotal: subtotal,
                 deliveryFees: deliveryFees,
                 priorityFee: priorityFee,
+                promoDiscount: promoDiscount,
                 total: total,
               ),
             ],
@@ -259,12 +270,16 @@ class _TotalsCard extends StatelessWidget {
     required this.subtotal,
     required this.deliveryFees,
     required this.priorityFee,
+    required this.promoDiscount,
     required this.total,
   });
 
   final int subtotal;
   final int deliveryFees;
   final int priorityFee;
+
+  /// Déjà déduit de [subtotal] : montré pour que la remise se voie.
+  final int promoDiscount;
   final int total;
 
   @override
@@ -274,6 +289,11 @@ class _TotalsCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
+            if (promoDiscount > 0)
+              _TotalsRow(
+                label: 'Code promo',
+                amountFcfa: -promoDiscount,
+              ),
             _TotalsRow(label: 'Sous-total', amountFcfa: subtotal),
             _TotalsRow(label: 'Livraison', amountFcfa: deliveryFees),
             if (priorityFee > 0)

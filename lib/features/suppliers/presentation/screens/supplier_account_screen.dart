@@ -77,6 +77,13 @@ class SupplierAccountScreen extends ConsumerWidget {
         title: const Text('Profil'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.confirmation_number_outlined),
+            tooltip: 'Codes promo',
+            onPressed: () => context.push(
+              '${ref.read(supplierRoutePrefixProvider)}/account/promo-codes',
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.star_outline_rounded),
             tooltip: 'Avis clients',
             onPressed: () => context.push(

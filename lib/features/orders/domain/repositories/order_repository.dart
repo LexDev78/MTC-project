@@ -46,6 +46,11 @@ abstract interface class OrderRepository {
     PaymentMethod paymentMethod = PaymentMethod.onDelivery,
     PaymentStatus paymentStatus = PaymentStatus.pendingOnDelivery,
     MobileMoneyProvider? mobileMoneyProvider,
+
+    /// Code promo saisi par le client. Le serveur le revalide et le
+    /// consomme lui-même : un code refusé fait échouer la commande plutôt
+    /// que d'être ignoré, sinon on prélèverait plus que l'annoncé.
+    String? promoCode,
   });
 
   /// Throws `ValidationException` if `status` isn't a valid move from the

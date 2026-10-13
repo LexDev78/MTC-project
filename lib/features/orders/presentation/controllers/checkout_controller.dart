@@ -7,6 +7,7 @@ import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/promo_codes/presentation/providers/applied_promo_code_provider.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
@@ -147,6 +148,9 @@ class CheckoutController extends AsyncNotifier<Order?> {
       var order = await ref
           .read(orderRepositoryProvider)
           .placeOrder(
+            // Le serveur revalide et consomme le code lui-même : l'aperçu
+            // n'engage rien.
+            promoCode: ref.read(appliedPromoCodeProvider)?.code,
             clientId: userId,
             clientDisplayNameSnapshot: user.displayName,
             clientPhoneSnapshot: user.phoneNumber,

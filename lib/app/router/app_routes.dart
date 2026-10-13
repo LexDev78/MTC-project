@@ -45,6 +45,8 @@ abstract final class AppRoutes {
       '/supplier-tiers/products/comments';
   static const String supplierTiersReviewManagement =
       '/supplier-tiers/account/reviews';
+  static const String supplierTiersPromoCodes =
+      '/supplier-tiers/account/promo-codes';
   static const String supplierTiersNotifications =
       '/supplier-tiers/notifications';
   static const String supplierTiersOrderDetailPath =
@@ -82,6 +84,8 @@ abstract final class AppRoutes {
       '/supplier-principal/products/comments';
   static const String supplierPrincipalReviewManagement =
       '/supplier-principal/account/reviews';
+  static const String supplierPrincipalPromoCodes =
+      '/supplier-principal/account/promo-codes';
   static const String supplierPrincipalNotifications =
       '/supplier-principal/notifications';
   static const String supplierPrincipalOrderDetailPath =

@@ -8,6 +8,7 @@ import 'package:mtc_app/features/cart/domain/entities/cart_item.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_pricing.dart';
 import 'package:mtc_app/features/catalog/domain/promotion_pricing.dart';
+import 'package:mtc_app/features/promo_codes/presentation/providers/applied_promo_code_provider.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
@@ -30,7 +31,15 @@ typedef CheckoutGroupView = ({
   Set<ProductCategory> categories,
   double totalWeightKg,
   int mtcDeliveryFeeFcfa,
+
+  /// Sous-total **net** : promotions automatiques et code promo déjà
+  /// déduits. Tous les totaux de l'écran en découlent, donc il n'existe pas
+  /// deux façons de les calculer.
   int subtotalFcfa,
+
+  /// Ce que le code promo a retiré à ce groupe — pour l'afficher en clair.
+  /// Déjà soustrait de [subtotalFcfa].
+  int promoDiscountFcfa,
 });
 
 /// Where MTC would be driving *to*, for the dynamic fee calculation below —
@@ -156,6 +165,18 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
           ) *
           line.item.quantity;
     }
+    // Le code promo ne vaut que chez son fournisseur : le serveur a calculé
+    // sa remise sur les seules lignes de celui-ci (`preview_promo_code`),
+    // donc elle s'impute entièrement à ce groupe.
+    final applied = ref.watch(appliedPromoCodeProvider);
+    var promoDiscount = 0;
+    if (applied != null &&
+        applied.valid &&
+        applied.supplierId == entry.key) {
+      promoDiscount = applied.discountFcfa.clamp(0, subtotal);
+      subtotal -= promoDiscount;
+    }
+
     final fee = allowsMtc
         ? _mtcDeliveryFeeFor(
             supplierCity: lines.first.pricing.city,
@@ -176,6 +197,7 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
       totalWeightKg: totalWeightKg,
       mtcDeliveryFeeFcfa: fee,
       subtotalFcfa: subtotal,
+      promoDiscountFcfa: promoDiscount,
     ));
   }
   return groups;
