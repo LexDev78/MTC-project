@@ -27,7 +27,6 @@ import 'support/parcours_visuel.dart';
 /// l'interface : le sélecteur de photos est une feuille native, qu'aucun
 /// test ne peut piloter. C'est donc le rendu qui est vérifié ici, pas la
 /// cueillette — et c'est dit, plutôt que laissé à supposer.
-const _produit = 'Tissu Bogolan traditionnel';
 const _clientAwa = '04060d99-e34d-520e-8b75-631ff4d3c10c';
 const _groupeAwaBogolan = 'efbd44fe-a725-533d-ba6c-a9c867b161cb';
 
