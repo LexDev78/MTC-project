@@ -74,6 +74,9 @@ Future<void> resetAndSeed() async {
   // Adresses de retrait : la garde de `0050` refuse de confier une commande
   // à la livraison MTC sans elles, donc le décor doit les poser.
   await _adminClient.rpc('test_seed_supplier_pickup_points');
+  // La file de purge et le registre des modèles ne pendent à aucun compte :
+  // le `truncate … cascade` du décor ne les atteint pas (`0088`).
+  await _adminClient.rpc('test_reset_ai_scratch');
 }
 
 /// Rejoue [action] si Postgres détecte un interblocage (40P01).
@@ -232,24 +235,72 @@ Future<List<Map<String, dynamic>>> fetchStockMovementsAsAdmin(
 /// sont produites par l'événement qui les justifie. Les tests qui vérifient
 /// l'**affichage** et le marquage comme lu ont pourtant besoin d'en créer,
 /// d'où cette RPC réservée à `service_role`.
+/// Déclare un modèle dans le registre (`0085`).
+///
+/// Nécessaire avant d'écrire une empreinte : `product_embeddings.model`
+/// référence `ai_models`, et la clé étrangère est là pour qu'une faute de
+/// frappe ne crée pas un troisième espace vectoriel que personne ne
+/// remarquerait.
+Future<void> registerAiModelAsAdmin({
+  required String name,
+  int dim = 1024,
+  String provider = 'self_hosted',
+  String role = 'candidate',
+}) async {
+  await _adminClient.from('ai_models').upsert({
+    'name': name,
+    'kind': 'embedding',
+    'dim': dim,
+    'provider': provider,
+    'role': role,
+  });
+}
+
 /// Écrit l'empreinte d'un produit, comme le ferait la fonction edge
 /// d'indexation.
 ///
 /// Les tests de recherche par photo n'appellent aucun modèle : ce qui se
 /// vérifie ici, c'est le **rapprochement** — l'ordre des résultats, le
 /// seuil, et les produits qui n'ont rien à y faire. Le vecteur peut donc
-/// être fabriqué, à condition d'avoir la bonne dimension.
+/// être fabriqué, à condition d'avoir la dimension déclarée par le modèle.
+///
+/// Le modèle est déclaré au passage s'il ne l'est pas déjà : laisser chaque
+/// test y penser produirait surtout des échecs de clé étrangère sans rapport
+/// avec ce qu'il vérifie.
 Future<void> upsertEmbeddingAsAdmin({
   required String productId,
   required List<double> embedding,
   String model = 'test-model',
   String sourceImageUrl = 'test://image',
 }) async {
+  await registerAiModelAsAdmin(name: model, dim: embedding.length);
   await _adminClient.rpc(
     'upsert_product_embedding',
     params: {
       'p_product_id': productId,
-      'p_embedding': '[${embedding.join(',')}]',
+      'p_embedding': embedding,
+      'p_model': model,
+      'p_source_image_url': sourceImageUrl,
+    },
+  );
+}
+
+/// L'écriture d'une empreinte **sans** déclarer le modèle au passage.
+///
+/// Pour les tests qui vérifient ce que la base refuse : un modèle absent du
+/// registre, une dimension inattendue. `upsertEmbeddingAsAdmin` déclare le
+/// modèle lui-même, ce qui masquerait justement le refus attendu.
+Future<void> upsertEmbeddingRawAsAdmin({
+  required String productId,
+  required List<double> embedding,
+  required String model,
+  String sourceImageUrl = 'test://image',
+}) async {
+  await _adminClient.rpc(
+    'upsert_product_embedding',
+    params: {
+      'p_product_id': productId,
+      'p_embedding': embedding,
       'p_model': model,
       'p_source_image_url': sourceImageUrl,
     },
@@ -257,11 +308,17 @@ Future<void> upsertEmbeddingAsAdmin({
 }
 
 /// Les produits qu'il reste à indexer, comme la fonction edge les demande.
+///
+/// `model` compte : un catalogue entièrement indexé pour un modèle est
+/// entièrement à indexer pour le suivant (`0085`).
 Future<List<({String productId, String name, String? imageUrl})>>
-fetchProductsNeedingEmbeddingAsAdmin({int limit = 200}) async {
+fetchProductsNeedingEmbeddingAsAdmin({
+  int limit = 200,
+  String? model = 'test-model',
+}) async {
   final rows = await _adminClient.rpc(
     'products_needing_embedding',
-    params: {'p_limit': limit},
+    params: {'p_limit': limit, 'p_model': model},
   );
   return [
     for (final row in (rows as List).cast<Map<String, dynamic>>())
@@ -277,13 +334,19 @@ fetchProductsNeedingEmbeddingAsAdmin({int limit = 200}) async {
 /// avoir calculé l'empreinte d'une photo.
 Future<List<({String productId, double similarity})>> searchByEmbeddingAsAdmin({
   required List<double> embedding,
+  /// Le modèle par défaut est celui du harnais, pas celui en service : les
+  /// tests fabriquent leurs vecteurs, ils ne passent pas par Voyage.
+  /// Passer `null` explicitement retombe sur le modèle servant, comme la
+  /// fonction edge.
+  String? model = 'test-model',
   int limit = 24,
   double minSimilarity = 0.25,
 }) async {
   final rows = await _adminClient.rpc(
     'search_products_by_embedding',
     params: {
-      'p_embedding': '[${embedding.join(',')}]',
+      'p_embedding': embedding,
+      'p_model': model,
       'p_limit': limit,
       'p_min_similarity': minSimilarity,
     },
@@ -295,6 +358,130 @@ Future<List<({String productId, double similarity})>> searchByEmbeddingAsAdmin({
         similarity: (row['similarity'] as num).toDouble(),
       ),
   ];
+}
+
+/// Conserve une recherche par photo, comme la fonction edge le fait après
+/// avoir répondu (`0086`).
+Future<String> recordVisualSearchQueryAsAdmin({
+  required String userId,
+  required String imagePath,
+  required List<({String productId, double similarity})> candidates,
+  String model = 'test-model',
+  List<double>? embedding,
+}) async {
+  await registerAiModelAsAdmin(name: model, dim: embedding?.length ?? 1024);
+  final id = await _adminClient.rpc(
+    'record_visual_search_query',
+    params: {
+      'p_user_id': userId,
+      'p_image_path': imagePath,
+      'p_model': model,
+      'p_embedding': embedding,
+      'p_candidates': [
+        for (final candidate in candidates)
+          {
+            'product_id': candidate.productId,
+            'similarity': candidate.similarity,
+          },
+      ],
+    },
+  );
+  return id as String;
+}
+
+/// Les étiquettes enregistrées pour une recherche.
+Future<List<String>> fetchVisualSearchClicksAsAdmin(String queryId) async {
+  final rows = await _adminClient
+      .from('visual_search_clicks')
+      .select('product_id')
+      .eq('query_id', queryId);
+  return [
+    for (final row in (rows as List).cast<Map<String, dynamic>>())
+      row['product_id'] as String,
+  ];
+}
+
+/// Les fichiers que la base a demandé de supprimer (`0088`).
+///
+/// Le SQL ne peut pas effacer un fichier — Supabase le refuse — donc il
+/// enregistre l'intention et `ml/purge_queries.py` l'exécute.
+Future<List<String>> fetchStoragePurgeQueueAsAdmin({
+  String bucket = 'visual-search-queries',
+}) async {
+  final rows = await _adminClient
+      .from('storage_purge_queue')
+      .select('object_path')
+      .eq('bucket_id', bucket);
+  return [
+    for (final row in (rows as List).cast<Map<String, dynamic>>())
+      row['object_path'] as String,
+  ];
+}
+
+/// Promeut les recherches étiquetées au rang d'étalon (`0087`).
+Future<int> promoteQueriesToEvalAsAdmin({int limit = 50}) async {
+  final count = await _adminClient.rpc(
+    'promote_queries_to_eval',
+    params: {'p_limit': limit},
+  );
+  return count as int;
+}
+
+/// Le jeu d'entraînement tel que `ml/export_dataset.py` le lit.
+Future<List<Map<String, dynamic>>> exportTrainingPairsAsAdmin({
+  int limit = 500,
+}) async {
+  final rows = await _adminClient.rpc(
+    'export_training_pairs',
+    params: {'p_since': null, 'p_limit': limit},
+  );
+  return (rows as List).cast<Map<String, dynamic>>();
+}
+
+/// Écrit l'empreinte d'une photo d'évaluation pour un modèle.
+Future<void> upsertEvalEmbeddingAsAdmin({
+  required String exampleId,
+  required String model,
+  required List<double> embedding,
+}) async {
+  await _adminClient.from('ai_eval_embeddings').upsert({
+    'example_id': exampleId,
+    'model': model,
+    'embedding': '[${embedding.join(',')}]',
+    'dim': embedding.length,
+  });
+}
+
+/// Les photos de l'étalon.
+Future<List<({String id, String imagePath, String expectedProductId})>>
+fetchEvalExamplesAsAdmin() async {
+  final rows = await _adminClient
+      .from('ai_eval_examples')
+      .select('id, image_path, expected_product_id');
+  return [
+    for (final row in (rows as List).cast<Map<String, dynamic>>())
+      (
+        id: row['id'] as String,
+        imagePath: row['image_path'] as String,
+        expectedProductId: row['expected_product_id'] as String,
+      ),
+  ];
+}
+
+/// La note d'un modèle sur l'étalon (`0087`).
+Future<({int examples, int found, double? recall, double? mrr})>
+evaluateModelRecallAsAdmin({required String model, int k = 5}) async {
+  final rows = await _adminClient.rpc(
+    'evaluate_model_recall',
+    params: {'p_model': model, 'p_k': k},
+  );
+  final row = (rows as List).cast<Map<String, dynamic>>().single;
+  return (
+    examples: row['examples'] as int,
+    found: row['found'] as int,
+    recall: (row['recall_at_k'] as num?)?.toDouble(),
+    mrr: (row['mrr'] as num?)?.toDouble(),
+  );
 }
 
 /// Pose une course déjà livrée sur un groupe fournisseur.

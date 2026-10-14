@@ -12,6 +12,7 @@ class ProductGrid extends StatelessWidget {
     required this.products,
     this.shrinkWrap = false,
     this.cardOverlayBuilder,
+    this.onProductOpened,
   });
 
   final List<Product> products;
@@ -23,6 +24,10 @@ class ProductGrid extends StatelessWidget {
 
   /// Builds the optional per-card overlay (e.g. a favorite-toggle heart).
   final Widget Function(Product product)? cardOverlayBuilder;
+
+  /// Notifié quand un produit de la grille est ouvert. Transmis tel quel à
+  /// `ProductCard.onOpened` — voir là-bas pour le pourquoi.
+  final void Function(Product product)? onProductOpened;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +49,9 @@ class ProductGrid extends StatelessWidget {
           child: ProductCard(
             product: product,
             overlay: cardOverlayBuilder?.call(product),
+            onOpened: onProductOpened == null
+                ? null
+                : () => onProductOpened!(product),
           ),
         );
       },

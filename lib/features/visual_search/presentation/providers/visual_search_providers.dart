@@ -22,10 +22,18 @@ final visualSearchProvider =
     );
 
 class VisualSearchState {
-  const VisualSearchState({required this.products, required this.remaining});
+  const VisualSearchState({
+    required this.products,
+    required this.remaining,
+    this.queryId,
+  });
 
   final List<Product> products;
   final int remaining;
+
+  /// Voir `VisualSearchResult.queryId` : l'identifiant qui permet de dire
+  /// quel résultat a été ouvert.
+  final String? queryId;
 }
 
 class VisualSearchController extends AsyncNotifier<VisualSearchState?> {
@@ -60,8 +68,24 @@ class VisualSearchController extends AsyncNotifier<VisualSearchState?> {
       return VisualSearchState(
         products: produits,
         remaining: result.remaining,
+        queryId: result.queryId,
       );
     });
+  }
+
+  /// Signale que ce produit a été ouvert depuis les résultats.
+  ///
+  /// Appelé depuis la grille, et sans `await` du point de vue de
+  /// l'utilisateur : la navigation ne doit pas attendre une écriture qui ne
+  /// le concerne pas. Ne touche pas à `state` — l'écran n'a rien à
+  /// réafficher, et reconstruire la grille au moment où l'on quitte
+  /// l'écran serait une animation gratuite.
+  void recordOpened(String productId) {
+    final queryId = state.valueOrNull?.queryId;
+    if (queryId == null) return;
+    ref
+        .read(visualSearchDatasourceProvider)
+        .recordOpened(queryId: queryId, productId: productId);
   }
 
   void reset() => state = const AsyncData(null);

@@ -66,6 +66,13 @@ class VisualSearchScreen extends ConsumerWidget {
                   products: result.products,
                   cardOverlayBuilder: (product) =>
                       FavoriteToggleButton(productId: product.id),
+                  // Ouvrir un résultat est l'étiquette du futur jeu
+                  // d'entraînement (`0086`) : c'est ici, et nulle part
+                  // ailleurs, qu'on apprend ce que la personne cherchait
+                  // vraiment.
+                  onProductOpened: (product) => ref
+                      .read(visualSearchProvider.notifier)
+                      .recordOpened(product.id),
                 ),
               ),
             ],
@@ -135,9 +142,14 @@ class _Invitation extends StatelessWidget {
       child: MtcEmptyState(
         icon: Icons.photo_camera_rounded,
         title: 'Vous avez vu un produit sans connaître son nom ?',
+        // La seconde phrase est là parce qu'on conserve désormais la photo
+        // (`0086`). Le dire en clair, à l'endroit où la personne décide,
+        // plutôt que de l'enterrer dans des conditions d'utilisation que
+        // personne ne lit.
         subtitle:
             'Prenez-le en photo : nous cherchons ce qui lui ressemble dans '
-            'le catalogue.',
+            'le catalogue. Vos photos nous servent à améliorer la '
+            'reconnaissance, et vous pouvez les effacer à tout moment.',
       ),
     );
   }

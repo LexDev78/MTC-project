@@ -47,7 +47,12 @@ extension ProductCategoryImage on ProductCategory {
 }
 
 class ProductCard extends ConsumerWidget {
-  const ProductCard({super.key, required this.product, this.overlay});
+  const ProductCard({
+    super.key,
+    required this.product,
+    this.overlay,
+    this.onOpened,
+  });
 
   final Product product;
 
@@ -56,6 +61,16 @@ class ProductCard extends ConsumerWidget {
   /// the favorites feature directly) so this shared widget stays
   /// feature-agnostic; the composing screen decides what to overlay.
   final Widget? overlay;
+
+  /// Notifié quand la carte est ouverte — **en plus** de la navigation, et
+  /// non à sa place.
+  ///
+  /// Sert à la recherche par photo : ouvrir un résultat est l'étiquette du
+  /// jeu d'entraînement (`0086`), et c'est le seul endroit où ce geste est
+  /// observable. Un rappel plutôt qu'un appel direct à la fonctionnalité
+  /// pour la même raison que `overlay` : ce widget est partagé et ne doit
+  /// rien connaître de qui l'affiche.
+  final VoidCallback? onOpened;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -80,7 +95,10 @@ class ProductCard extends ConsumerWidget {
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => context.push(AppRoutes.productDetail(product.id)),
+          onTap: () {
+            onOpened?.call();
+            context.push(AppRoutes.productDetail(product.id));
+          },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

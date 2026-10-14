@@ -8,9 +8,22 @@
 typedef VisualMatch = ({String productId, double similarity});
 
 class VisualSearchResult {
-  const VisualSearchResult({required this.matches, required this.remaining});
+  const VisualSearchResult({
+    required this.matches,
+    required this.remaining,
+    this.queryId,
+  });
 
   final List<VisualMatch> matches;
+
+  /// L'identifiant de la recherche conservée côté serveur (`0086`), ou
+  /// `null` si la conservation a échoué ou traîné.
+  ///
+  /// Il sert à une seule chose : signaler **quel** résultat a été ouvert.
+  /// C'est l'étiquette du futur jeu d'entraînement — la donnée la plus
+  /// difficile à obtenir, parce qu'elle ne se déduit d'aucune autre. Son
+  /// absence ne gêne rien d'autre que cette collecte.
+  final String? queryId;
 
   /// Appels restants aujourd'hui. Affiché au client plutôt que de le laisser
   /// découvrir le plafond en se faisant refuser.

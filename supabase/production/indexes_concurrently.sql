@@ -85,3 +85,31 @@ create index concurrently if not exists deliveries_order_idx
 
 create index concurrently if not exists payout_requests_supplier_idx
   on public.payout_requests (supplier_id, requested_at desc);
+
+-- ---- empreintes, un index par modèle --------------------------------------
+--
+-- `product_embeddings` porte désormais une empreinte par (produit, modèle)
+-- (`0085`). L'index cosinus global de `0081` suffit tant qu'un seul modèle
+-- domine la table : il ordonne, le `where model` filtre.
+--
+-- Dès que deux modèles y tiennent une part comparable — c'est-à-dire pendant
+-- la phase de comparaison avec un modèle candidat — la recherche filtrée
+-- parcourt un graphe où la moitié des voisins appartient à l'autre espace,
+-- et peut rendre moins de lignes que demandé. Un index partiel par modèle
+-- rétablit le classement complet.
+--
+-- À adapter au nom du modèle, et à poser **avant** d'indexer le catalogue
+-- avec lui :
+--
+--   create index concurrently if not exists product_embeddings_mtc_v1_cosine_idx
+--     on public.product_embeddings using hnsw (embedding extensions.vector_cosine_ops)
+--     where model = 'mtc-v1';
+--
+-- Le modèle externe de départ :
+create index concurrently if not exists product_embeddings_voyage_cosine_idx
+  on public.product_embeddings using hnsw (embedding extensions.vector_cosine_ops)
+  where model = 'voyage-multimodal-3.5';
+
+-- Les requêtes conservées (`0086`) : lues par date pour la purge, et par
+-- compte pour « mes recherches ». Les deux index sont créés par la
+-- migration ; rien à ajouter ici pour l'instant.

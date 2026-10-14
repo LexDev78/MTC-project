@@ -46,6 +46,7 @@ class SupabaseVisualSearchDatasource {
     final body = response.data as Map<String, dynamic>? ?? const {};
     return VisualSearchResult(
       remaining: (body['remaining'] as num?)?.toInt() ?? 0,
+      queryId: body['query_id'] as String?,
       matches: [
         for (final row in (body['results'] as List? ?? const []))
           (
@@ -54,5 +55,25 @@ class SupabaseVisualSearchDatasource {
           ),
       ],
     );
+  }
+
+  /// Signale quel résultat a été ouvert.
+  ///
+  /// Silencieux par construction : `record_visual_search_click` ne remonte
+  /// rien, et une erreur réseau est avalée ici. Ouvrir une fiche produit
+  /// doit réussir même si la trace échoue — une étiquette perdue coûte un
+  /// exemple d'entraînement, une erreur à l'écran coûte la navigation.
+  Future<void> recordOpened({
+    required String queryId,
+    required String productId,
+  }) async {
+    try {
+      await _client.rpc(
+        'record_visual_search_click',
+        params: {'p_query_id': queryId, 'p_product_id': productId},
+      );
+    } catch (_) {
+      // Volontairement ignoré. Voir la documentation ci-dessus.
+    }
   }
 }

@@ -11,9 +11,15 @@
 // En rendant compte de ce qu'elle a fait, un appel répété finit le travail
 // et reprend naturellement là où il en est — `products_needing_embedding`
 // ne rend que ce qui reste.
+//
+// Le paramètre `model` est ce qui rend une bascule mesurable : on indexe le
+// catalogue avec un modèle **candidat** pendant que le modèle servant
+// continue de répondre aux clients (`0085`). Les deux jeux de vecteurs
+// cohabitent, on compare, puis on bascule — ou pas.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { embed, embeddingModel, toPgVector } from "../_shared/embeddings.ts";
+import { embed, servingModel, type EmbeddingModel } from "../_shared/embeddings.ts";
+import { resolveProductImageUrl } from "../_shared/image_urls.ts";
 
 /// Un lot assez grand pour avancer, assez petit pour tenir dans le temps
 /// imparti d'une fonction edge même si le modèle est lent.
@@ -53,16 +59,44 @@ Deno.serve(async (request) => {
   const supabase = createClient(url, serviceKey);
 
   let batch = DEFAULT_BATCH;
+  let requestedModel: string | null = null;
   try {
     const body = await request.json();
     if (typeof body?.limit === "number") batch = Math.min(body.limit, 100);
+    if (typeof body?.model === "string") requestedModel = body.model;
   } catch {
-    // Corps absent : le lot par défaut convient.
+    // Corps absent : le lot par défaut et le modèle servant conviennent.
+  }
+
+  // Un modèle nommé explicitement doit exister dans le registre, avec sa
+  // dimension : c'est elle qui permet de refuser un vecteur de taille
+  // inattendue avant qu'il n'entre en base.
+  let model: EmbeddingModel;
+  if (requestedModel) {
+    const { data, error } = await supabase
+      .from("ai_models")
+      .select("name, provider, dim")
+      .eq("name", requestedModel)
+      .eq("kind", "embedding")
+      .maybeSingle();
+    if (error || !data) {
+      return jsonResponse(
+        { error: `Modèle inconnu du registre : ${requestedModel}.` },
+        400,
+      );
+    }
+    model = {
+      name: data.name as string,
+      provider: data.provider as EmbeddingModel["provider"],
+      dim: data.dim as number,
+    };
+  } else {
+    model = await servingModel(url, serviceKey);
   }
 
   const { data: pending, error } = await supabase.rpc(
     "products_needing_embedding",
-    { p_limit: batch },
+    { p_limit: batch, p_model: model.name },
   );
   if (error) {
     return jsonResponse({ error: "File d'indexation illisible." }, 500);
@@ -83,16 +117,22 @@ Deno.serve(async (request) => {
       // et le nom est ce qui les sépare. C'est tout l'intérêt d'un modèle
       // multimodal — encoder l'image seule reviendrait à chercher une
       // couleur.
+      // Le chemin stocké est résolu en URL publique pour le modèle, mais
+      // c'est le **chemin** qui est enregistré comme source : c'est lui que
+      // `products_needing_embedding` compare pour savoir si la photo a
+      // changé. Y mettre l'URL ferait réindexer le catalogue entier à
+      // chaque passage.
+      const imageUrl = resolveProductImageUrl(product.image_url, url);
       const vector = await embed({
         text: [product.name, product.description].filter(Boolean).join(". "),
-        image: product.image_url,
-      });
+        image: imageUrl,
+      }, model);
       const { error: upsertError } = await supabase.rpc(
         "upsert_product_embedding",
         {
           p_product_id: product.product_id,
-          p_embedding: toPgVector(vector),
-          p_model: embeddingModel,
+          p_embedding: vector,
+          p_model: model.name,
           p_source_image_url: product.image_url,
         },
       );
@@ -110,6 +150,7 @@ Deno.serve(async (request) => {
   }
 
   return jsonResponse({
+    model: model.name,
     indexed,
     remaining: Math.max((pending?.length ?? 0) - indexed, 0),
     failures,
