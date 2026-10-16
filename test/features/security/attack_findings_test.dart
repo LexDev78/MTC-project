@@ -384,4 +384,115 @@ void main() {
       expect(apres.single.status.name, 'accepted');
     });
   });
+
+  group("les points que l'audit avait laissés ouverts", () {
+    test('le compteur de vues ne compte qu\'une fois par personne et par jour',
+        () async {
+      // Mesuré avant `0107` : vingt-cinq appels, vingt-cinq vues, sur
+      // n'importe quel produit. Le tableau de bord affiche « visionnage des
+      // produits » : la statistique était déclarative, et un concurrent
+      // pouvait gonfler le chiffre d'un voisin aussi bien que le sien.
+      final client = await _connecte('client1');
+      final anon = createTestSupabaseClient();
+      addTearDown(anon.dispose);
+
+      Future<int> vues() async {
+        final row = await anon
+            .from('products')
+            .select('view_count')
+            .eq('id', riz)
+            .single();
+        return (row['view_count'] as num).toInt();
+      }
+
+      final avant = await vues();
+      for (var i = 0; i < 25; i++) {
+        await client.rpc('increment_product_view', params: {'p_product_id': riz});
+      }
+      expect(
+        await vues() - avant,
+        1,
+        reason: 'vingt-cinq ouvertures d\'une même fiche par la même personne '
+            'ne font pas vingt-cinq visiteurs',
+      );
+
+      // Mais deux personnes comptent bien pour deux : la garde ne doit pas
+      // transformer le compteur en plafond.
+      final autre = await _connecte('client2');
+      await autre.rpc('increment_product_view', params: {'p_product_id': riz});
+      expect(await vues() - avant, 2);
+    });
+
+    test('l\'identifiant d\'un client ne se lit plus depuis un numéro de '
+        'commande', () async {
+      final client = await _connecte('client1');
+      final mienne = await client
+          .from('orders')
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+      if (mienne == null) {
+        markTestSkipped('aucune commande dans le jeu de données');
+        return;
+      }
+      final orderId = mienne['id'] as String;
+
+      // La fonction qui rendait l'uuid du client est fermée…
+      await expectLater(
+        client.rpc('order_client_id', params: {'p_order_id': orderId}),
+        throwsA(isA<PostgrestException>()),
+      );
+      // …et celle qui l'a remplacée ne dit que oui ou non, sur soi.
+      expect(
+        await client.rpc('order_belongs_to_me', params: {'p_order_id': orderId}),
+        isTrue,
+      );
+      final fournisseur = await _connecte('fournisseur5');
+      expect(
+        await fournisseur.rpc(
+          'order_belongs_to_me',
+          params: {'p_order_id': orderId},
+        ),
+        isFalse,
+      );
+
+      // Et les écrans voient toujours ce qu'ils doivent : c'est la même
+      // fonction qui porte les politiques des commandes.
+      final lignes = await client.from('order_items').select('id');
+      expect(lignes, isNotEmpty);
+      final groupes = await fournisseur
+          .from('order_supplier_groups')
+          .select('id');
+      expect(groupes, isNotEmpty);
+    });
+
+    test('le concierge des courses n\'est plus à la portée de tout le monde',
+        () async {
+      final client = await _connecte('client1');
+      await expectLater(
+        client.rpc('reoffer_expired_deliveries'),
+        throwsA(
+          isA<PostgrestException>().having(
+            (e) => e.message,
+            'message',
+            contains('livreurs'),
+          ),
+        ),
+      );
+
+      // Le livreur, lui, en a besoin : c'est son écran qui le déclenche.
+      final livreur = await _connecte('livreur1');
+      expect(await livreur.rpc('reoffer_expired_deliveries'), isA<int>());
+    });
+
+    test('le modèle d\'empreintes en service n\'est pas public', () async {
+      // Ses deux appelantes sont `security definer` : elles continuent de le
+      // lire, et la recherche par photo passe par le rôle de service.
+      final client = await _connecte('client1');
+      await expectLater(
+        client.rpc('serving_embedding_model'),
+        throwsA(isA<PostgrestException>()),
+      );
+    });
+  });
 }
