@@ -162,14 +162,25 @@ void main() {
       'quantity': 1,
     });
 
-    final preview = await SupabasePromoCodeRepository(
+    final asClient = SupabasePromoCodeRepository(
       SupabasePromoCodeDatasource(clientClient),
-    ).preview(
+    );
+
+    final preview = await asClient.preview(
       code: 'UNEFOIS',
       lines: [(productId: riz, variantId: null, quantity: 1)],
     );
     expect(preview.valid, isFalse);
     expect(preview.reason, contains('déjà utilisé'));
+
+    // Et le champ de saisie disparaît : lui laisser sa place inviterait à
+    // retaper un code qui ne peut plus rien donner (`cart_has_promo_code`,
+    // `0089`).
+    expect(
+      await asClient.existsForProducts([riz]),
+      isFalse,
+      reason: 'un code à usage unique déjà consommé ne doit pas rouvrir le champ',
+    );
 
     await clientClient.dispose();
   });

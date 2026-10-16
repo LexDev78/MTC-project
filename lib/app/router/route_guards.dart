@@ -47,6 +47,16 @@ String? authRedirect(Ref ref, GoRouterState state) {
     UserRole.livreur => AppRoutes.courierHome,
   };
 
+  // Avant tout le reste, y compris le dossier de vérification : tant que le
+  // code dicté par le patron n'est pas remplacé, ce compte n'est à
+  // personne — il le connaît, et quiconque était à portée de voix aussi.
+  if (user is SupplierTiersUser && user.mustChangePassword) {
+    return path == AppRoutes.changePassword ? null : AppRoutes.changePassword;
+  }
+  // Et une fois changé, cet écran n'a plus lieu d'être : y revenir par
+  // l'historique renverrait sur un formulaire sans objet.
+  if (path == AppRoutes.changePassword) return roleHome;
+
   if (isAuthRoute) {
     // Fresh sign-in from the login form gets a beat on the loading
     // animation before landing on the dashboard; a restored session (app
@@ -82,7 +92,54 @@ String? authRedirect(Ref ref, GoRouterState state) {
     if (doneWithOnboarding && onOnboarding) {
       return AppRoutes.supplierTiersDashboard;
     }
+
+    // Un collaborateur n'arrive pas, par une adresse, là où son patron ne
+    // lui a pas donné accès. La coquille masque déjà l'onglet ; ceci ferme
+    // le chemin direct — une notification qui mène à une commande, un lien
+    // repris d'une session précédente.
+    //
+    // La base refuserait de toute façon, mais elle refuserait **après**
+    // avoir ouvert un écran vide : le collaborateur y verrait une panne
+    // plutôt qu'une permission manquante.
+    if (!user.isOwner) {
+      final interdite = _permissionManquante(user, path);
+      if (interdite) return AppRoutes.supplierTiersDashboard;
+    }
   }
 
   return null;
+}
+
+/// Vrai si [path] appartient à une partie de l'interface fournisseur que ce
+/// collaborateur n'a pas le droit d'ouvrir.
+///
+/// Les préfixes suivent les branches déclarées dans `app_router.dart`. Le
+/// tableau de bord et le profil n'y figurent pas : ils restent ouverts à
+/// tous, leur contenu se restreignant de lui-même.
+bool _permissionManquante(SupplierTiersUser user, String path) {
+  // Les préfixes les plus longs d'abord : `/account/promotions` doit être
+  // jugé sur « remises », pas sur la règle plus large de `/account`.
+  const parties = <String, String>{
+    '/supplier-tiers/account/promotions': 'promotions',
+    '/supplier-tiers/account/promo-codes': 'promotions',
+    '/supplier-tiers/account/reviews': 'reviews',
+    '/supplier-tiers/account/location': 'storefront',
+    '/supplier-tiers/products': 'products',
+    '/supplier-tiers/orders': 'orders',
+    '/supplier-tiers/messages': 'messages',
+  };
+  for (final entry in parties.entries) {
+    if (path.startsWith(entry.key) && !user.can(entry.value)) return true;
+  }
+
+  // Ces trois-là ne s'accordent jamais, quelle que soit la case cochée :
+  // l'argent, le dossier qui engage l'identité du patron, et la gestion de
+  // l'équipe — sans quoi le premier invité évincerait celui qui l'a fait
+  // entrer.
+  const jamais = [
+    '/supplier-tiers/finances',
+    '/supplier-tiers/account/collaborators',
+    '/supplier-tiers/onboarding',
+  ];
+  return jamais.any(path.startsWith);
 }

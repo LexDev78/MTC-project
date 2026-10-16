@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/promo_codes/presentation/providers/applied_promo_code_provider.dart';
 import 'package:mtc_app/features/promo_codes/presentation/widgets/promo_code_field.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
 
@@ -70,6 +71,12 @@ class CheckoutScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Commande')),
       body: AsyncValueWidget(
+        // Un code promo appliqué, un mode de livraison changé : ces gestes
+        // recalculent les groupes. Sans cette option, chacun remplace la
+        // page entière par un indicateur de chargement — on perd le champ
+        // qu'on vient de remplir et la position de défilement, pour une
+        // opération qui ne touche qu'un montant.
+        skipLoadingOnReload: true,
         value: groupsAsync,
         data: (groups) {
           if (groups.isEmpty) {
@@ -153,8 +160,20 @@ class CheckoutScreen extends ConsumerWidget {
                   provider: ref.watch(mobileMoneyProviderChoiceProvider),
                 ),
               ],
-              const SizedBox(height: AppSpacing.md),
-              const PromoCodeField(),
+              // Le champ n'apparaît que si un code peut réellement s'appliquer
+              // à ce panier (`cart_has_promo_code`, `0089`). Tant que la
+              // réponse n'est pas connue, on ne montre rien : faire
+              // apparaître puis disparaître un champ est pire que de
+              // l'afficher une seconde plus tard.
+              //
+              // Un code déjà accepté le garde visible quoi qu'il arrive —
+              // sinon le bouton « Retirer » disparaîtrait avec lui, et la
+              // remise deviendrait impossible à annuler.
+              if (ref.watch(checkoutHasPromoCodeProvider).valueOrNull == true ||
+                  ref.watch(appliedPromoCodeProvider)?.valid == true) ...[
+                const SizedBox(height: AppSpacing.md),
+                const PromoCodeField(),
+              ],
               const SizedBox(height: AppSpacing.md),
               _TotalsCard(
                 subtotal: subtotal,
@@ -289,12 +308,23 @@ class _TotalsCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
-            if (promoDiscount > 0)
+            // L'ordre est celui d'un calcul qu'on suit du doigt : le
+            // sous-total **avant** remise, la remise, puis le reste.
+            //
+            // Un premier jet posait la remise au-dessus d'un sous-total qui
+            // la contenait déjà. On lisait « -2 500 », puis « 107 500 »,
+            // puis un total de « 107 500 » : la soustraction paraissait
+            // n'avoir pas été faite, alors qu'elle l'avait été deux lignes
+            // plus haut. Vu en parcours visuel — sur un écran de paiement,
+            // un doute sur l'arithmétique est le pire moment pour en avoir.
+            if (promoDiscount > 0) ...[
               _TotalsRow(
-                label: 'Code promo',
-                amountFcfa: -promoDiscount,
+                label: 'Sous-total',
+                amountFcfa: subtotal + promoDiscount,
               ),
-            _TotalsRow(label: 'Sous-total', amountFcfa: subtotal),
+              _TotalsRow(label: 'Code promo', amountFcfa: -promoDiscount),
+            ] else
+              _TotalsRow(label: 'Sous-total', amountFcfa: subtotal),
             _TotalsRow(label: 'Livraison', amountFcfa: deliveryFees),
             if (priorityFee > 0)
               _TotalsRow(label: 'Commande prioritaire', amountFcfa: priorityFee),

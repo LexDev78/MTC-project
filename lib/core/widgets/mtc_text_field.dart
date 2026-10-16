@@ -14,6 +14,7 @@ class MtcTextField extends StatelessWidget {
     this.onChanged,
     this.autofillHints,
     this.maxLines = 1,
+    this.enabled = true,
   });
 
   final String label;
@@ -28,6 +29,11 @@ class MtcTextField extends StatelessWidget {
   final Iterable<String>? autofillHints;
   final int maxLines;
 
+  /// Un champ grisé, qui garde sa valeur mais refuse la saisie. Sert aux
+  /// valeurs qu'on montre sans permettre de les changer — le texte d'un code
+  /// promo déjà distribué, par exemple.
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) {
     return TextFormField(
@@ -40,6 +46,7 @@ class MtcTextField extends StatelessWidget {
       onChanged: onChanged,
       autofillHints: autofillHints,
       maxLines: maxLines,
+      enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,

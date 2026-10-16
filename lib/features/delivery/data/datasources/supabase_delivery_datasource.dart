@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:mtc_app/core/utils/id_generator.dart';
 import 'package:mtc_app/core/utils/realtime_retry.dart';
 import 'package:mtc_app/core/utils/stream_debounce.dart';
 
@@ -136,17 +137,77 @@ class SupabaseDeliveryDatasource {
   /// Livreurs en attente de validation, pour le staff. Le tri est le même
   /// que la file des dossiers fournisseurs : le plus ancien d'abord, pour
   /// que personne n'attende indéfiniment derrière des arrivées plus récentes.
+  ///
+  /// Ne liste que les dossiers **déposés** (`0105`) : un livreur inscrit qui
+  /// n'a envoyé aucune pièce n'a rien à faire examiner, et l'agent ne peut
+  /// de toute façon plus le valider. Le tri suit la date de dépôt, pas celle
+  /// de l'inscription — c'est le dépôt qui fait entrer dans la file, et un
+  /// dossier redéposé après un refus y reprend son rang.
   Future<List<Map<String, dynamic>>> fetchPendingCouriers() async {
     final rows = await _client
         .from('couriers')
-        // Aucune jointure : la fiche porte elle-même l'identité du livreur
-        // (`0053_courier_identity.sql`). Passer par `profiles` était à la
-        // fois ambigu — deux clés étrangères — et vain, puisque cette table
-        // n'est lisible que par son propriétaire.
-        .select()
+        // Aucune jointure vers `profiles` : la fiche porte elle-même
+        // l'identité du livreur (`0053_courier_identity.sql`). Passer par
+        // `profiles` était à la fois ambigu — deux clés étrangères — et
+        // vain, puisque cette table n'est lisible que par son propriétaire.
+        // Les pièces, elles, sont imbriquées : `courier_documents` n'a
+        // qu'une seule clé vers `couriers`, donc aucune ambiguïté.
+        .select('*, documents:courier_documents(*)')
         .eq('status', 'pending')
-        .order('created_at', ascending: true);
+        .not('documents_submitted_at', 'is', null)
+        .order('documents_submitted_at', ascending: true);
     return List<Map<String, dynamic>>.from(rows);
+  }
+
+  /// La fiche du livreur en session, avec ses pièces.
+  Future<Map<String, dynamic>> fetchMyDossier(String courierId) {
+    return _client
+        .from('couriers')
+        .select('*, documents:courier_documents(*)')
+        .eq('id', courierId)
+        .single();
+  }
+
+  /// Enregistre une pièce déjà envoyée dans le bucket `courier-documents`.
+  ///
+  /// `upsert` sur `(courier_id, type)` : remplacer sa photo d'identité ne
+  /// doit pas en empiler deux, l'agent ne saurait pas laquelle fait foi. La
+  /// contrainte d'unicité est posée en base (`0105`), c'est elle qui décide
+  /// — pas une suppression préalable depuis l'app, qui laisserait une
+  /// fenêtre où le dossier n'a plus de pièce du tout.
+  Future<void> upsertDocument({
+    required String courierId,
+    required String type,
+    required String filePath,
+  }) async {
+    await _client.from('courier_documents').upsert({
+      'id': IdGenerator.next(),
+      'courier_id': courierId,
+      'type': type,
+      'file_path': filePath,
+    }, onConflict: 'courier_id,type');
+  }
+
+  Future<void> removeDocument({required String documentId}) {
+    return _client.from('courier_documents').delete().eq('id', documentId);
+  }
+
+  /// Dépose le dossier (`submit_courier_documents`, `0105`).
+  ///
+  /// Le serveur contrôle les pièces exigées et gèle le dossier : l'app
+  /// n'écrit ni le statut ni la date de dépôt, elle ne pourrait pas — ces
+  /// colonnes ne lui sont pas accordées.
+  Future<void> submitDocuments({
+    required String vehicleType,
+    String? vehicleLabel,
+  }) {
+    return _client.rpc(
+      'submit_courier_documents',
+      params: {
+        'p_vehicle_type': vehicleType,
+        'p_vehicle_label': vehicleLabel,
+      },
+    );
   }
 
   Future<void> reviewCourier({

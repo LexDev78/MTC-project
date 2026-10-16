@@ -1,4 +1,5 @@
 import '../entities/courier_delivery.dart';
+import '../entities/courier_dossier.dart';
 import '../entities/courier_history.dart';
 
 /// Ce dont l'app livreur a besoin, sans rien savoir de Supabase.
@@ -48,11 +49,34 @@ abstract class DeliveryRepository {
   Future<List<PendingCourier>> fetchPendingCouriers();
 
   /// Valide ou refuse une inscription. Un refus doit être motivé — la règle
-  /// est posée côté serveur (`review_courier`), pas ici.
+  /// est posée côté serveur (`review_courier`), pas ici. Une validation
+  /// réclame en plus un dossier déposé : on ne valide pas un livreur dont on
+  /// n'a vu aucune pièce (`0105`).
   Future<void> reviewCourier({
     required String courierId,
     required bool approve,
     String? reason,
+  });
+
+  /// Le dossier du livreur en session : ses pièces, son moyen de transport,
+  /// et la date de dépôt s'il l'a déposé.
+  Future<CourierDossier> fetchMyDossier(String courierId);
+
+  /// Enregistre une pièce **déjà envoyée** dans le bucket privé. Remplace
+  /// celle du même type, le cas échéant.
+  Future<void> saveDocument({
+    required String courierId,
+    required CourierDocumentType type,
+    required String filePath,
+  });
+
+  Future<void> removeDocument({required String documentId});
+
+  /// Dépose le dossier pour examen. Échoue si une pièce exigée par le moyen
+  /// de transport manque, ou si le dossier est déjà entre les mains du staff.
+  Future<void> submitDossier({
+    required CourierVehicleType vehicleType,
+    String? vehicleLabel,
   });
 
   /// Courses terminées, sans les identités du client ni du fournisseur.

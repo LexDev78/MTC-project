@@ -15,9 +15,43 @@ import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart
 final operatingSupplierIdProvider = Provider<String?>((ref) {
   final user = ref.watch(currentUserProvider).valueOrNull;
   return switch (user) {
-    SupplierTiersUser(:final id) => id,
+    // `shopId` et non `id` : un collaborateur opère la boutique de son
+    // patron (`0093`). Rendre son propre identifiant le renverrait vers une
+    // boutique qui n'existe pas, et tous les écrans d'ici afficheraient du
+    // vide sans dire pourquoi.
+    final SupplierTiersUser u => u.shopId,
     SupplierPrincipalUser() => DemoIds.supplierMtcOfficiel,
     _ => null,
+  };
+});
+
+/// Ce que le compte connecté a le droit de faire sur la boutique qu'il
+/// opère — voir `SupplierTiersAccess`.
+///
+/// Les écrans s'en servent pour masquer ce qui serait de toute façon refusé
+/// par la base : un bouton qui mène à un refus est pire qu'un bouton
+/// absent. Les policies restent la vraie garde ; ceci n'est que de la
+/// politesse.
+final supplierCanProvider = Provider.family<bool, String>((ref, permission) {
+  final user = ref.watch(currentUserProvider).valueOrNull;
+  return switch (user) {
+    final SupplierTiersUser u => u.can(permission),
+    // Le staff MTC opère la boutique officielle sans restriction.
+    SupplierPrincipalUser() => true,
+    _ => false,
+  };
+});
+
+/// Vrai si le compte connecté **possède** la boutique, par opposition à y
+/// collaborer. Garde les quatre gestes qui ne se délèguent pas : l'argent,
+/// le dossier de vérification, la suppression du compte, et la gestion de
+/// l'équipe.
+final isSupplierOwnerProvider = Provider<bool>((ref) {
+  final user = ref.watch(currentUserProvider).valueOrNull;
+  return switch (user) {
+    final SupplierTiersUser u => u.isOwner,
+    SupplierPrincipalUser() => true,
+    _ => false,
   };
 });
 

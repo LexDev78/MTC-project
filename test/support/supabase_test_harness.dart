@@ -1,3 +1,4 @@
+import 'package:mtc_app/core/auth/pseudo_email.dart';
 import 'dart:typed_data';
 
 import 'dart:io';
@@ -168,6 +169,19 @@ Future<String> adminFetchCourierStatus(String courierId) async {
     params: {'p_courier_id': courierId},
   );
   return status as String;
+}
+
+/// Remet le dossier d'un livreur à l'état d'un nouvel inscrit : aucune
+/// pièce, aucun dépôt (`test_reset_courier_dossier`, `0105`).
+///
+/// Un dossier déposé est gelé par la politique d'écriture — c'est tout son
+/// intérêt —, donc le livreur ne peut pas le défaire lui-même, et un test qui
+/// veut partir d'un dossier vierge a besoin du rôle de service.
+Future<void> adminResetCourierDossier({required String courierId}) async {
+  await _adminClient.rpc(
+    'test_reset_courier_dossier',
+    params: {'p_courier_id': courierId},
+  );
 }
 
 /// Efface l'adresse de retrait d'un fournisseur, pour vérifier que la
@@ -597,3 +611,35 @@ fetchAccountDeletionStateAsAdmin(String userId) async {
     supplierDeletedAt: parse(row['supplier_deleted_at'] as String?),
   );
 }
+
+/// Crée le compte d'un collaborateur rattaché à une boutique (`0093`).
+///
+/// Fait ce que la fonction edge `create-collaborator` fait en production :
+/// un compte créé avec la clé de service, dont les métadonnées portent le
+/// rattachement. Le passer par la fonction edge demanderait de la servir
+/// pendant les tests, pour vérifier une mécanique qui est tout entière dans
+/// le déclencheur `handle_new_user`.
+Future<String> createCollaboratorAsAdmin({
+  required String supplierId,
+  required String username,
+  required Set<String> permissions,
+  String displayName = 'Collaborateur de test',
+}) async {
+  final response = await _adminClient.auth.admin.createUser(
+    AdminUserAttributes(
+      email: pseudoEmail(username),
+      password: 'password123',
+      emailConfirm: true,
+      userMetadata: {
+        'role': 'supplier_tiers',
+        'display_name': displayName,
+        'username_or_phone': username,
+        'phone_number': '+22370000111',
+        'collaborator_of': supplierId,
+        'permissions': permissions.toList(),
+      },
+    ),
+  );
+  return response.user!.id;
+}
+

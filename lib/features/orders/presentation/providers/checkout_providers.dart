@@ -9,6 +9,7 @@ import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart
 import 'package:mtc_app/features/catalog/domain/entities/product_pricing.dart';
 import 'package:mtc_app/features/catalog/domain/promotion_pricing.dart';
 import 'package:mtc_app/features/promo_codes/presentation/providers/applied_promo_code_provider.dart';
+import 'package:mtc_app/features/promo_codes/presentation/providers/promo_code_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:mtc_app/features/profile/presentation/providers/profile_providers.dart';
@@ -112,14 +113,28 @@ int _mtcDeliveryFeeFor({
 /// so its value never depends on disposal timing either way.
 final buyNowItemProvider = StateProvider<CartItem?>((ref) => null);
 
-final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
-  ref,
-) async {
+/// Ce que l'écran de paiement coûte en réseau : le panier, et les prix de
+/// tous ses produits.
+///
+/// Séparé de l'assemblage des groupes, et c'est tout l'objet de ce
+/// découpage. Une version précédente lisait le code promo **dans**
+/// `checkoutGroupsProvider` : essayer un code invalidait donc le provider
+/// entier, qui refaisait `fetchPricing` — un aller-retour vers le serveur
+/// pour une remise que le serveur avait déjà calculée. Sur une connexion
+/// mobile malienne, chaque code mal tapé coûtait une requête de plus.
+///
+/// Ici, un code promo ne touche plus à rien de tout cela : seul l'assemblage
+/// ci-dessous est refait, et il est purement arithmétique.
+typedef _CheckoutInputs = ({
+  List<CartItem> items,
+  Map<String, ProductPricing> pricing,
+});
+
+final _checkoutInputsProvider = FutureProvider<_CheckoutInputs>((ref) async {
   final buyNowItem = ref.watch(buyNowItemProvider);
   final cartItems = buyNowItem != null
       ? [buyNowItem]
       : await ref.watch(cartItemsProvider.future);
-  final destination = _destination(ref);
 
   // Une seule lecture pour tout le panier (`fetch_pricing_inputs`, `0068`),
   // là où cet écran appelait `getById` par article — une requête imbriquée
@@ -128,6 +143,17 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
   final pricing = await ref
       .watch(productRepositoryProvider)
       .fetchPricing(cartItems.map((i) => i.productId).toSet().toList());
+
+  return (items: cartItems, pricing: pricing);
+});
+
+final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
+  ref,
+) async {
+  final inputs = await ref.watch(_checkoutInputsProvider.future);
+  final cartItems = inputs.items;
+  final pricing = inputs.pricing;
+  final destination = _destination(ref);
 
   final bySupplier = <String, List<CartItem>>{};
   for (final item in cartItems) {
@@ -201,6 +227,23 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
     ));
   }
   return groups;
+});
+
+/// Faut-il montrer le champ « Code promo » ?
+///
+/// Sur la quasi-totalité des paniers il n'existe aucun code applicable, et
+/// un champ qui ne peut rien donner fait croire qu'on rate quelque chose.
+///
+/// Branché sur `_checkoutInputsProvider` et non sur `checkoutGroupsProvider`,
+/// et c'est important : les groupes se recalculent à chaque code essayé,
+/// donc s'y accrocher relancerait cette interrogation à chaque frappe — le
+/// défaut qu'on vient de corriger, reproduit ailleurs. La réponse ne dépend
+/// que du contenu du panier.
+final checkoutHasPromoCodeProvider = FutureProvider<bool>((ref) async {
+  final inputs = await ref.watch(_checkoutInputsProvider.future);
+  final productIds = inputs.items.map((i) => i.productId).toSet().toList();
+  if (productIds.isEmpty) return false;
+  return ref.watch(promoCodeRepositoryProvider).existsForProducts(productIds);
 });
 
 /// User's explicit delivery-mode choice per supplier group; `null` means

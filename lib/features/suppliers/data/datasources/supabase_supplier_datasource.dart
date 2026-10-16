@@ -102,4 +102,77 @@ class SupabaseSupplierDatasource {
     await _client.from('suppliers').update({'is_open': isOpen}).eq('id', supplierId);
     _notify();
   }
+
+  /// Les chiffres du tableau de bord, comptés côté serveur (`0092`).
+  Future<Map<String, dynamic>> fetchDashboardStats() async {
+    final row = await _client.rpc('fetch_supplier_dashboard_stats');
+    return Map<String, dynamic>.from(row as Map);
+  }
+
+  /// L'équipe de la boutique (`0093`). Réservé au propriétaire : la RPC
+  /// rend une liste vide à un collaborateur plutôt que de lui montrer ses
+  /// collègues et leurs accès.
+  Future<List<Map<String, dynamic>>> fetchCollaborators() async {
+    final rows = await _client.rpc('fetch_my_collaborators');
+    return (rows as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Crée le compte d'un collaborateur.
+  ///
+  /// Par une fonction edge et non depuis l'app : `auth.signUp` remplacerait
+  /// la session du patron par celle de l'employé qu'il vient de créer.
+  Future<({String userId, String temporaryPassword})> createCollaborator({
+    required String displayName,
+    required String usernameOrPhone,
+    required String phoneNumber,
+    required Set<String> permissions,
+  }) async {
+    final FunctionResponse response;
+    try {
+      response = await _client.functions.invoke(
+        'create-collaborator',
+        body: {
+          'displayName': displayName,
+          'usernameOrPhone': usernameOrPhone,
+          'phoneNumber': phoneNumber,
+          'permissions': permissions.toList(),
+        },
+      );
+    } on FunctionException catch (e) {
+      // La fonction répond un message en français pour chaque refus — nom
+      // déjà pris, mot de passe trop court, appelant qui n'est pas
+      // propriétaire. On l'affiche tel quel.
+      final details = e.details;
+      throw Exception(
+        details is Map && details['error'] is String
+            ? details['error'] as String
+            : 'Impossible de créer ce compte.',
+      );
+    }
+    final body = response.data as Map<String, dynamic>? ?? const {};
+    // Le mot de passe n'est rendu qu'ici, une seule fois : il n'est stocké
+    // nulle part en clair, et aucune autre requête ne permettra de le
+    // relire. L'écran doit donc le montrer tout de suite.
+    return (
+      userId: body['user_id'] as String? ?? '',
+      temporaryPassword: body['temporary_password'] as String? ?? '',
+    );
+  }
+
+  Future<void> setCollaboratorPermissions({
+    required String userId,
+    required Set<String> permissions,
+  }) async {
+    await _client.rpc(
+      'set_collaborator_permissions',
+      params: {'p_user_id': userId, 'p_permissions': permissions.toList()},
+    );
+  }
+
+  Future<void> removeCollaborator(String userId) async {
+    await _client.rpc(
+      'remove_supplier_collaborator',
+      params: {'p_user_id': userId},
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mtc_app/features/catalog/presentation/widgets/product_multi_picker.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/currency_formatter.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
@@ -35,36 +36,40 @@ class _SupplierPromoCodesScreenState
   /// « Créer » ajoute un code ou modifie celui du dessus.
   bool _composing = false;
 
+  /// Le code que l'on corrige, s'il y en a un. `null` en création.
+  PromoCode? _editing;
+
   @override
   Widget build(BuildContext context) {
     final codesAsync = ref.watch(myPromoCodesProvider);
-    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Codes promo')),
+      appBar: AppBar(
+        title: const Text('Codes promo'),
+        // Les règles passent derrière le « ? » : elles comptent — un
+        // fournisseur qui laisse tourner un -20 % et distribue un code
+        // -20 % ne pense pas vendre à -36 % — mais elles n'ont pas à
+        // repousser la liste vers le bas à chaque visite.
+        actions: const [
+          MtcHelpAction(
+            title: 'Comment marchent les codes promo',
+            message:
+                'Un code promo ne s\'applique qu\'à vos produits, et seulement '
+                'pour les clients à qui vous le donnez.\n\n'
+                'Si une promotion automatique est déjà plus avantageuse sur '
+                'un article, c\'est elle qui s\'applique — les deux remises ne '
+                's\'additionnent jamais.\n\n'
+                'Un code peut couvrir tous vos produits ou seulement '
+                'certains, être limité dans le temps, en nombre '
+                'd\'utilisations, ou demander un montant minimum de commande.',
+          ),
+        ],
+      ),
       body: AsyncValueWidget(
         value: codesAsync,
         data: (codes) => ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            Text(
-              'Un code promo ne s\'applique qu\'à vos produits, et seulement '
-              'pour les clients à qui vous le donnez.',
-              style: TextStyle(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            // La règle de cumul doit être dite : un fournisseur qui laisse
-            // tourner un -20% et distribue un code -20% ne pense pas vendre
-            // à -36%.
-            Text(
-              'Si une promotion automatique est déjà plus avantageuse sur un '
-              'article, c\'est elle qui s\'applique — les deux remises ne '
-              's\'additionnent jamais.',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
             if (codes.isEmpty)
               const MtcEmptyState(
                 icon: Icons.confirmation_number_outlined,
@@ -74,15 +79,30 @@ class _SupplierPromoCodesScreenState
                     'ce qu\'il a remisé.',
               )
             else
-              for (final code in codes) _PromoCodeCard(code: code),
+              for (final code in codes)
+                _PromoCodeCard(
+                  code: code,
+                  onEdit: () => setState(() {
+                    _editing = code;
+                    _composing = true;
+                  }),
+                ),
             const SizedBox(height: AppSpacing.lg),
             if (_composing)
-              _NewPromoCodeForm(
-                onDone: () => setState(() => _composing = false),
+              _PromoCodeForm(
+                key: ValueKey(_editing?.id ?? 'nouveau'),
+                existing: _editing,
+                onDone: () => setState(() {
+                  _composing = false;
+                  _editing = null;
+                }),
               )
             else
               FilledButton.tonalIcon(
-                onPressed: () => setState(() => _composing = true),
+                onPressed: () => setState(() {
+                  _editing = null;
+                  _composing = true;
+                }),
                 icon: const Icon(Icons.add_rounded),
                 label: Text(
                   codes.isEmpty ? 'Créer un code' : 'Ajouter un code',
@@ -96,9 +116,12 @@ class _SupplierPromoCodesScreenState
 }
 
 class _PromoCodeCard extends ConsumerWidget {
-  const _PromoCodeCard({required this.code});
+  const _PromoCodeCard({required this.code, required this.onEdit});
 
   final PromoCode code;
+
+  /// Rouvre le code dans le formulaire, déjà rempli.
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -200,6 +223,11 @@ class _PromoCodeCard extends ConsumerWidget {
                 ),
                 Text(code.isActive ? 'Actif' : 'Arrêté'),
                 const Spacer(),
+                TextButton.icon(
+                  onPressed: isLoading ? null : onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Modifier'),
+                ),
                 IconButton(
                   icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
                   tooltip: 'Supprimer',
@@ -325,30 +353,50 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _NewPromoCodeForm extends ConsumerStatefulWidget {
-  const _NewPromoCodeForm({required this.onDone});
+class _PromoCodeForm extends ConsumerStatefulWidget {
+  const _PromoCodeForm({super.key, required this.onDone, this.existing});
 
   final VoidCallback onDone;
 
+  /// `null` pour une création. Sinon, le code à corriger.
+  final PromoCode? existing;
+
   @override
-  ConsumerState<_NewPromoCodeForm> createState() => _NewPromoCodeFormState();
+  ConsumerState<_PromoCodeForm> createState() => _PromoCodeFormState();
 }
 
-class _NewPromoCodeFormState extends ConsumerState<_NewPromoCodeForm> {
-  final _code = TextEditingController();
-  final _percent = TextEditingController(text: '10');
-  final _label = TextEditingController();
-  final _maxUses = TextEditingController();
-  final _maxPerClient = TextEditingController(text: '1');
-  final _minOrder = TextEditingController();
+class _PromoCodeFormState extends ConsumerState<_PromoCodeForm> {
+  late final TextEditingController _code;
+  late final TextEditingController _percent;
+  late final TextEditingController _label;
+  late final TextEditingController _maxUses;
+  late final TextEditingController _maxPerClient;
+  late final TextEditingController _minOrder;
   DateTime? _endsAt;
 
   /// Vide = tous les produits. C'est le cas le plus courant, donc le défaut.
-  final _productIds = <String>{};
+  late final Set<String> _productIds;
+
+  bool get _isEditing => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
+    final existing = widget.existing;
+    _code = TextEditingController(text: existing?.code ?? '');
+    _percent = TextEditingController(text: '${existing?.percent ?? 10}');
+    _label = TextEditingController(text: existing?.label ?? '');
+    _maxUses = TextEditingController(
+      text: existing?.maxUses == null ? '' : '${existing!.maxUses}',
+    );
+    _maxPerClient = TextEditingController(
+      text: '${existing?.maxUsesPerClient ?? 1}',
+    );
+    _minOrder = TextEditingController(
+      text: existing?.minOrderFcfa == null ? '' : '${existing!.minOrderFcfa}',
+    );
+    _endsAt = existing?.endsAt;
+    _productIds = {...?existing?.productIds};
     _code.addListener(_refresh);
     _percent.addListener(_refresh);
   }
@@ -383,23 +431,39 @@ class _NewPromoCodeFormState extends ConsumerState<_NewPromoCodeForm> {
       _parsedPercent != null;
 
   Future<void> _submit() async {
-    final ok = await ref
-        .read(promoCodeControllerProvider.notifier)
-        .create(
-          code: _normalizedCode,
-          percent: _parsedPercent!,
-          label: _label.text.trim().isEmpty ? null : _label.text.trim(),
-          endsAt: _endsAt,
-          maxUses: int.tryParse(_maxUses.text.trim()),
-          maxUsesPerClient: int.tryParse(_maxPerClient.text.trim()) ?? 1,
-          minOrderFcfa: int.tryParse(_minOrder.text.trim()),
-          productIds: _productIds.toList(),
-        );
+    final controller = ref.read(promoCodeControllerProvider.notifier);
+    final ok = _isEditing
+        ? await controller.edit(
+            id: widget.existing!.id,
+            percent: _parsedPercent!,
+            label: _label.text.trim().isEmpty ? null : _label.text.trim(),
+            endsAt: _endsAt,
+            maxUses: int.tryParse(_maxUses.text.trim()),
+            maxUsesPerClient: int.tryParse(_maxPerClient.text.trim()) ?? 1,
+            minOrderFcfa: int.tryParse(_minOrder.text.trim()),
+            productIds: _productIds.toList(),
+          )
+        : await controller.create(
+            code: _normalizedCode,
+            percent: _parsedPercent!,
+            label: _label.text.trim().isEmpty ? null : _label.text.trim(),
+            endsAt: _endsAt,
+            maxUses: int.tryParse(_maxUses.text.trim()),
+            maxUsesPerClient: int.tryParse(_maxPerClient.text.trim()) ?? 1,
+            minOrderFcfa: int.tryParse(_minOrder.text.trim()),
+            productIds: _productIds.toList(),
+          );
     if (!mounted) return;
     if (ok) {
       widget.onDone();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Code $_normalizedCode créé.')),
+        SnackBar(
+          content: Text(
+            _isEditing
+                ? 'Code $_normalizedCode mis à jour.'
+                : 'Code $_normalizedCode créé.',
+          ),
+        ),
       );
       return;
     }
@@ -417,7 +481,6 @@ class _NewPromoCodeFormState extends ConsumerState<_NewPromoCodeForm> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final isLoading = ref.watch(promoCodeControllerProvider).isLoading;
     final supplierId = ref.watch(operatingSupplierIdProvider);
     final products =
@@ -438,6 +501,13 @@ class _NewPromoCodeFormState extends ConsumerState<_NewPromoCodeForm> {
               child: MtcTextField(
                 controller: _code,
                 label: 'Code (ex. RENTREE)',
+                // Le texte du code ne se modifie pas : il est imprimé sur
+                // des affiches, envoyé par message, et
+                // `promo_code_redemptions` en garde une copie pour
+                // l'historique. Le changer laisserait sans recours tous
+                // ceux qui tiennent l'ancien. Tout le reste — pourcentage,
+                // dates, plafonds, produits — se corrige.
+                enabled: !_isEditing,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -502,38 +572,17 @@ class _NewPromoCodeFormState extends ConsumerState<_NewPromoCodeForm> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        Text(
-          _productIds.isEmpty
-              ? 'Valable sur tous vos produits. Touchez un produit pour le '
-                    'restreindre.'
-              : '${_productIds.length} produit'
-                    '${_productIds.length > 1 ? 's' : ''} sélectionné'
-                    '${_productIds.length > 1 ? 's' : ''}.',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
-            for (final product in products)
-              FilterChip(
-                label: Text(
-                  product.name,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                selected: _productIds.contains(product.id),
-                onSelected: (selected) => setState(() {
-                  if (selected) {
-                    _productIds.add(product.id);
-                  } else {
-                    _productIds.remove(product.id);
-                  }
-                }),
-              ),
-          ],
+        // Un sélecteur avec recherche, et non une liste de pastilles : un
+        // fournisseur qui a cent articles ne retrouve pas le bon à l'œil au
+        // milieu d'un formulaire.
+        ProductMultiPicker(
+          products: products,
+          selected: _productIds,
+          onChanged: (ids) => setState(() {
+            _productIds
+              ..clear()
+              ..addAll(ids);
+          }),
         ),
         const SizedBox(height: AppSpacing.md),
         MtcPrimaryButton(

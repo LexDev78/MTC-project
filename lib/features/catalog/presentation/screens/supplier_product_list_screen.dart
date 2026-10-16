@@ -66,6 +66,27 @@ class SupplierProductListScreen extends ConsumerWidget {
               value: ref.watch(filteredMyProductsProvider(supplierId)),
               data: (products) {
                 if (products.isEmpty) {
+                  // « Aucun produit » et « aucun produit **qui corresponde** »
+                  // ne se disent pas pareil. Inviter quelqu'un qui a cent
+                  // articles à « ajouter son premier » parce qu'il a mal
+                  // tapé un nom le laisse croire que son catalogue a
+                  // disparu — constaté en parcours visuel sur une recherche
+                  // qui ne ramenait rien.
+                  final filtre =
+                      ref.watch(myProductsQueryProvider(supplierId)).trim();
+                  final statut =
+                      ref.watch(myProductsStatusFilterProvider(supplierId));
+                  if (filtre.isNotEmpty || statut != null) {
+                    return MtcEmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: 'Aucun résultat',
+                      subtitle: filtre.isEmpty
+                          ? 'Aucun produit dans cet état. Choisissez « Tous » '
+                                'pour revoir tout votre catalogue.'
+                          : 'Aucun de vos produits ne correspond à '
+                                '« $filtre ».',
+                    );
+                  }
                   return const MtcEmptyState(
                     icon: Icons.inventory_2_outlined,
                     title: 'Aucun produit',

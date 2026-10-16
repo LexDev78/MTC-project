@@ -1,3 +1,5 @@
+import '../entities/supplier_collaborator.dart';
+import '../entities/supplier_dashboard_stats.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart'
     show SupplierLegalType, VerificationStatus;
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart'
@@ -56,17 +58,63 @@ abstract interface class SupplierRepository {
   /// `ProductRepository.updateProduct`) — the caller submits the whole
   /// current set rather than a partial patch, so there's no ambiguity
   /// between "field left unchanged" and "field cleared".
+  /// Ce que la boutique montre d'elle-même : son nom, sa bannière, sa
+  /// description, ses horaires, ses téléphones.
+  ///
+  /// Séparé de [updateLocation], et pas par goût du découpage : les deux
+  /// écrans qui enregistrent n'éditent pas les mêmes champs. Une seule
+  /// méthode écrivant tout obligerait chacun à renvoyer les valeurs de
+  /// l'autre, et celui qui aurait des données périmées en mémoire les
+  /// réécrirait par-dessus les modifications fraîches.
   Future<void> updateStorefront({
     required String supplierId,
+    required String businessName,
     required String? description,
     required String? bannerUrl,
+    required List<String> publicPhoneNumbers,
+    required String? openingHoursLabel,
+  });
+
+  /// Où la boutique se trouve, et où elle livre.
+  Future<void> updateLocation({
+    required String supplierId,
     required String? fullAddress,
     required double? addressLatitude,
     required double? addressLongitude,
-    required List<String> publicPhoneNumbers,
     required List<String> deliveryZones,
-    required String? openingHoursLabel,
   });
+
+  /// Les chiffres du tableau de bord du fournisseur connecté : ventes,
+  /// vues, chiffre d'affaires livré, versements. Pas la commission ni le
+  /// net — ceux-là suivent une règle qui vit dans
+  /// `compute_financial_summary.dart`.
+  Future<SupplierDashboardStats> fetchDashboardStats();
+
+  /// L'équipe de la boutique. Vide pour un collaborateur : il n'a pas à
+  /// connaître les accès de ses collègues.
+  Future<List<SupplierCollaborator>> fetchCollaborators();
+
+  /// Crée le compte d'un collaborateur et le rattache à la boutique.
+  ///
+  /// Rend son identifiant **et** le mot de passe à usage unique engendré
+  /// par le serveur. Le patron ne le choisit pas : il le dicte, et le
+  /// collaborateur doit le remplacer à sa première connexion (`0098`).
+  Future<({String userId, String temporaryPassword})> createCollaborator({
+    required String displayName,
+    required String usernameOrPhone,
+    required String phoneNumber,
+    required Set<String> permissions,
+  });
+
+  Future<void> setCollaboratorPermissions({
+    required String userId,
+    required Set<String> permissions,
+  });
+
+  /// Retire l'accès. Le compte continue d'exister : il porte peut-être des
+  /// commandes traitées et des messages envoyés, dont l'auteur doit rester
+  /// lisible.
+  Future<void> removeCollaborator(String userId);
 
   Future<void> setOpen({required String supplierId, required bool isOpen});
 }

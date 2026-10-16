@@ -50,28 +50,68 @@ class AppliedPromoCode extends Notifier<PromoCodePreview?> {
 
   /// Soumet un code. Ne consomme rien : `preview_promo_code` peut être
   /// rejouée autant de fois que le client se trompe de frappe.
+  ///
+  /// **Aucun chemin ne se termine en silence.** Une version précédente
+  /// posait `state = null` quand le code était vide ou le panier aussi, et
+  /// laissait toute exception remonter : dans les trois cas le client
+  /// appuyait sur « Appliquer » et il ne se passait rien — ni message, ni
+  /// changement. Un bouton qui ne répond pas se lit comme une panne de
+  /// l'application, et on recommence au lieu de corriger sa saisie.
   Future<void> apply(String code) async {
-    // `await` et non une lecture immédiate : le panier peut n'être pas
-    // encore chargé quand le client colle son code, et un panier vu vide
-    // renverrait « code sans effet » sur un panier qui ne l'est pas.
-    final items = await ref.read(cartItemsProvider.future);
-    if (items.isEmpty || code.trim().isEmpty) {
-      state = null;
+    if (code.trim().isEmpty) {
+      state = const PromoCodePreview(
+        valid: false,
+        reason: 'Saisissez un code promo.',
+      );
       return;
     }
-    state = await ref
-        .read(promoCodeRepositoryProvider)
-        .preview(
-          code: code.trim(),
-          lines: [
-            for (final item in items)
-              (
-                productId: item.productId,
-                variantId: item.variantId,
-                quantity: item.quantity,
-              ),
-          ],
-        );
+
+    final List<CartItem> items;
+    try {
+      // `await` et non une lecture immédiate : le panier peut n'être pas
+      // encore chargé quand le client colle son code, et un panier vu vide
+      // renverrait « code sans effet » sur un panier qui ne l'est pas.
+      items = await ref.read(cartItemsProvider.future);
+    } catch (_) {
+      state = const PromoCodePreview(
+        valid: false,
+        reason: 'Panier illisible pour le moment. Réessayez.',
+      );
+      return;
+    }
+
+    if (items.isEmpty) {
+      state = const PromoCodePreview(
+        valid: false,
+        reason: 'Votre panier est vide : il n\'y a rien à remiser.',
+      );
+      return;
+    }
+
+    try {
+      state = await ref
+          .read(promoCodeRepositoryProvider)
+          .preview(
+            code: code.trim(),
+            lines: [
+              for (final item in items)
+                (
+                  productId: item.productId,
+                  variantId: item.variantId,
+                  quantity: item.quantity,
+                ),
+            ],
+          );
+    } catch (_) {
+      // Volontairement distinct d'un refus : dire « code invalide » quand
+      // c'est le réseau qui a lâché envoie le client corriger un code qui
+      // était bon. Le motif annonce donc une vérification impossible, pas un
+      // verdict.
+      state = const PromoCodePreview(
+        valid: false,
+        reason: 'Impossible de vérifier ce code pour le moment. Réessayez.',
+      );
+    }
   }
 
   void clear() {

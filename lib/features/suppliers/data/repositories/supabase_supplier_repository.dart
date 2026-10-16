@@ -1,3 +1,5 @@
+import '../../domain/entities/supplier_collaborator.dart';
+import '../../domain/entities/supplier_dashboard_stats.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 
@@ -82,29 +84,81 @@ class SupabaseSupplierRepository implements SupplierRepository {
   @override
   Future<void> updateStorefront({
     required String supplierId,
+    required String businessName,
     required String? description,
     required String? bannerUrl,
-    required String? fullAddress,
-    required double? addressLatitude,
-    required double? addressLongitude,
     required List<String> publicPhoneNumbers,
-    required List<String> deliveryZones,
     required String? openingHoursLabel,
   }) {
     return _datasource.updateStorefront(
       supplierId: supplierId,
       fields: {
+        'business_name': businessName,
         'description': description,
         'banner_url': bannerUrl,
-        'full_address': fullAddress,
-        'address_latitude': addressLatitude,
-        'address_longitude': addressLongitude,
         'public_phone_numbers': publicPhoneNumbers,
-        'delivery_zones': deliveryZones,
         'opening_hours_label': openingHoursLabel,
       },
     );
   }
+
+  @override
+  Future<void> updateLocation({
+    required String supplierId,
+    required String? fullAddress,
+    required double? addressLatitude,
+    required double? addressLongitude,
+    required List<String> deliveryZones,
+  }) {
+    return _datasource.updateStorefront(
+      supplierId: supplierId,
+      fields: {
+        'full_address': fullAddress,
+        'address_latitude': addressLatitude,
+        'address_longitude': addressLongitude,
+        'delivery_zones': deliveryZones,
+      },
+    );
+  }
+
+  @override
+  Future<SupplierDashboardStats> fetchDashboardStats() async {
+    return SupplierDashboardStats.fromRow(
+      await _datasource.fetchDashboardStats(),
+    );
+  }
+
+  @override
+  Future<List<SupplierCollaborator>> fetchCollaborators() async {
+    final rows = await _datasource.fetchCollaborators();
+    return [for (final row in rows) SupplierCollaborator.fromRow(row)];
+  }
+
+  @override
+  Future<({String userId, String temporaryPassword})> createCollaborator({
+    required String displayName,
+    required String usernameOrPhone,
+    required String phoneNumber,
+    required Set<String> permissions,
+  }) => _datasource.createCollaborator(
+    displayName: displayName,
+    usernameOrPhone: usernameOrPhone,
+    phoneNumber: phoneNumber,
+    permissions: permissions,
+  );
+
+  @override
+  Future<void> setCollaboratorPermissions({
+    required String userId,
+    required Set<String> permissions,
+  }) => _datasource.setCollaboratorPermissions(
+    userId: userId,
+    permissions: permissions,
+  );
+
+  @override
+  Future<void> removeCollaborator(String userId) =>
+      _datasource.removeCollaborator(userId);
 
   @override
   Future<void> setOpen({required String supplierId, required bool isOpen}) {

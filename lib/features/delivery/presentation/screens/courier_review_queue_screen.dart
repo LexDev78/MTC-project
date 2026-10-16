@@ -8,12 +8,18 @@ import '../../domain/entities/courier_delivery.dart';
 import '../controllers/courier_review_controller.dart';
 import '../providers/delivery_providers.dart';
 
-/// File des inscriptions livreurs en attente, réservée au staff — pendant de
+/// File des dossiers livreurs déposés, réservée au staff — pendant de
 /// `KycReviewQueueScreen` pour les fournisseurs.
 ///
-/// Plus simple que celle-ci : un livreur n'a pas encore de pièces à examiner,
-/// la décision se prend sur son identité et sa ville. Elle se prend donc ici
-/// même, sans écran de détail intermédiaire.
+/// La décision se prend ici même, sans écran de détail intermédiaire : un
+/// dossier livreur tient en une identité, un moyen de transport et deux à
+/// quatre pièces, là où un dossier fournisseur porte une forme juridique, un
+/// RCCM et un NIF.
+///
+/// Les pièces sont **affichées**, pas listées (`0105`). Un écran qui se
+/// contente d'annoncer « 4 documents » redemande à l'agent de décider sans
+/// avoir rien vu — c'est le défaut que `KycDocumentViewer` avait corrigé
+/// côté fournisseur, et il n'y a pas de raison de le refaire ici.
 class CourierReviewQueueScreen extends ConsumerWidget {
   const CourierReviewQueueScreen({super.key});
 
@@ -27,8 +33,10 @@ class CourierReviewQueueScreen extends ConsumerWidget {
           if (queue.isEmpty) {
             return const MtcEmptyState(
               icon: Icons.delivery_dining_outlined,
-              title: 'Aucune inscription en attente',
-              subtitle: 'Les nouveaux livreurs apparaîtront ici.',
+              title: 'Aucun dossier à examiner',
+              subtitle:
+                  'Les livreurs apparaissent ici une fois leurs pièces '
+                  'déposées.',
             );
           }
           return ListView.separated(
@@ -90,12 +98,36 @@ class _QueueTile extends ConsumerWidget {
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
             Text(
-              courier.vehicleLabel == null || courier.vehicleLabel!.isEmpty
-                  ? courier.city
-                  : '${courier.city} · ${courier.vehicleLabel}',
+              _lieuEtVehicule(courier),
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.sm),
+            if (courier.documents.isEmpty)
+              // Ne devrait pas arriver — la file ne liste que les dossiers
+              // déposés, et un dépôt exige des pièces. Si cela se produit,
+              // c'est un défaut, et l'agent doit le voir plutôt que de
+              // valider à l'aveugle.
+              Card(
+                color: scheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: Text(
+                    'Dossier déposé sans aucune pièce : à signaler.',
+                    style: TextStyle(color: scheme.onErrorContainer),
+                  ),
+                ),
+              )
+            else
+              for (final document in courier.documents)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: PrivateDocumentViewer(
+                    label: document.type.label,
+                    path: document.filePath,
+                    bucket: 'courier-documents',
+                  ),
+                ),
+            const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
                 Expanded(
@@ -118,6 +150,17 @@ class _QueueTile extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Ville, moyen de transport et précision, dans cet ordre : l'agent lit
+  /// d'abord où le livreur opère, puis avec quoi.
+  String _lieuEtVehicule(PendingCourier courier) {
+    final morceaux = <String>[courier.city];
+    final type = courier.vehicleType;
+    if (type != null) morceaux.add(type.label);
+    final libelle = courier.vehicleLabel;
+    if (libelle != null && libelle.isNotEmpty) morceaux.add(libelle);
+    return morceaux.join(' · ');
   }
 
   /// Un refus doit être motivé — le serveur le refuserait sinon

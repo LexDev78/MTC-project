@@ -7,6 +7,7 @@ import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart
 import '../../data/datasources/supabase_delivery_datasource.dart';
 import '../../data/repositories/supabase_delivery_repository.dart';
 import '../../domain/entities/courier_delivery.dart';
+import '../../domain/entities/courier_dossier.dart';
 import '../../domain/repositories/delivery_repository.dart';
 
 final deliveryDatasourceProvider = Provider<SupabaseDeliveryDatasource>((ref) {
@@ -51,6 +52,22 @@ final offeredDeliveriesProvider = Provider<List<CourierDelivery>>((ref) {
     for (final d in deliveries)
       if (d.status == DeliveryStatus.offered) d,
   ];
+});
+
+/// Le dossier du livreur connecté : ses pièces, son moyen de transport, et
+/// l'état du dépôt (`0105`).
+///
+/// `autoDispose` : il n'intéresse que l'écran du dossier, et il doit être
+/// relu à chaque ouverture — une pièce ajoutée depuis un autre appareil, ou
+/// un refus prononcé entre-temps, changent ce qu'il faut afficher.
+final courierDossierProvider = FutureProvider.autoDispose<CourierDossier>((
+  ref,
+) async {
+  final courier = ref.watch(currentCourierProvider);
+  if (courier == null) {
+    throw StateError('Aucun compte livreur en session.');
+  }
+  return ref.watch(deliveryRepositoryProvider).fetchMyDossier(courier.id);
 });
 
 /// Inscriptions livreurs en attente, pour le staff.

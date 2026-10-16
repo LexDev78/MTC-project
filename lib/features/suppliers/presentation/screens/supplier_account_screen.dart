@@ -3,13 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:latlong2/latlong.dart';
-
-import 'package:mtc_app/core/mock_data/malian_locations.dart';
-
 import 'package:mtc_app/app/theme/app_spacing.dart';
-import 'package:mtc_app/features/tracking/presentation/screens/location_picker_screen.dart';
-import 'package:mtc_app/features/tracking/presentation/widgets/position_to_confirm_banner.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -18,6 +12,7 @@ import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
+import 'package:mtc_app/features/tracking/presentation/widgets/position_to_confirm_banner.dart';
 
 import '../../domain/entities/supplier_profile.dart';
 import '../controllers/supplier_account_controller.dart';
@@ -60,11 +55,20 @@ Future<void> _confirmAndDeleteAccount(BuildContext context, WidgetRef ref) async
   }
 }
 
-/// "Profil" tab of `SupplierShell` — the editable storefront profile
-/// (description, adresse, horaires, zone de livraison, statut
-/// ouvert/fermé), shared by both supplier roles via
-/// `operatingSupplierIdProvider`. What `SupplierProfileScreen` (public
-/// vitrine) shows a client is exactly what gets edited here.
+/// Onglet « Profil » de `SupplierShell`, partagé par les deux rôles
+/// fournisseur via `operatingSupplierIdProvider`.
+///
+/// Organisé en trois sections, parce que la liste à plat qu'il était
+/// mélangeait trois choses de nature différente : ce que le client voit, les
+/// réglages qu'on ouvre rarement, et deux actions irréversibles posées juste
+/// sous un bouton « Enregistrer ».
+///
+///  * **Gestion de la boutique** — ce que la vitrine montre, et le seul
+///    formulaire de cet écran.
+///  * **Paramètres supplémentaires** — ce qui a son propre écran :
+///    localisation, codes promo, avis.
+///  * **Paramètres avancés** — déconnexion et suppression de compte, en bas
+///    et séparées du reste.
 class SupplierAccountScreen extends ConsumerWidget {
   const SupplierAccountScreen({super.key});
 
@@ -72,27 +76,10 @@ class SupplierAccountScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider).valueOrNull;
     final supplierId = ref.watch(operatingSupplierIdProvider);
+    final prefix = ref.watch(supplierRoutePrefixProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.confirmation_number_outlined),
-            tooltip: 'Codes promo',
-            onPressed: () => context.push(
-              '${ref.read(supplierRoutePrefixProvider)}/account/promo-codes',
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.star_outline_rounded),
-            tooltip: 'Avis clients',
-            onPressed: () => context.push(
-              '${ref.read(supplierRoutePrefixProvider)}/account/reviews',
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Profil')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -112,42 +99,170 @@ class SupplierAccountScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
               ],
+
               if (supplierId == null)
                 const MtcLoadingView()
               else
                 AsyncValueWidget(
                   value: ref.watch(supplierDetailProvider(supplierId)),
-                  data: (supplier) => _StorefrontForm(supplier: supplier),
-                ),
-              const SizedBox(height: AppSpacing.lg),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    ref.read(authControllerProvider.notifier).logout(),
-                icon: const Icon(Icons.logout_rounded),
-                label: const Text('Déconnexion'),
-              ),
-              // Staff (`SupplierPrincipalUser`) share this exact screen with
-              // no role branching anywhere else in it — deliberately
-              // excluded here, since a staff account is provisioned
-              // internally and never self-service (`deactivate_account()`
-              // rejects it server-side too, this just keeps the button
-              // from ever being shown to begin with).
-              if (user is SupplierTiersUser) ...[
-                const SizedBox(height: AppSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: () => _confirmAndDeleteAccount(context, ref),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
-                    side: BorderSide(color: Theme.of(context).colorScheme.error),
+                  data: (supplier) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Le point de retrait vit désormais sur son propre
+                      // écran. L'avertissement, lui, doit rester ici :
+                      // c'est précisément le fournisseur qui n'y va jamais
+                      // qui ne l'a pas placé, et tant qu'il ne l'est pas les
+                      // livreurs se présentent au centre de la ville.
+                      if (supplier.positionConfirmedAt == null) ...[
+                        PositionToConfirmBanner(
+                          message:
+                              'Votre point de retrait n\'a jamais été placé '
+                              'sur la carte. Tant qu\'il ne l\'est pas, les '
+                              'livreurs se présentent au centre de '
+                              '${supplier.city}.',
+                          actionLabel: 'Placer mon point de retrait',
+                          onFix: () => context.push('$prefix/account/location'),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                      const _SectionTitle('Gestion de la boutique'),
+                      const SizedBox(height: AppSpacing.sm),
+                      _StorefrontForm(supplier: supplier),
+                    ],
                   ),
-                  icon: const Icon(Icons.delete_forever_outlined),
-                  label: const Text('Supprimer mon compte'),
+                ),
+
+              const SizedBox(height: AppSpacing.xl),
+              const _SectionTitle('Paramètres supplémentaires'),
+              // Chaque entrée demande la permission de ce qu'elle ouvre.
+              // Montrer un chemin qu'on sait fermé n'est pas de la prudence,
+              // c'est une invitation à se heurter à un refus.
+              if (ref.watch(supplierCanProvider('storefront')))
+                _NavigationTile(
+                  icon: Icons.place_outlined,
+                  label: 'Localisation',
+                  subtitle: 'Adresse, point de retrait, zones de livraison',
+                  onTap: () => context.push('$prefix/account/location'),
+                ),
+              if (ref.watch(supplierCanProvider('promotions'))) ...[
+                _NavigationTile(
+                  icon: Icons.sell_outlined,
+                  label: 'Remises',
+                  subtitle: 'Une remise, posée sur plusieurs produits à la fois',
+                  onTap: () => context.push('$prefix/account/promotions'),
+                ),
+                _NavigationTile(
+                  icon: Icons.confirmation_number_outlined,
+                  label: 'Codes promo',
+                  subtitle: 'Créer des codes et voir où ils ont servi',
+                  onTap: () => context.push('$prefix/account/promo-codes'),
                 ),
               ],
+              // Réservée au propriétaire : un collaborateur fraîchement
+              // ajouté n'a pas à en ajouter d'autres, ni à évincer celui
+              // qui l'a fait entrer. La base le refuse de toute façon ;
+              // masquer l'entrée évite d'y mener pour rien.
+              if (ref.watch(isSupplierOwnerProvider))
+                _NavigationTile(
+                  icon: Icons.group_outlined,
+                  label: 'Collaborateurs',
+                  subtitle: 'Ajouter quelqu\'un, choisir ce qu\'il peut faire',
+                  onTap: () => context.push('$prefix/account/collaborators'),
+                ),
+              if (ref.watch(supplierCanProvider('reviews')))
+                _NavigationTile(
+                  icon: Icons.star_outline_rounded,
+                  label: 'Avis clients',
+                  subtitle: 'Lire et répondre aux avis sur votre boutique',
+                  onTap: () => context.push('$prefix/account/reviews'),
+                ),
+
+              const SizedBox(height: AppSpacing.xl),
+              const _SectionTitle('Paramètres avancés'),
+              _NavigationTile(
+                icon: Icons.logout_rounded,
+                label: 'Déconnexion',
+                navigates: false,
+                onTap: () => ref.read(authControllerProvider.notifier).logout(),
+              ),
+              // Le staff (`SupplierPrincipalUser`) partage cet écran sans
+              // aucun autre embranchement de rôle : un compte interne n'est
+              // jamais en libre-service, et `deactivate_account()` le refuse
+              // déjà côté serveur. On évite simplement d'en montrer le
+              // bouton.
+              if (user is SupplierTiersUser &&
+                  ref.watch(isSupplierOwnerProvider))
+                _NavigationTile(
+                  icon: Icons.delete_forever_outlined,
+                  label: 'Supprimer mon compte',
+                  danger: true,
+                  navigates: false,
+                  onTap: () => _confirmAndDeleteAccount(context, ref),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Text(label, style: Theme.of(context).textTheme.titleMedium),
+    );
+  }
+}
+
+/// Une ligne qui mène ailleurs, ou qui déclenche une action.
+///
+/// `contentPadding` nul pour que le libellé s'aligne sur les titres de
+/// section et sur les champs du formulaire : un `ListTile` apporte sinon sa
+/// propre marge, et la colonne part en escalier.
+class _NavigationTile extends StatelessWidget {
+  const _NavigationTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.subtitle,
+    this.danger = false,
+    this.navigates = true,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  /// Une action irréversible : colorée comme telle, parce qu'elle voisine
+  /// des lignes anodines.
+  final bool danger;
+
+  /// Faux pour une ligne qui **agit** au lieu de mener ailleurs. Le chevron
+  /// est une promesse : « il y a un écran derrière ». Le poser sur une
+  /// déconnexion ou une suppression de compte laisse croire qu'on va voir
+  /// quelque chose avant que ça n'arrive.
+  final bool navigates;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = danger ? scheme.error : null;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: color),
+      title: Text(label, style: TextStyle(color: color)),
+      subtitle: subtitle == null ? null : Text(subtitle!),
+      trailing: navigates ? const Icon(Icons.chevron_right_rounded) : null,
+      onTap: onTap,
     );
   }
 }
@@ -162,34 +277,26 @@ class _StorefrontForm extends ConsumerStatefulWidget {
 }
 
 class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
+  late final _nameController = TextEditingController(
+    text: widget.supplier.businessName,
+  );
   late final _descriptionController = TextEditingController(
     text: widget.supplier.description,
   );
-  late final _addressController = TextEditingController(
-    text: widget.supplier.fullAddress,
-  );
   late final _phonesController = TextEditingController(
     text: widget.supplier.publicPhoneNumbers.join(', '),
-  );
-  late final _zonesController = TextEditingController(
-    text: widget.supplier.deliveryZones.join(', '),
   );
   late final _hoursController = TextEditingController(
     text: widget.supplier.openingHoursLabel,
   );
   late String? _bannerPath = widget.supplier.bannerUrl;
-
-  /// Point de retrait posé sur la carte pendant cette session d'édition.
-  /// `null` tant qu'on n'y a pas touché : celui déjà enregistré est conservé.
-  LatLng? _pickupPoint;
   late bool _isOpen = widget.supplier.isOpen;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _descriptionController.dispose();
-    _addressController.dispose();
     _phonesController.dispose();
-    _zonesController.dispose();
     _hoursController.dispose();
     super.dispose();
   }
@@ -239,19 +346,26 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
   }
 
   Future<void> _submit() async {
+    // Le nom est le seul champ obligatoire de cet écran : une boutique sans
+    // nom disparaît du catalogue, et un champ vidé par mégarde est trop
+    // facile à produire pour qu'on l'enregistre en silence.
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Le nom de la boutique est obligatoire.')),
+      );
+      return;
+    }
+
     final ok = await ref
         .read(supplierAccountControllerProvider.notifier)
         .updateStorefront(
+          businessName: name,
           description: _descriptionController.text.trim().isEmpty
               ? null
               : _descriptionController.text.trim(),
           bannerUrl: _bannerPath,
-          fullAddress: _addressController.text.trim().isEmpty
-              ? null
-              : _addressController.text.trim(),
-          pickupPoint: _pickupPoint,
           publicPhoneNumbers: _splitCsv(_phonesController.text),
-          deliveryZones: _splitCsv(_zonesController.text),
           openingHoursLabel: _hoursController.text.trim().isEmpty
               ? null
               : _hoursController.text.trim(),
@@ -273,10 +387,26 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Vitrine de la boutique', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Vitrine',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
         _BannerPicker(path: _bannerPath, onPick: _pickBanner),
         const SizedBox(height: AppSpacing.md),
+        MtcTextField(
+          label: 'Nom de la boutique',
+          controller: _nameController,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        MtcTextField(
+          label: 'Description (optionnel)',
+          controller: _descriptionController,
+          maxLines: 3,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Boutique ouverte'),
@@ -288,36 +418,11 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
           value: _isOpen,
           onChanged: _toggleOpen,
         ),
-        const SizedBox(height: AppSpacing.md),
-        MtcTextField(
-          label: 'Description (optionnel)',
-          controller: _descriptionController,
-          maxLines: 3,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        MtcTextField(
-          label: 'Adresse complète (optionnel)',
-          controller: _addressController,
-        ),
         const SizedBox(height: AppSpacing.sm),
-        // Le texte de l'adresse sert à l'humain, le repère sert au livreur.
-        // Les deux sont nécessaires : « Quartier du Fleuve » ne mène nulle
-        // part sur une carte, et des coordonnées seules ne se lisent pas.
-        _PickupPointField(
-          supplier: widget.supplier,
-          chosen: _pickupPoint,
-          onPicked: (point) => setState(() => _pickupPoint = point),
-        ),
-        const SizedBox(height: AppSpacing.md),
         MtcTextField(
           label: 'Téléphones publics (séparés par des virgules, optionnel)',
           controller: _phonesController,
           keyboardType: TextInputType.phone,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        MtcTextField(
-          label: 'Zones de livraison (séparées par des virgules, optionnel)',
-          controller: _zonesController,
         ),
         const SizedBox(height: AppSpacing.md),
         MtcTextField(
@@ -387,98 +492,6 @@ class _BannerPicker extends StatelessWidget {
                 ],
               ),
       ),
-    );
-  }
-}
-
-/// Bouton de choix du point de retrait, avec son état.
-///
-/// Un fournisseur qui livre par MTC **doit** en avoir un : sans lui, la
-/// remise à la livraison est refusée côté serveur
-/// (`0050_mtc_delivery_requires_pickup_point.sql`). Le dire ici évite de
-/// découvrir le blocage au pire moment, une commande déjà payée en attente.
-class _PickupPointField extends StatelessWidget {
-  const _PickupPointField({
-    required this.supplier,
-    required this.chosen,
-    required this.onPicked,
-  });
-
-  final SupplierProfile supplier;
-  final LatLng? chosen;
-  final ValueChanged<LatLng> onPicked;
-
-  /// Ouvre le sélecteur de carte. Partagé par le bouton et par le bandeau :
-  /// deux chemins vers le même geste, une seule définition de ce qu'il fait.
-  Future<void> _pick(BuildContext context, LatLng? point) async {
-    final picked = await pickLocation(
-      context,
-      initialPoint:
-          point ??
-          MalianCity.values
-              .firstWhere(
-                (c) => c.label.toLowerCase() == supplier.city.toLowerCase(),
-                orElse: () => MalianCity.bamako,
-              )
-              .coordinates,
-      title: 'Point de retrait',
-      subtitle:
-          'Placez le repère sur la porte de votre boutique. C\'est là que le '
-          'livreur viendra chercher les commandes.',
-    );
-    if (picked != null) onPicked(picked);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final existing = supplier.addressLatitude != null &&
-            supplier.addressLongitude != null
-        ? LatLng(supplier.addressLatitude!, supplier.addressLongitude!)
-        : null;
-    final point = chosen ?? existing;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Une fiche dont le point n'a jamais été pointé porte les
-        // coordonnées du centre de sa ville : le livreur s'y rend
-        // littéralement. Le bandeau disparaît dès que le repère bouge
-        // (`0079`).
-        if (supplier.positionConfirmedAt == null && chosen == null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: PositionToConfirmBanner(
-              message:
-                  'Votre point de retrait n\'a jamais été placé sur la carte. '
-                  'Tant qu\'il ne l\'est pas, les livreurs se présentent au '
-                  'centre de ${supplier.city}.',
-              actionLabel: 'Placer mon point de retrait',
-              onFix: () => _pick(context, point),
-            ),
-          ),
-        OutlinedButton.icon(
-          onPressed: () => _pick(context, point),
-          icon: Icon(
-            point == null
-                ? Icons.add_location_alt_outlined
-                : Icons.check_circle_outline_rounded,
-          ),
-          label: Text(
-            point == null
-                ? 'Placer le point de retrait'
-                : 'Point de retrait placé — modifier',
-          ),
-        ),
-        if (point == null)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs),
-            child: Text(
-              'Obligatoire pour confier vos commandes à la livraison MTC.',
-              style: TextStyle(color: scheme.error, fontSize: 12),
-            ),
-          ),
-      ],
     );
   }
 }

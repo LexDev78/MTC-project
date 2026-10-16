@@ -7,6 +7,7 @@ import 'package:mtc_app/features/auth/presentation/screens/loading_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_delivery_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_review_queue_screen.dart';
+import 'package:mtc_app/features/delivery/presentation/screens/courier_dossier_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_history_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_home_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/role_selection_screen.dart';
@@ -49,6 +50,10 @@ import 'package:mtc_app/features/supplier_onboarding/presentation/screens/kyc_re
 import 'package:mtc_app/features/supplier_onboarding/presentation/screens/kyc_review_queue_screen.dart';
 import 'package:mtc_app/features/supplier_onboarding/presentation/screens/supplier_kyc_wizard_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_account_screen.dart';
+import 'package:mtc_app/features/catalog/presentation/screens/supplier_promotions_screen.dart';
+import 'package:mtc_app/features/auth/presentation/screens/forced_password_change_screen.dart';
+import 'package:mtc_app/features/suppliers/presentation/screens/supplier_collaborators_screen.dart';
+import 'package:mtc_app/features/suppliers/presentation/screens/supplier_location_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_profile_screen.dart';
 import 'package:mtc_app/features/tracking/presentation/screens/live_tracking_screen.dart';
 import 'package:mtc_app/root/presentation/client_home_screen.dart';
@@ -179,6 +184,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.courierHistory,
         pageBuilder: (context, state) =>
             _fluidPage(state, const CourierHistoryScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.courierDossier,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const CourierDossierScreen()),
       ),
       GoRoute(
         path: AppRoutes.signUpRole,
@@ -383,6 +393,49 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.supplierPrincipalReviewManagement,
         pageBuilder: (context, state) =>
             _fluidPage(state, const SupplierReviewManagementScreen()),
+      ),
+      // Adresse, point de retrait et zones de livraison — sortis de l'onglet
+      // « Profil », où la carte occupait le milieu d'un formulaire qu'on
+      // traverse pour corriger une ligne de description.
+      GoRoute(
+        path: AppRoutes.supplierTiersLocation,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierLocationScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalLocation,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierLocationScreen()),
+      ),
+      // Les remises, pensées avant de choisir les produits (`0090`) — par
+      // opposition à la feuille ouverte depuis un article, qui reste le bon
+      // geste quand on travaille sur un produit précis.
+      GoRoute(
+        path: AppRoutes.supplierTiersPromotions,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierPromotionsScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalPromotions,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierPromotionsScreen()),
+      ),
+      // L'équipe de la boutique (`0093`) — réservée au propriétaire, qui
+      // seul voit l'entrée dans son profil.
+      GoRoute(
+        path: AppRoutes.changePassword,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const ForcedPasswordChangeScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierTiersCollaborators,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierCollaboratorsScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPrincipalCollaborators,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SupplierCollaboratorsScreen()),
       ),
       // Notification center, reached from a bell icon on the "Tableau de
       // bord" tab — mirrored once per zone like the review management above.

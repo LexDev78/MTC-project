@@ -337,6 +337,84 @@ class SupabaseProductDatasource {
     _notify();
   }
 
+  /// Pose la même remise sur plusieurs produits, en une écriture.
+  ///
+  /// Une seule insertion et non une boucle : PostgREST l'exécute dans une
+  /// transaction, donc soit les trente lignes existent, soit aucune. Une
+  /// boucle laisserait, sur une coupure réseau au Mali, une remise posée
+  /// sur les douze premiers produits et sur aucun des autres — un état que
+  /// rien à l'écran ne permettrait de distinguer d'un choix délibéré.
+  ///
+  /// Les lignes doivent avoir **exactement** les mêmes clés : PostgREST
+  /// aligne un lot sur la première ligne et met à `null` ce qui manque
+  /// ailleurs.
+  Future<void> addPromotions(List<Map<String, dynamic>> rows) async {
+    if (rows.isEmpty) return;
+    await _client.from('product_promotions').insert(rows);
+    _notify();
+  }
+
+  /// Corrige une remise déjà posée : sa valeur et sa couverture, en une
+  /// transaction (`0091`). Rend le nombre de produits couverts après coup.
+  ///
+  /// Supprimer puis recréer aurait été plus simple à écrire, et aurait
+  /// laissé les prix au plein tarif entre les deux — quelques secondes si
+  /// tout va bien, indéfiniment si le réseau lâche au milieu.
+  Future<int> updatePromotionBatch({
+    required String batchId,
+    required String kind,
+    required int value,
+    required int minQuantity,
+    required DateTime? startsAt,
+    required DateTime? endsAt,
+    required String? label,
+    required List<String> productIds,
+  }) async {
+    final count = await _client.rpc(
+      'update_promotion_batch',
+      params: {
+        'p_batch_id': batchId,
+        'p_kind': kind,
+        'p_value': value,
+        'p_min_quantity': minQuantity,
+        'p_starts_at': startsAt?.toUtc().toIso8601String(),
+        'p_ends_at': endsAt?.toUtc().toIso8601String(),
+        'p_label': label,
+        'p_product_ids': productIds,
+      },
+    );
+    _notify();
+    return (count as num).toInt();
+  }
+
+  /// Arrête ou reprend tout un lot (`0090`). La RPC rend le nombre de
+  /// lignes touchées et refuse un lot qui n'est pas le sien — un `update`
+  /// direct serait silencieusement filtré par la policy et paraîtrait
+  /// réussir.
+  Future<int> setPromotionBatchActive(String batchId, bool isActive) async {
+    final count = await _client.rpc(
+      'set_promotion_batch_active',
+      params: {'p_batch_id': batchId, 'p_is_active': isActive},
+    );
+    _notify();
+    return (count as num).toInt();
+  }
+
+  Future<int> deletePromotionBatch(String batchId) async {
+    final count = await _client.rpc(
+      'delete_promotion_batch',
+      params: {'p_batch_id': batchId},
+    );
+    _notify();
+    return (count as num).toInt();
+  }
+
+  /// Les remises du fournisseur, regroupées par lot.
+  Future<List<Map<String, dynamic>>> fetchMyPromotionBatches() async {
+    final rows = await _client.rpc('fetch_my_promotion_batches');
+    return (rows as List).cast<Map<String, dynamic>>();
+  }
+
   Future<void> updatePromotion(String id, Map<String, dynamic> patch) async {
     await _client.from('product_promotions').update(patch).eq('id', id);
     _notify();

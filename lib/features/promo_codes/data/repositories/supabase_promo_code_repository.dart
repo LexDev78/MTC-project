@@ -45,6 +45,30 @@ class SupabasePromoCodeRepository implements PromoCodeRepository {
   }
 
   @override
+  Future<void> update({
+    required String id,
+    required int percent,
+    String? label,
+    DateTime? endsAt,
+    int? maxUses,
+    int maxUsesPerClient = 1,
+    int? minOrderFcfa,
+    required List<String> productIds,
+  }) async {
+    await _datasource.update(id, {
+      'percent': percent,
+      'label': label,
+      // `toUtc()` avant de sérialiser : une date locale sans décalage est
+      // relue comme de l'UTC, et la fin du code se déplace.
+      'ends_at': endsAt?.toUtc().toIso8601String(),
+      'max_uses': maxUses,
+      'max_uses_per_client': maxUsesPerClient,
+      'min_order_fcfa': minOrderFcfa,
+    });
+    await _datasource.setProducts(promoCodeId: id, productIds: productIds);
+  }
+
+  @override
   Future<void> setActive({required String id, required bool isActive}) =>
       _datasource.setActive(id: id, isActive: isActive);
 
@@ -64,6 +88,10 @@ class SupabasePromoCodeRepository implements PromoCodeRepository {
         ),
     };
   }
+
+  @override
+  Future<bool> existsForProducts(List<String> productIds) =>
+      _datasource.existsForProducts(productIds);
 
   @override
   Future<PromoCodePreview> preview({

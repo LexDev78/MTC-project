@@ -35,6 +35,10 @@ void main() {
   const bogolan = 'b0fe527e-1f73-55e6-b24e-4d985576d473';
   // « Smartphone Android 64GB » chez Electro Bamako — un autre vendeur.
   const smartphone = 'b3fff077-755b-578a-b5ec-1e00139e3029';
+  // « Boubou en bogolan brodé », chez le même vendeur que le bogolan :
+  // de quoi distinguer « ce vendeur a un code » de « ce produit est
+  // couvert ».
+  const autreProduitDuMemeVendeur = '62599202-a3f0-5adc-ae1c-fe2a691adf92';
 
   late SupabaseClient supplierClient;
   late PromoCodeRepository asSupplier;
@@ -240,4 +244,179 @@ void main() {
       await clientClient.dispose();
     },
   );
+
+  group('le champ de saisie ne s\'affiche que s\'il peut servir', () {
+    // `cart_has_promo_code` (`0089`) répond par oui ou non, jamais par la
+    // liste des codes : le client ne doit pas pouvoir énumérer les remises
+    // en vigueur. Ce qui se vérifie ici, c'est que le « oui » et le « non »
+    // tombent exactement là où `preview_promo_code` accepte et refuse — un
+    // écart masquerait un code que le client tient dans la main.
+    Future<SupabasePromoCodeRepository> commeClient([
+      String identifiant = 'client1',
+    ]) async {
+      final client = await _signIn(identifiant);
+      addTearDown(client.dispose);
+      return SupabasePromoCodeRepository(SupabasePromoCodeDatasource(client));
+    }
+
+    test('aucun code chez le vendeur : pas de champ', () async {
+      final asClient = await commeClient();
+      expect(await asClient.existsForProducts([bogolan]), isFalse);
+    });
+
+    test('un code du vendeur, tous produits : champ affiché', () async {
+      await asSupplier.create(code: 'RENTREE', percent: 10);
+      final asClient = await commeClient();
+      expect(await asClient.existsForProducts([bogolan]), isTrue);
+    });
+
+    test('un code limité à d\'autres produits : pas de champ', () async {
+      // Le code existe chez ce vendeur, mais ne couvre pas cet article.
+      await asSupplier.create(
+        code: 'CIBLE',
+        percent: 10,
+        productIds: [autreProduitDuMemeVendeur],
+      );
+      final asClient = await commeClient();
+      expect(await asClient.existsForProducts([bogolan]), isFalse);
+      expect(
+        await asClient.existsForProducts([autreProduitDuMemeVendeur]),
+        isTrue,
+      );
+    });
+
+    test('un code d\'un autre vendeur ne compte pas', () async {
+      await asSupplier.create(code: 'RENTREE', percent: 10);
+      final asClient = await commeClient();
+      // Le smartphone est chez Electro Bamako, pas chez Bogolan Bamako.
+      expect(await asClient.existsForProducts([smartphone]), isFalse);
+    });
+
+    test('un code arrêté ou expiré ne compte pas', () async {
+      await asSupplier.create(code: 'ARRETE', percent: 10);
+      final arrete = (await asSupplier.watchMine().first).single;
+      await asSupplier.setActive(id: arrete.id, isActive: false);
+
+      final asClient = await commeClient();
+      expect(await asClient.existsForProducts([bogolan]), isFalse);
+
+      await asSupplier.create(
+        code: 'EXPIRE',
+        percent: 10,
+        endsAt: DateTime.now().toUtc().subtract(const Duration(days: 1)),
+      );
+      expect(await asClient.existsForProducts([bogolan]), isFalse);
+    });
+
+    test('un achat minimum non atteint laisse le champ visible', () async {
+      // Volontaire : `preview_promo_code` dira « achat minimum non atteint »,
+      // ce qui apprend au client qu'une remise existe et ce qu'il faut pour
+      // l'avoir. Masquer le champ la lui cacherait.
+      await asSupplier.create(
+        code: 'GROSPANIER',
+        percent: 10,
+        minOrderFcfa: 500000,
+      );
+      final asClient = await commeClient();
+      expect(await asClient.existsForProducts([bogolan]), isTrue);
+    });
+  });
+
+  group('corriger un code existant', () {
+    test('le pourcentage, les plafonds et la couverture se modifient', () async {
+      await asSupplier.create(code: 'RENTREE', percent: 10, maxUsesPerClient: 1);
+      final cree = (await asSupplier.watchMine().first).single;
+
+      await asSupplier.update(
+        id: cree.id,
+        percent: 25,
+        label: 'Rentrée prolongée',
+        maxUses: 50,
+        maxUsesPerClient: 3,
+        minOrderFcfa: 20000,
+        productIds: [bogolan],
+      );
+
+      final corrige = (await asSupplier.watchMine().first).single;
+      expect(corrige.percent, 25);
+      expect(corrige.label, 'Rentrée prolongée');
+      expect(corrige.maxUses, 50);
+      expect(corrige.maxUsesPerClient, 3);
+      expect(corrige.minOrderFcfa, 20000);
+      expect(corrige.productIds, [bogolan]);
+      // Le code lui-même ne bouge pas : il est déjà entre les mains des
+      // clients, et l'écran ne permet pas de le changer.
+      expect(corrige.code, 'RENTREE');
+    });
+
+    test('la correction se voit immédiatement à l\'aperçu client', () async {
+      await asSupplier.create(code: 'RENTREE', percent: 10);
+      final cree = (await asSupplier.watchMine().first).single;
+
+      final clientClient = await _signIn('client1');
+      addTearDown(clientClient.dispose);
+      final asClient = SupabasePromoCodeRepository(
+        SupabasePromoCodeDatasource(clientClient),
+      );
+      final lignes = [(productId: bogolan, variantId: null, quantity: 1)];
+
+      final avant = await asClient.preview(code: 'RENTREE', lines: lignes);
+      expect(avant.discountFcfa, 2500); // 10 % de 25 000
+
+      await asSupplier.update(
+        id: cree.id,
+        percent: 20,
+        productIds: const [],
+      );
+
+      final apres = await asClient.preview(code: 'RENTREE', lines: lignes);
+      expect(apres.discountFcfa, 5000);
+    });
+
+    test('restreindre la couverture retire le code des autres produits', () async {
+      await asSupplier.create(code: 'RENTREE', percent: 10);
+      final cree = (await asSupplier.watchMine().first).single;
+
+      final clientClient = await _signIn('client1');
+      addTearDown(clientClient.dispose);
+      final asClient = SupabasePromoCodeRepository(
+        SupabasePromoCodeDatasource(clientClient),
+      );
+
+      // Au départ, tous les produits du vendeur.
+      expect(
+        (await asClient.preview(
+          code: 'RENTREE',
+          lines: [
+            (
+              productId: autreProduitDuMemeVendeur,
+              variantId: null,
+              quantity: 1,
+            ),
+          ],
+        )).valid,
+        isTrue,
+      );
+
+      await asSupplier.update(
+        id: cree.id,
+        percent: 10,
+        productIds: [bogolan],
+      );
+
+      expect(
+        (await asClient.preview(
+          code: 'RENTREE',
+          lines: [
+            (
+              productId: autreProduitDuMemeVendeur,
+              variantId: null,
+              quantity: 1,
+            ),
+          ],
+        )).valid,
+        isFalse,
+      );
+    });
+  });
 }

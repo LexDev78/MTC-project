@@ -1,3 +1,4 @@
+import '../../domain/entities/promotion_batch.dart';
 import 'package:mtc_app/core/utils/id_generator.dart';
 
 import '../../domain/entities/product.dart';
@@ -276,6 +277,84 @@ class SupabaseProductRepository implements ProductRepository {
       'label': label,
     });
   }
+
+  @override
+  Future<String> createPromotionBatch({
+    required List<String> productIds,
+    required PromotionKind kind,
+    required int value,
+    int minQuantity = 1,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? label,
+  }) async {
+    final batchId = IdGenerator.next();
+    // Mêmes clés sur toutes les lignes, y compris celles qui valent `null` :
+    // PostgREST aligne un lot sur la première ligne, et une clé absente
+    // ailleurs devient `null` sans prévenir.
+    await _datasource.addPromotions([
+      for (final productId in productIds)
+        {
+          'batch_id': batchId,
+          'product_id': productId,
+          'kind': switch (kind) {
+            PromotionKind.percentage => 'percentage',
+            PromotionKind.fixedAmount => 'fixed_amount',
+          },
+          'value': value,
+          'min_quantity': minQuantity,
+          // `toUtc()` avant de sérialiser, comme `createPromotion` : une
+          // date locale sérialisée sans décalage est lue comme de l'UTC, et
+          // la fenêtre de la remise se déplace.
+          'starts_at': startsAt?.toUtc().toIso8601String(),
+          'ends_at': endsAt?.toUtc().toIso8601String(),
+          'label': label,
+        },
+    ]);
+    return batchId;
+  }
+
+  @override
+  Future<int> updatePromotionBatch({
+    required String batchId,
+    required List<String> productIds,
+    required PromotionKind kind,
+    required int value,
+    int minQuantity = 1,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? label,
+  }) {
+    return _datasource.updatePromotionBatch(
+      batchId: batchId,
+      kind: switch (kind) {
+        PromotionKind.percentage => 'percentage',
+        PromotionKind.fixedAmount => 'fixed_amount',
+      },
+      value: value,
+      minQuantity: minQuantity,
+      startsAt: startsAt,
+      endsAt: endsAt,
+      label: label,
+      productIds: productIds,
+    );
+  }
+
+  @override
+  Future<List<PromotionBatch>> fetchMyPromotionBatches() async {
+    final rows = await _datasource.fetchMyPromotionBatches();
+    return [for (final row in rows) PromotionBatch.fromRow(row)];
+  }
+
+  @override
+  Future<int> setPromotionBatchActive({
+    required String batchId,
+    required bool isActive,
+  }) => _datasource.setPromotionBatchActive(batchId, isActive);
+
+  @override
+  Future<int> deletePromotionBatch(String batchId) =>
+      _datasource.deletePromotionBatch(batchId);
 
   @override
   Future<void> setPromotionActive({

@@ -21,6 +21,19 @@ abstract interface class PromoCodeRepository {
 
   /// Arrête ou reprend un code sans le supprimer : son historique
   /// d'utilisation reste lisible.
+  /// Corrige un code existant, couverture comprise. Le code lui-même n'est
+  /// pas modifiable — voir la couche données pour le pourquoi.
+  Future<void> update({
+    required String id,
+    required int percent,
+    String? label,
+    DateTime? endsAt,
+    int? maxUses,
+    int maxUsesPerClient,
+    int? minOrderFcfa,
+    required List<String> productIds,
+  });
+
   Future<void> setActive({required String id, required bool isActive});
 
   Future<void> delete(String id);
@@ -32,6 +45,11 @@ abstract interface class PromoCodeRepository {
   );
 
   /// Ce qu'un code vaut sur ces lignes de panier, sans le consommer.
+  /// Y a-t-il, pour ces produits, un code que ce client pourrait encore
+  /// utiliser ? Sert à n'afficher le champ de saisie que quand il peut
+  /// servir — jamais à montrer les codes eux-mêmes.
+  Future<bool> existsForProducts(List<String> productIds);
+
   Future<PromoCodePreview> preview({
     required String code,
     required List<({String productId, String? variantId, int quantity})> lines,

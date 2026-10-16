@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:mtc_app/core/widgets/document_slot_tile.dart';
+
 import '../../domain/entities/supplier_kyc.dart';
 
-/// One document slot in the KYC wizard — picks an image (camera or
-/// gallery, per [source]) and hands the picked file to [onPicked], which
-/// uploads it (see `SupplierKycController.addDocument`) before recording
-/// it — never the raw local path directly. Self-contained the same way
-/// `ChatComposer`'s image picking is: the picking logic lives next to the
-/// button that triggers it, not in a controller.
+/// Un emplacement de pièce du dossier fournisseur.
+///
+/// Habille `DocumentSlotTile` des types du fournisseur. La tuile elle-même
+/// est devenue générique quand le dossier livreur a eu besoin de la même
+/// (`0105`) : une seule implémentation, deux dossiers.
 class DocumentUploadTile extends StatelessWidget {
   const DocumentUploadTile({
     super.key,
@@ -27,55 +28,15 @@ class DocumentUploadTile extends StatelessWidget {
   final bool isRequired;
   final ImageSource source;
 
-  Future<void> _pick(BuildContext context) async {
-    try {
-      final file = await ImagePicker().pickImage(
-        source: source,
-        imageQuality: 85,
-      );
-      if (file != null) onPicked(file);
-    } catch (_) {
-      if (!context.mounted) return;
-      final sourceLabel = source == ImageSource.camera
-          ? 'à la caméra'
-          : 'à la galerie';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Impossible d'accéder $sourceLabel. Vérifiez l'autorisation dans les réglages du téléphone.",
-          ),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final uploaded = existing != null;
-
-    return Card(
-      child: ListTile(
-        leading: Icon(
-          uploaded ? Icons.check_circle_rounded : Icons.upload_file_outlined,
-          color: uploaded ? scheme.primary : scheme.onSurfaceVariant,
-        ),
-        title: Text(isRequired ? '${type.label} *' : type.label),
-        subtitle: Text(uploaded ? 'Document ajouté' : 'Aucun fichier'),
-        trailing: uploaded
-            ? IconButton(
-                icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
-                tooltip: 'Retirer',
-                onPressed: onRemove,
-              )
-            : TextButton(
-                onPressed: () => _pick(context),
-                child: Text(
-                  source == ImageSource.camera ? 'Prendre une photo' : 'Choisir',
-                ),
-              ),
-        onTap: uploaded ? null : () => _pick(context),
-      ),
+    return DocumentSlotTile(
+      label: type.label,
+      hasFile: existing != null,
+      onPicked: onPicked,
+      onRemove: onRemove,
+      isRequired: isRequired,
+      source: source,
     );
   }
 }

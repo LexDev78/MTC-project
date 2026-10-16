@@ -1,13 +1,16 @@
 export 'animated_count_badge.dart';
 export 'async_value_widget.dart';
 export 'currency_text.dart';
+export 'document_slot_tile.dart';
 export 'fade_slide_in.dart';
 export 'mtc_coming_soon.dart';
 export 'mtc_empty_state.dart';
 export 'mtc_error_view.dart';
+export 'mtc_help_hint.dart';
 export 'mtc_loading_view.dart';
 export 'mtc_primary_button.dart';
 export 'mtc_rating_stars.dart';
 export 'mtc_text_field.dart';
+export 'private_document_viewer.dart';
 export 'quantity_stepper.dart';
 export 'role_badge.dart';

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mtc_app/core/utils/search_text.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_status.dart';
@@ -39,17 +40,20 @@ final myProductsStatusFilterProvider =
 
 final filteredMyProductsProvider =
     Provider.family<AsyncValue<List<Product>>, String>((ref, supplierId) {
-      final query = ref
-          .watch(myProductsQueryProvider(supplierId))
-          .trim()
-          .toLowerCase();
+      final query = ref.watch(myProductsQueryProvider(supplierId));
       final statusFilter = ref.watch(myProductsStatusFilterProvider(supplierId));
 
       return ref.watch(myProductsProvider(supplierId)).whenData((products) {
         return products.where((p) {
           if (statusFilter != null && p.status != statusFilter) return false;
-          if (query.isEmpty) return true;
-          return p.name.toLowerCase().contains(query);
+          // Le nom **et** la description : sur un catalogue d'une centaine
+          // d'articles, on se souvient souvent d'un mot du descriptif
+          // (« teinture naturelle ») sans retrouver l'intitulé exact.
+          //
+          // `matchesAnySearch` replie les accents, comme `unaccent` le fait
+          // côté base : « segou » doit trouver « Ségou », sinon la recherche
+          // passe pour cassée.
+          return matchesAnySearch([p.name, p.description], query);
         }).toList();
       });
     });

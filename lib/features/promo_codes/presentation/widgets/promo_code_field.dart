@@ -31,11 +31,18 @@ class _PromoCodeFieldState extends ConsumerState<PromoCodeField> {
     super.dispose();
   }
 
+  /// `finally` et non une simple ligne après l'`await` : si la vérification
+  /// échoue, le bouton doit redevenir cliquable. Sans cela il resterait figé
+  /// sur son indicateur de chargement, et le client n'aurait plus aucun
+  /// moyen de réessayer — l'écran paraîtrait bloqué.
   Future<void> _apply() async {
     setState(() => _checking = true);
     ref.read(typedPromoCodeProvider.notifier).state = _controller.text;
-    await ref.read(appliedPromoCodeProvider.notifier).apply(_controller.text);
-    if (mounted) setState(() => _checking = false);
+    try {
+      await ref.read(appliedPromoCodeProvider.notifier).apply(_controller.text);
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
   }
 
   @override

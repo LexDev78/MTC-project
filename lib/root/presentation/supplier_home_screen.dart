@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
+import 'package:mtc_app/features/suppliers/domain/entities/supplier_dashboard_stats.dart';
+import 'package:mtc_app/core/utils/currency_formatter.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -95,6 +98,8 @@ class _TiersHome extends StatelessWidget {
           ),
         ],
         if (supplierId != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          const _StatsSection(),
           const SizedBox(height: AppSpacing.xl),
           _MyProductsSection(supplierId: supplierId!),
         ],
@@ -409,6 +414,308 @@ class _ProductStatCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Les chiffres de la boutique, en tête du tableau de bord.
+///
+/// L'écran disait bonjour et listait les produits. Pour savoir ce qui s'était
+/// vendu, ce qui avait été gagné, ou si les fiches étaient seulement
+/// regardées, il fallait ouvrir trois écrans et additionner de tête.
+///
+/// Tout vient d'une seule requête (`fetch_supplier_dashboard_stats`,
+/// `0092`) : Postgres compte, le téléphone affiche. Rapatrier toutes les
+/// commandes pour les additionner en Dart aurait fait payer l'ouverture de
+/// l'écran d'accueil à chaque démarrage.
+class _StatsSection extends ConsumerWidget {
+  const _StatsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(supplierDashboardStatsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Mon activité',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const Spacer(),
+            const MtcHelpHint(
+              title: 'D\'où viennent ces chiffres',
+              message:
+                  'Les ventes et les gains ne comptent que les commandes '
+                  '**livrées**. Une commande en cours n\'y figure pas encore : '
+                  'elle peut encore être annulée.\n\n'
+                  'Les frais de livraison ne vous reviennent pas quand c\'est '
+                  'MTC qui livre — ils ne sont donc jamais comptés dans votre '
+                  'chiffre d\'affaires.\n\n'
+                  'Les vues comptent les ouvertures de vos fiches produit. '
+                  'Beaucoup de vues et peu de ventes est un signal : le prix, '
+                  'les photos ou la description méritent peut-être un regard.',
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AsyncValueWidget(
+          value: statsAsync,
+          loading: (context) => const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          data: (stats) => _StatsBody(stats: stats),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatsBody extends ConsumerWidget {
+  const _StatsBody({required this.stats});
+
+  final SupplierDashboardStats stats;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(supplierDashboardSummaryProvider).valueOrNull;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Deux par ligne : quatre chiffres côte à côte sur un écran de
+        // téléphone deviennent illisibles, et ces quatre-là se lisent par
+        // paires — ce qui s'est vendu, ce qui a été regardé.
+        Row(
+          children: [
+            Expanded(
+              child: _StatTile(
+                icon: Icons.shopping_bag_outlined,
+                label: 'Ventes livrées',
+                value: '${stats.ordersDelivered}',
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _StatTile(
+                icon: Icons.local_shipping_outlined,
+                label: 'En cours',
+                value: '${stats.ordersInProgress}',
+                highlight: stats.ordersInProgress > 0,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: _StatTile(
+                icon: Icons.visibility_outlined,
+                label: 'Vues de vos fiches',
+                value: '${stats.viewsTotal}',
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _StatTile(
+                icon: Icons.inventory_2_outlined,
+                label: 'Produits actifs',
+                value: '${stats.productsActive} / ${stats.productsTotal}',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Gains',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _MoneyRow(
+                  label: 'Chiffre d\'affaires livré',
+                  amountFcfa: stats.grossFcfa,
+                ),
+                _MoneyRow(
+                  label: 'Dont 30 derniers jours',
+                  amountFcfa: stats.grossLast30DaysFcfa,
+                  muted: true,
+                ),
+                _MoneyRow(
+                  label: 'Dont 7 derniers jours',
+                  amountFcfa: stats.grossLast7DaysFcfa,
+                  muted: true,
+                ),
+                // L'argent ne se délègue jamais : un collaborateur voit
+                // ce qui s'est vendu, pas ce qui reste à retirer. La
+                // commission et le solde disponible sont l'affaire du
+                // propriétaire, comme l'onglet Finances qu'il est seul à
+                // voir.
+                if (summary != null && ref.watch(isSupplierOwnerProvider)) ...[
+                  const Divider(),
+                  _MoneyRow(
+                    label: 'Commission MTC',
+                    amountFcfa: -summary.commissionFcfa,
+                    muted: true,
+                  ),
+                  _MoneyRow(
+                    label: 'Déjà versé',
+                    amountFcfa: -summary.paidOutFcfa,
+                    muted: true,
+                  ),
+                  const Divider(),
+                  _MoneyRow(
+                    label: 'Disponible au retrait',
+                    amountFcfa: summary.availableFcfa,
+                    strong: true,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (stats.bestSellers.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Ce qui part le mieux',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          for (final article in stats.bestSellers)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      article.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  Text(
+                    '${article.quantity} vendu'
+                    '${article.quantity > 1 ? 's' : ''}',
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    CurrencyFormatter.formatFcfa(article.amountFcfa),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  /// Met en avant ce qui demande une action — des commandes à traiter, par
+  /// exemple. Un chiffre à zéro n'a aucune raison d'attirer l'œil.
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      color: highlight ? scheme.primaryContainer : null,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: highlight ? scheme.onPrimaryContainer : scheme.primary,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: highlight ? scheme.onPrimaryContainer : null,
+              ),
+            ),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: highlight
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoneyRow extends StatelessWidget {
+  const _MoneyRow({
+    required this.label,
+    required this.amountFcfa,
+    this.muted = false,
+    this.strong = false,
+  });
+
+  final String label;
+  final int amountFcfa;
+  final bool muted;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = strong
+        ? theme.textTheme.titleMedium
+        : muted
+        ? theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          )
+        : theme.textTheme.bodyMedium;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          Text(
+            // Le signe est porté par le montant : une commission et un
+            // versement se **retranchent** du disponible, et l'afficher en
+            // positif ferait lire une addition.
+            '${amountFcfa < 0 ? '-' : ''}'
+            '${CurrencyFormatter.formatFcfa(amountFcfa.abs())}',
+            style: style,
+          ),
+        ],
       ),
     );
   }

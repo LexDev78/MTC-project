@@ -161,7 +161,7 @@ void main() {
         await toucher(tester, find.text('Déconnexion'), pas: 12);
         await seConnecter(tester, 'fournisseur1');
         await ouvrirOnglet(tester, 'Profil');
-        await toucher(tester, find.byTooltip('Avis clients'), pas: 12);
+        await toucher(tester, find.text('Avis clients'), pas: 12);
         await attendre(tester, find.textContaining('couleurs très vives'));
         await cadrer(tester, find.textContaining('couleurs très vives'));
         expect(find.textContaining('couleurs très vives'), findsWidgets);

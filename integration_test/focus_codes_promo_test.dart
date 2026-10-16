@@ -70,12 +70,22 @@ void main() {
       await etapeVisuelle(tester, 'codes-01-vide', () async {
         await seConnecter(tester, 'fournisseur6');
         await ouvrirOnglet(tester, 'Profil');
-        await toucher(tester, find.byTooltip('Codes promo'), pas: 10);
+        await toucher(tester, find.text('Codes promo'), pas: 10);
         await attendre(tester, find.text('Aucun code promo'));
-        // La règle de cumul est annoncée d'emblée : un vendeur qui laisse
-        // tourner une promotion et distribue un code doit savoir que les
-        // deux ne s'additionnent pas.
-        expect(find.textContaining('ne s\'additionnent jamais'), findsOneWidget);
+      });
+
+      // La règle de cumul doit rester dite : un vendeur qui laisse tourner
+      // une promotion et distribue un code doit savoir que les deux ne
+      // s'additionnent pas. Elle a quitté le corps de l'écran pour la
+      // fenêtre d'aide ; ce qui compte est qu'on puisse encore y arriver,
+      // pas où elle est posée.
+      await etapeVisuelle(tester, 'codes-01b-aide', () async {
+        await toucher(tester, find.byIcon(Icons.help_outline_rounded));
+        expect(
+          find.textContaining('ne s\'additionnent jamais'),
+          findsOneWidget,
+        );
+        await toucher(tester, find.text('J\'ai compris'), pas: 6);
       });
 
       await etapeVisuelle(tester, 'codes-02-formulaire', () async {
@@ -145,7 +155,7 @@ void main() {
         await toucher(tester, find.text('Déconnexion'), pas: 12);
         await seConnecter(tester, 'fournisseur6');
         await ouvrirOnglet(tester, 'Profil');
-        await toucher(tester, find.byTooltip('Codes promo'), pas: 12);
+        await toucher(tester, find.text('Codes promo'), pas: 12);
         await faireDefilerJusqua(tester, find.textContaining('utilisation'));
         await toucher(tester, find.textContaining('utilisation'), pas: 8);
         await attendre(tester, find.textContaining('Riz'));

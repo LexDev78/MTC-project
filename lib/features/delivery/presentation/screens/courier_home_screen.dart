@@ -61,7 +61,7 @@ class _CourierHomeScreenState extends ConsumerState<CourierHomeScreen> {
       body: courier == null
           ? const MtcLoadingView()
           : !courier.canTakeDeliveries
-          ? _PendingApproval(status: courier.courierStatus)
+          ? _PendingApproval(courier: courier)
           : RefreshIndicator(
               onRefresh: () =>
                   ref.read(courierControllerProvider.notifier).reofferExpired(),
@@ -115,32 +115,65 @@ class _CourierHomeScreenState extends ConsumerState<CourierHomeScreen> {
 
 /// Dossier pas encore validé : aucune course ne sera proposée, l'écran le dit
 /// au lieu d'afficher une liste vide qu'on croirait due au hasard.
+///
+/// Trois situations distinctes se cachaient derrière le statut `pending`
+/// depuis que les pièces sont exigées (`0105`), et les confondre serait un
+/// cul-de-sac : le livreur n'a rien envoyé (c'est à lui d'agir), ses pièces
+/// sont déposées (c'est à MTC d'agir), ou son dossier a été refusé (à lui de
+/// corriger). C'est `documentsSubmittedAt` qui les sépare, pas le statut.
 class _PendingApproval extends StatelessWidget {
-  const _PendingApproval({required this.status});
+  const _PendingApproval({required this.courier});
 
-  final CourierStatus status;
+  final CourierUser courier;
 
   @override
   Widget build(BuildContext context) {
+    final status = courier.courierStatus;
+    final aDeposer = courier.mustSubmitDocuments;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        child: MtcEmptyState(
-          icon: status == CourierStatus.rejected
-              ? Icons.cancel_outlined
-              : Icons.hourglass_top_rounded,
-          title: status.label,
-          subtitle: switch (status) {
-            CourierStatus.pending =>
-              'Un agent MTC examine votre inscription. Vous recevrez une '
-                  'notification dès qu\'elle sera validée.',
-            CourierStatus.rejected =>
-              'Votre inscription n\'a pas été retenue. Contactez MTC pour en '
-                  'connaître la raison.',
-            CourierStatus.suspended =>
-              'Votre compte est suspendu. Contactez MTC.',
-            CourierStatus.approved => '',
-          },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            MtcEmptyState(
+              icon: switch (status) {
+                CourierStatus.rejected => Icons.cancel_outlined,
+                CourierStatus.suspended => Icons.block_outlined,
+                _ when aDeposer => Icons.badge_outlined,
+                _ => Icons.hourglass_top_rounded,
+              },
+              title: aDeposer && status == CourierStatus.pending
+                  ? 'Dossier à compléter'
+                  : status.label,
+              subtitle: switch (status) {
+                CourierStatus.pending when aDeposer =>
+                  'Avant de prendre des courses, envoyez votre pièce '
+                      'd\'identité — et vos papiers si vous livrez à moto. Un '
+                      'agent MTC les vérifie avant de valider votre compte.',
+                CourierStatus.pending =>
+                  'Un agent MTC examine vos pièces. Vous recevrez une '
+                      'notification dès que votre compte sera validé.',
+                CourierStatus.rejected =>
+                  'Votre dossier n\'a pas été retenu. Le motif est indiqué '
+                      'dans votre dossier : corrigez la pièce en cause et '
+                      'redéposez-le.',
+                CourierStatus.suspended =>
+                  'Votre compte est suspendu. Contactez MTC.',
+                CourierStatus.approved => '',
+              },
+            ),
+            // Suspendu, il n'y a rien à redéposer : la décision ne lui
+            // appartient pas, et un bouton laisserait croire le contraire.
+            if (status != CourierStatus.suspended) ...[
+              const SizedBox(height: AppSpacing.lg),
+              MtcPrimaryButton(
+                label: aDeposer ? 'Envoyer mes pièces' : 'Voir mon dossier',
+                onPressed: () => context.push(AppRoutes.courierDossier),
+              ),
+            ],
+          ],
         ),
       ),
     );

@@ -885,6 +885,9 @@ mixin _$PendingCourier {
   String get city => throw _privateConstructorUsedError;
   String? get vehicleLabel => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
+  DateTime get documentsSubmittedAt => throw _privateConstructorUsedError;
+  CourierVehicleType? get vehicleType => throw _privateConstructorUsedError;
+  List<CourierDocument> get documents => throw _privateConstructorUsedError;
 
   /// Create a copy of PendingCourier
   /// with the given fields replaced by the non-null parameter values.
@@ -907,6 +910,9 @@ abstract class $PendingCourierCopyWith<$Res> {
     String city,
     String? vehicleLabel,
     DateTime createdAt,
+    DateTime documentsSubmittedAt,
+    CourierVehicleType? vehicleType,
+    List<CourierDocument> documents,
   });
 }
 
@@ -931,6 +937,9 @@ class _$PendingCourierCopyWithImpl<$Res, $Val extends PendingCourier>
     Object? city = null,
     Object? vehicleLabel = freezed,
     Object? createdAt = null,
+    Object? documentsSubmittedAt = null,
+    Object? vehicleType = freezed,
+    Object? documents = null,
   }) {
     return _then(
       _value.copyWith(
@@ -958,6 +967,18 @@ class _$PendingCourierCopyWithImpl<$Res, $Val extends PendingCourier>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
+            documentsSubmittedAt: null == documentsSubmittedAt
+                ? _value.documentsSubmittedAt
+                : documentsSubmittedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+            vehicleType: freezed == vehicleType
+                ? _value.vehicleType
+                : vehicleType // ignore: cast_nullable_to_non_nullable
+                      as CourierVehicleType?,
+            documents: null == documents
+                ? _value.documents
+                : documents // ignore: cast_nullable_to_non_nullable
+                      as List<CourierDocument>,
           )
           as $Val,
     );
@@ -980,6 +1001,9 @@ abstract class _$$PendingCourierImplCopyWith<$Res>
     String city,
     String? vehicleLabel,
     DateTime createdAt,
+    DateTime documentsSubmittedAt,
+    CourierVehicleType? vehicleType,
+    List<CourierDocument> documents,
   });
 }
 
@@ -1003,6 +1027,9 @@ class __$$PendingCourierImplCopyWithImpl<$Res>
     Object? city = null,
     Object? vehicleLabel = freezed,
     Object? createdAt = null,
+    Object? documentsSubmittedAt = null,
+    Object? vehicleType = freezed,
+    Object? documents = null,
   }) {
     return _then(
       _$PendingCourierImpl(
@@ -1030,6 +1057,18 @@ class __$$PendingCourierImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
+        documentsSubmittedAt: null == documentsSubmittedAt
+            ? _value.documentsSubmittedAt
+            : documentsSubmittedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+        vehicleType: freezed == vehicleType
+            ? _value.vehicleType
+            : vehicleType // ignore: cast_nullable_to_non_nullable
+                  as CourierVehicleType?,
+        documents: null == documents
+            ? _value._documents
+            : documents // ignore: cast_nullable_to_non_nullable
+                  as List<CourierDocument>,
       ),
     );
   }
@@ -1045,7 +1084,10 @@ class _$PendingCourierImpl implements _PendingCourier {
     required this.city,
     this.vehicleLabel,
     required this.createdAt,
-  });
+    required this.documentsSubmittedAt,
+    this.vehicleType,
+    final List<CourierDocument> documents = const [],
+  }) : _documents = documents;
 
   @override
   final String id;
@@ -1059,10 +1101,22 @@ class _$PendingCourierImpl implements _PendingCourier {
   final String? vehicleLabel;
   @override
   final DateTime createdAt;
+  @override
+  final DateTime documentsSubmittedAt;
+  @override
+  final CourierVehicleType? vehicleType;
+  final List<CourierDocument> _documents;
+  @override
+  @JsonKey()
+  List<CourierDocument> get documents {
+    if (_documents is EqualUnmodifiableListView) return _documents;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_documents);
+  }
 
   @override
   String toString() {
-    return 'PendingCourier(id: $id, displayName: $displayName, phoneNumber: $phoneNumber, city: $city, vehicleLabel: $vehicleLabel, createdAt: $createdAt)';
+    return 'PendingCourier(id: $id, displayName: $displayName, phoneNumber: $phoneNumber, city: $city, vehicleLabel: $vehicleLabel, createdAt: $createdAt, documentsSubmittedAt: $documentsSubmittedAt, vehicleType: $vehicleType, documents: $documents)';
   }
 
   @override
@@ -1079,7 +1133,15 @@ class _$PendingCourierImpl implements _PendingCourier {
             (identical(other.vehicleLabel, vehicleLabel) ||
                 other.vehicleLabel == vehicleLabel) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.documentsSubmittedAt, documentsSubmittedAt) ||
+                other.documentsSubmittedAt == documentsSubmittedAt) &&
+            (identical(other.vehicleType, vehicleType) ||
+                other.vehicleType == vehicleType) &&
+            const DeepCollectionEquality().equals(
+              other._documents,
+              _documents,
+            ));
   }
 
   @override
@@ -1091,6 +1153,9 @@ class _$PendingCourierImpl implements _PendingCourier {
     city,
     vehicleLabel,
     createdAt,
+    documentsSubmittedAt,
+    vehicleType,
+    const DeepCollectionEquality().hash(_documents),
   );
 
   /// Create a copy of PendingCourier
@@ -1113,6 +1178,9 @@ abstract class _PendingCourier implements PendingCourier {
     required final String city,
     final String? vehicleLabel,
     required final DateTime createdAt,
+    required final DateTime documentsSubmittedAt,
+    final CourierVehicleType? vehicleType,
+    final List<CourierDocument> documents,
   }) = _$PendingCourierImpl;
 
   @override
@@ -1127,6 +1195,12 @@ abstract class _PendingCourier implements PendingCourier {
   String? get vehicleLabel;
   @override
   DateTime get createdAt;
+  @override
+  DateTime get documentsSubmittedAt;
+  @override
+  CourierVehicleType? get vehicleType;
+  @override
+  List<CourierDocument> get documents;
 
   /// Create a copy of PendingCourier
   /// with the given fields replaced by the non-null parameter values.

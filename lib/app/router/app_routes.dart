@@ -10,6 +10,10 @@ abstract final class AppRoutes {
   static const String signUpSupplierLegalType = '/sign-up/supplier-type';
   static const String signUpDetails = '/sign-up/details';
 
+  /// Imposé à un collaborateur tant qu'il n'a pas remplacé le code à usage
+  /// unique que son patron lui a dicté (`0098`).
+  static const String changePassword = '/change-password';
+
   // Client shell
   static const String clientHome = '/client/home';
   static const String clientCatalogue = '/client/catalogue';
@@ -52,6 +56,12 @@ abstract final class AppRoutes {
       '/supplier-tiers/account/reviews';
   static const String supplierTiersPromoCodes =
       '/supplier-tiers/account/promo-codes';
+  static const String supplierTiersLocation =
+      '/supplier-tiers/account/location';
+  static const String supplierTiersPromotions =
+      '/supplier-tiers/account/promotions';
+  static const String supplierTiersCollaborators =
+      '/supplier-tiers/account/collaborators';
   static const String supplierTiersNotifications =
       '/supplier-tiers/notifications';
   static const String supplierTiersOrderDetailPath =
@@ -69,6 +79,10 @@ abstract final class AppRoutes {
   /// sous-routes : `/livreur/courses/:id` capturerait `historique` comme un
   /// identifiant de course.
   static const String courierHistory = '/livreur/historique';
+
+  /// Ses pièces d'identité et le dépôt de son dossier (`0105`). Hors de
+  /// `courierHome` pour la même raison que l'historique.
+  static const String courierDossier = '/livreur/dossier';
 
   static String courierDeliveryPath(String id) => '/livreur/courses/$id';
 
@@ -91,6 +105,12 @@ abstract final class AppRoutes {
       '/supplier-principal/account/reviews';
   static const String supplierPrincipalPromoCodes =
       '/supplier-principal/account/promo-codes';
+  static const String supplierPrincipalLocation =
+      '/supplier-principal/account/location';
+  static const String supplierPrincipalPromotions =
+      '/supplier-principal/account/promotions';
+  static const String supplierPrincipalCollaborators =
+      '/supplier-principal/account/collaborators';
   static const String supplierPrincipalNotifications =
       '/supplier-principal/notifications';
   static const String supplierPrincipalOrderDetailPath =

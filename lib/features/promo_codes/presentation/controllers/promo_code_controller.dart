@@ -43,6 +43,37 @@ class PromoCodeController extends AsyncNotifier<void> {
     return !state.hasError;
   }
 
+  /// Nommée `edit` et non `update` : `AsyncNotifier` expose déjà une
+  /// méthode `update`, et la masquer donnerait deux sens au même nom dans
+  /// la même classe.
+  Future<bool> edit({
+    required String id,
+    required int percent,
+    String? label,
+    DateTime? endsAt,
+    int? maxUses,
+    int maxUsesPerClient = 1,
+    int? minOrderFcfa,
+    required List<String> productIds,
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref
+          .read(promoCodeRepositoryProvider)
+          .update(
+            id: id,
+            percent: percent,
+            label: label,
+            endsAt: endsAt,
+            maxUses: maxUses,
+            maxUsesPerClient: maxUsesPerClient,
+            minOrderFcfa: minOrderFcfa,
+            productIds: productIds,
+          ),
+    );
+    return !state.hasError;
+  }
+
   Future<bool> setActive({required String id, required bool isActive}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(

@@ -71,6 +71,15 @@ class SupabasePromoCodeDatasource {
     _notify();
   }
 
+  /// Corrige un code existant. Le **code lui-même** n'en fait jamais
+  /// partie : il est imprimé sur des affiches et envoyé par message, et
+  /// `promo_code_redemptions` en garde une copie pour l'historique. Le
+  /// changer laisserait sans recours tous ceux qui tiennent l'ancien.
+  Future<void> update(String id, Map<String, dynamic> patch) async {
+    await _client.from('promo_codes').update(patch).eq('id', id);
+    _notify();
+  }
+
   Future<void> setActive({required String id, required bool isActive}) async {
     await _client
         .from('promo_codes')
@@ -86,6 +95,20 @@ class SupabasePromoCodeDatasource {
 
   /// Ce qu'un code vaut sur ces lignes, sans rien consommer : l'appel peut
   /// être rejoué autant de fois que le client retape son code.
+  /// « Existe-t-il un code utilisable pour ces produits ? », sans dire
+  /// lequel (`cart_has_promo_code`, `0089`).
+  ///
+  /// Un booléen et non une liste : le client ne doit pas pouvoir énumérer
+  /// les codes en vigueur, sinon il récupérerait des remises qu'on ne lui a
+  /// pas adressées.
+  Future<bool> existsForProducts(List<String> productIds) async {
+    final result = await _client.rpc(
+      'cart_has_promo_code',
+      params: {'p_product_ids': productIds},
+    );
+    return result == true;
+  }
+
   Future<Map<String, dynamic>> preview({
     required String code,
     required List<Map<String, dynamic>> lines,

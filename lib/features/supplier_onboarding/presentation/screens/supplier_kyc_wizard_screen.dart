@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:mtc_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
@@ -45,7 +46,23 @@ class _SupplierKycWizardScreenState
     final user = ref.watch(currentUserProvider).valueOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Vérification de votre compte')),
+      appBar: AppBar(
+        title: const Text('Vérification de votre compte'),
+        // Le routeur force tout fournisseur non vérifié vers cet écran, et
+        // cet écran ne portait aucune sortie : ni onglet, ni déconnexion.
+        // Qui s'inscrit comme fournisseur par erreur, ou veut simplement
+        // reprendre son compte client, y restait enfermé — constaté en
+        // parcours complet, où la déconnexion a échoué quatre fois de
+        // suite sans rien à toucher.
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Déconnexion',
+            onPressed: () =>
+                ref.read(authControllerProvider.notifier).logout(),
+          ),
+        ],
+      ),
       body: user is! SupplierTiersUser
           ? const MtcLoadingView()
           : AsyncValueWidget(
@@ -400,6 +417,21 @@ class _IndividualKycForm extends ConsumerWidget {
         .removeDocument(supplierId: supplierId, documentId: documentId);
   }
 
+  /// Un dossier de vendeur individuel se tient à trois pièces et un
+  /// consentement. Tant qu'il en manque, il n'y a rien à vérifier.
+  bool _estComplet(SupplierKycIndividual kyc) {
+    final consentement = kyc.consent?.accepted ?? false;
+    if (!consentement) return false;
+    const requises = [
+      SupplierDocumentType.nationalIdFront,
+      SupplierDocumentType.nationalIdBack,
+      SupplierDocumentType.selfieWithId,
+    ];
+    return requises.every(
+      (type) => kyc.documents.any((d) => d.type == type),
+    );
+  }
+
   Future<void> _submit(BuildContext context, WidgetRef ref) async {
     final controller = ref.read(supplierKycControllerProvider.notifier);
     final success = await controller.submit(supplierId: supplierId);
@@ -462,10 +494,30 @@ class _IndividualKycForm extends ConsumerWidget {
         const SizedBox(height: AppSpacing.lg),
         _ConsentSection(supplierId: supplierId, consent: kyc.consent),
         const SizedBox(height: AppSpacing.xl),
+        // Le formulaire marque trois pièces d'une astérisque et demande un
+        // consentement — et n'imposait ni l'un ni l'autre. Le bouton était
+        // toujours actif, et le serveur acceptait : un dossier d'identité
+        // entièrement vide arrivait dans la file du staff en ayant l'air
+        // d'une soumission normale. Constaté en parcours complet.
+        //
+        // Annoncer une obligation sans la tenir est le pire des deux
+        // mondes : le vendeur sérieux fournit ses pièces, l'autre non, et
+        // rien ne les distingue avant que l'agent n'ouvre le dossier.
+        if (!_estComplet(kyc))
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'Ajoutez les trois pièces et acceptez le traitement de vos '
+              'données pour pouvoir soumettre.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         MtcPrimaryButton(
           label: 'Soumettre mon dossier',
           isLoading: kycState.isLoading,
-          onPressed: () => _submit(context, ref),
+          onPressed: _estComplet(kyc) ? () => _submit(context, ref) : null,
         ),
       ],
     );

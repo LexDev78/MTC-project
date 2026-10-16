@@ -5,6 +5,7 @@ import '../entities/product_pricing.dart';
 import '../entities/product_status.dart';
 import '../entities/product_variant.dart';
 import '../entities/promotion.dart';
+import '../entities/promotion_batch.dart';
 import '../entities/stock_movement.dart';
 
 /// A product's favorite ("j'aime") and order counts, aggregated
@@ -146,6 +147,45 @@ abstract interface class ProductRepository {
     DateTime? endsAt,
     String? label,
   });
+
+  /// Pose la même remise sur plusieurs produits d'un coup, sous un
+  /// identifiant de lot commun (`0090`) qui permettra de l'arrêter ou de la
+  /// supprimer d'un geste.
+  ///
+  /// Rend l'identifiant du lot créé.
+  Future<String> createPromotionBatch({
+    required List<String> productIds,
+    required PromotionKind kind,
+    required int value,
+    int minQuantity,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? label,
+  });
+
+  /// Corrige une remise déjà posée — valeur, fenêtre, intitulé, et les
+  /// produits couverts. Rend le nombre de produits couverts après coup.
+  Future<int> updatePromotionBatch({
+    required String batchId,
+    required List<String> productIds,
+    required PromotionKind kind,
+    required int value,
+    int minQuantity,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? label,
+  });
+
+  /// Les remises du fournisseur connecté, regroupées par lot.
+  Future<List<PromotionBatch>> fetchMyPromotionBatches();
+
+  /// Arrête ou reprend tout un lot. Rend le nombre de produits touchés.
+  Future<int> setPromotionBatchActive({
+    required String batchId,
+    required bool isActive,
+  });
+
+  Future<int> deletePromotionBatch(String batchId);
 
   /// Arrête ou reprend une remise sans la supprimer : son historique reste
   /// lisible et la reprendre ne demande pas de la ressaisir.

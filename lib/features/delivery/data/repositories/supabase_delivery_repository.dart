@@ -1,4 +1,5 @@
 import '../../domain/entities/courier_delivery.dart';
+import '../../domain/entities/courier_dossier.dart';
 import '../../domain/entities/courier_history.dart';
 import '../../domain/repositories/delivery_repository.dart';
 import '../datasources/supabase_delivery_datasource.dart';
@@ -73,8 +74,86 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
           city: row['city'] as String,
           vehicleLabel: row['vehicle_label'] as String?,
           createdAt: DateTime.parse(row['created_at'] as String),
+          documentsSubmittedAt: DateTime.parse(
+            row['documents_submitted_at'] as String,
+          ),
+          vehicleType: _vehicleTypeOf(row['vehicle_type'] as String?),
+          documents: _documentsOf(row['documents']),
         ),
     ];
+  }
+
+  @override
+  Future<CourierDossier> fetchMyDossier(String courierId) async {
+    final row = await _datasource.fetchMyDossier(courierId);
+    final submitted = row['documents_submitted_at'] as String?;
+    return CourierDossier(
+      documents: _documentsOf(row['documents']),
+      vehicleType: _vehicleTypeOf(row['vehicle_type'] as String?),
+      vehicleLabel: row['vehicle_label'] as String?,
+      submittedAt: submitted == null ? null : DateTime.parse(submitted),
+      rejectionReason: row['rejection_reason'] as String?,
+    );
+  }
+
+  @override
+  Future<void> saveDocument({
+    required String courierId,
+    required CourierDocumentType type,
+    required String filePath,
+  }) {
+    return _datasource.upsertDocument(
+      courierId: courierId,
+      type: type.wireValue,
+      filePath: filePath,
+    );
+  }
+
+  @override
+  Future<void> removeDocument({required String documentId}) {
+    return _datasource.removeDocument(documentId: documentId);
+  }
+
+  @override
+  Future<void> submitDossier({
+    required CourierVehicleType vehicleType,
+    String? vehicleLabel,
+  }) {
+    return _datasource.submitDocuments(
+      vehicleType: vehicleType.wireValue,
+      vehicleLabel: vehicleLabel,
+    );
+  }
+
+  /// Les pièces arrivent imbriquées dans la fiche. Une fiche sans pièce
+  /// remonte une liste vide, pas `null` — PostgREST rend `[]`, mais une
+  /// lecture qui n'aurait pas demandé l'imbrication rendrait `null`, et
+  /// l'écran du staff ne doit pas tomber pour autant.
+  List<CourierDocument> _documentsOf(Object? raw) {
+    if (raw is! List) return const [];
+    final documents = [
+      for (final entry in raw.cast<Map<String, dynamic>>())
+        CourierDocument(
+          id: entry['id'] as String,
+          type: CourierDocumentType.fromWire(entry['type'] as String),
+          filePath: entry['file_path'] as String,
+          uploadedAt: DateTime.parse(entry['uploaded_at'] as String),
+        ),
+    ];
+    // Ordre d'affichage stable : l'agent retrouve le recto avant le verso,
+    // quel que soit l'ordre d'envoi.
+    documents.sort(
+      (a, b) => a.type.index.compareTo(b.type.index),
+    );
+    return documents;
+  }
+
+  CourierVehicleType? _vehicleTypeOf(String? raw) {
+    if (raw == null) return null;
+    for (final type in CourierVehicleType.values) {
+      if (type.wireValue == raw) return type;
+    }
+    return null;
   }
 
   @override

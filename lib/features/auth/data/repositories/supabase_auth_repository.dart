@@ -238,10 +238,24 @@ class SupabaseAuthRepository implements AuthRepository {
           defaultAddressId: profileRow['default_address_id'] as String?,
         );
       case 'supplier_tiers':
-        final supplierRow = await _datasource.fetchSupplierRow(userId);
+        // Deux comptes portent ce rôle : celui qui possède la boutique, et
+        // celui que le patron a créé pour l'aider (`0093`). Ce qui les
+        // distingue est l'existence d'une ligne `suppliers` à son nom —
+        // le collaborateur n'en a pas, et c'est voulu : lui en donner une
+        // lui ouvrirait une boutique vide dont personne ne veut.
+        final collaboration = await _datasource.fetchCollaborationRow(userId);
+        final shopId = collaboration?['supplier_id'] as String? ?? userId;
+        final supplierRow = await _datasource.fetchSupplierRow(shopId);
         final supplier = SupplierProfile.fromJson(supplierRow);
         return AppUser.supplierTiers(
           id: userId,
+          operatesSupplierId: collaboration == null ? null : shopId,
+          mustChangePassword:
+              profileRow['must_change_password'] as bool? ?? false,
+          permissions: [
+            for (final p in (collaboration?['permissions'] as List? ?? const []))
+              p as String,
+          ],
           displayName: displayName,
           usernameOrPhone: usernameOrPhone,
           phoneNumber: phoneNumber,
@@ -267,6 +281,9 @@ class SupabaseAuthRepository implements AuthRepository {
           city: courierRow['city'] as String,
           isOnline: courierRow['is_online'] as bool? ?? false,
           vehicleLabel: courierRow['vehicle_label'] as String?,
+          documentsSubmittedAt: courierRow['documents_submitted_at'] == null
+              ? null
+              : DateTime.parse(courierRow['documents_submitted_at'] as String),
         );
       case 'supplier_principal':
         return AppUser.supplierPrincipal(

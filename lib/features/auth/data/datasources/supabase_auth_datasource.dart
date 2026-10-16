@@ -77,4 +77,18 @@ class SupabaseAuthDatasource {
   Future<void> deactivateAccount() {
     return _client.rpc('deactivate_account');
   }
+
+  /// Le rattachement de ce compte à la boutique d'un autre, s'il existe
+  /// (`supplier_collaborators`, `0093`).
+  ///
+  /// `maybeSingle` et non `single` : l'absence est le cas courant — la
+  /// plupart des comptes fournisseur possèdent leur boutique.
+  Future<Map<String, dynamic>?> fetchCollaborationRow(String userId) async {
+    final row = await _client
+        .from('supplier_collaborators')
+        .select('supplier_id, permissions')
+        .eq('user_id', userId)
+        .maybeSingle();
+    return row;
+  }
 }

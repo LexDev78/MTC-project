@@ -45,6 +45,9 @@ mixin _$AppUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -57,6 +60,7 @@ mixin _$AppUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )
     courier,
     required TResult Function(
@@ -92,6 +96,9 @@ mixin _$AppUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -104,6 +111,7 @@ mixin _$AppUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult? Function(
@@ -139,6 +147,9 @@ mixin _$AppUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -151,6 +162,7 @@ mixin _$AppUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult Function(
@@ -418,6 +430,9 @@ class _$ClientUserImpl implements ClientUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -430,6 +445,7 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )
     courier,
     required TResult Function(
@@ -476,6 +492,9 @@ class _$ClientUserImpl implements ClientUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -488,6 +507,7 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult? Function(
@@ -534,6 +554,9 @@ class _$ClientUserImpl implements ClientUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -546,6 +569,7 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult Function(
@@ -661,6 +685,9 @@ abstract class _$$SupplierTiersUserImplCopyWith<$Res>
     double ratingAverage,
     int ratingCount,
     SupplierLegalType legalType,
+    String? operatesSupplierId,
+    List<String> permissions,
+    bool mustChangePassword,
   });
 }
 
@@ -689,6 +716,9 @@ class __$$SupplierTiersUserImplCopyWithImpl<$Res>
     Object? ratingAverage = null,
     Object? ratingCount = null,
     Object? legalType = null,
+    Object? operatesSupplierId = freezed,
+    Object? permissions = null,
+    Object? mustChangePassword = null,
   }) {
     return _then(
       _$SupplierTiersUserImpl(
@@ -736,6 +766,18 @@ class __$$SupplierTiersUserImplCopyWithImpl<$Res>
             ? _value.legalType
             : legalType // ignore: cast_nullable_to_non_nullable
                   as SupplierLegalType,
+        operatesSupplierId: freezed == operatesSupplierId
+            ? _value.operatesSupplierId
+            : operatesSupplierId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        permissions: null == permissions
+            ? _value._permissions
+            : permissions // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        mustChangePassword: null == mustChangePassword
+            ? _value.mustChangePassword
+            : mustChangePassword // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -756,7 +798,10 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
     required this.ratingAverage,
     required this.ratingCount,
     required this.legalType,
-  });
+    this.operatesSupplierId,
+    final List<String> permissions = const [],
+    this.mustChangePassword = false,
+  }) : _permissions = permissions;
 
   @override
   final String id;
@@ -781,9 +826,41 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   @override
   final SupplierLegalType legalType;
 
+  /// La boutique que ce compte **opère**, qui n'est pas toujours la
+  /// sienne : un collaborateur travaille dans celle de son patron
+  /// (`supplier_collaborators`, `0093`). `null` pour un propriétaire —
+  /// c'est alors [id], et le dire deux fois inviterait les deux valeurs
+  /// à diverger.
+  @override
+  final String? operatesSupplierId;
+
+  /// Ce que le patron lui a accordé : `products`, `orders`, `promotions`,
+  /// `storefront`, `messages`, `reviews`. Vide pour un propriétaire, qui
+  /// a tout sans qu'on ait à le lui donner.
+  final List<String> _permissions;
+
+  /// Ce que le patron lui a accordé : `products`, `orders`, `promotions`,
+  /// `storefront`, `messages`, `reviews`. Vide pour un propriétaire, qui
+  /// a tout sans qu'on ait à le lui donner.
+  @override
+  @JsonKey()
+  List<String> get permissions {
+    if (_permissions is EqualUnmodifiableListView) return _permissions;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_permissions);
+  }
+
+  /// Vrai tant que le collaborateur n'a pas remplacé le mot de passe à
+  /// usage unique que son patron lui a dicté (`0098`). Le routeur
+  /// l'immobilise alors sur l'écran de changement : tant que ce code
+  /// circule de vive voix, le compte n'est à personne.
+  @override
+  @JsonKey()
+  final bool mustChangePassword;
+
   @override
   String toString() {
-    return 'AppUser.supplierTiers(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, businessName: $businessName, verificationStatus: $verificationStatus, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, legalType: $legalType)';
+    return 'AppUser.supplierTiers(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, businessName: $businessName, verificationStatus: $verificationStatus, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, legalType: $legalType, operatesSupplierId: $operatesSupplierId, permissions: $permissions, mustChangePassword: $mustChangePassword)';
   }
 
   @override
@@ -810,7 +887,15 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
             (identical(other.ratingCount, ratingCount) ||
                 other.ratingCount == ratingCount) &&
             (identical(other.legalType, legalType) ||
-                other.legalType == legalType));
+                other.legalType == legalType) &&
+            (identical(other.operatesSupplierId, operatesSupplierId) ||
+                other.operatesSupplierId == operatesSupplierId) &&
+            const DeepCollectionEquality().equals(
+              other._permissions,
+              _permissions,
+            ) &&
+            (identical(other.mustChangePassword, mustChangePassword) ||
+                other.mustChangePassword == mustChangePassword));
   }
 
   @override
@@ -827,6 +912,9 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
     ratingAverage,
     ratingCount,
     legalType,
+    operatesSupplierId,
+    const DeepCollectionEquality().hash(_permissions),
+    mustChangePassword,
   );
 
   /// Create a copy of AppUser
@@ -864,6 +952,9 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -876,6 +967,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )
     courier,
     required TResult Function(
@@ -900,6 +992,9 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       ratingAverage,
       ratingCount,
       legalType,
+      operatesSupplierId,
+      permissions,
+      mustChangePassword,
     );
   }
 
@@ -927,6 +1022,9 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -939,6 +1037,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult? Function(
@@ -963,6 +1062,9 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       ratingAverage,
       ratingCount,
       legalType,
+      operatesSupplierId,
+      permissions,
+      mustChangePassword,
     );
   }
 
@@ -990,6 +1092,9 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -1002,6 +1107,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult Function(
@@ -1028,6 +1134,9 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
         ratingAverage,
         ratingCount,
         legalType,
+        operatesSupplierId,
+        permissions,
+        mustChangePassword,
       );
     }
     return orElse();
@@ -1084,6 +1193,9 @@ abstract class SupplierTiersUser implements AppUser {
     required final double ratingAverage,
     required final int ratingCount,
     required final SupplierLegalType legalType,
+    final String? operatesSupplierId,
+    final List<String> permissions,
+    final bool mustChangePassword,
   }) = _$SupplierTiersUserImpl;
 
   @override
@@ -1102,6 +1214,24 @@ abstract class SupplierTiersUser implements AppUser {
   double get ratingAverage;
   int get ratingCount;
   SupplierLegalType get legalType;
+
+  /// La boutique que ce compte **opère**, qui n'est pas toujours la
+  /// sienne : un collaborateur travaille dans celle de son patron
+  /// (`supplier_collaborators`, `0093`). `null` pour un propriétaire —
+  /// c'est alors [id], et le dire deux fois inviterait les deux valeurs
+  /// à diverger.
+  String? get operatesSupplierId;
+
+  /// Ce que le patron lui a accordé : `products`, `orders`, `promotions`,
+  /// `storefront`, `messages`, `reviews`. Vide pour un propriétaire, qui
+  /// a tout sans qu'on ait à le lui donner.
+  List<String> get permissions;
+
+  /// Vrai tant que le collaborateur n'a pas remplacé le mot de passe à
+  /// usage unique que son patron lui a dicté (`0098`). Le routeur
+  /// l'immobilise alors sur l'écran de changement : tant que ce code
+  /// circule de vive voix, le compte n'est à personne.
+  bool get mustChangePassword;
 
   /// Create a copy of AppUser
   /// with the given fields replaced by the non-null parameter values.
@@ -1130,6 +1260,7 @@ abstract class _$$CourierUserImplCopyWith<$Res>
     String city,
     bool isOnline,
     String? vehicleLabel,
+    DateTime? documentsSubmittedAt,
   });
 }
 
@@ -1156,6 +1287,7 @@ class __$$CourierUserImplCopyWithImpl<$Res>
     Object? city = null,
     Object? isOnline = null,
     Object? vehicleLabel = freezed,
+    Object? documentsSubmittedAt = freezed,
   }) {
     return _then(
       _$CourierUserImpl(
@@ -1195,6 +1327,10 @@ class __$$CourierUserImplCopyWithImpl<$Res>
             ? _value.vehicleLabel
             : vehicleLabel // ignore: cast_nullable_to_non_nullable
                   as String?,
+        documentsSubmittedAt: freezed == documentsSubmittedAt
+            ? _value.documentsSubmittedAt
+            : documentsSubmittedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
@@ -1213,6 +1349,7 @@ class _$CourierUserImpl implements CourierUser {
     required this.city,
     required this.isOnline,
     this.vehicleLabel,
+    this.documentsSubmittedAt,
   });
 
   @override
@@ -1234,9 +1371,15 @@ class _$CourierUserImpl implements CourierUser {
   @override
   final String? vehicleLabel;
 
+  /// Date de dépôt des pièces (`0105`). Nulle = rien n'a encore été
+  /// envoyé : l'écran d'attente doit alors réclamer le dossier au lieu
+  /// d'annoncer un examen qui n'a pas commencé.
+  @override
+  final DateTime? documentsSubmittedAt;
+
   @override
   String toString() {
-    return 'AppUser.courier(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, courierStatus: $courierStatus, city: $city, isOnline: $isOnline, vehicleLabel: $vehicleLabel)';
+    return 'AppUser.courier(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, courierStatus: $courierStatus, city: $city, isOnline: $isOnline, vehicleLabel: $vehicleLabel, documentsSubmittedAt: $documentsSubmittedAt)';
   }
 
   @override
@@ -1259,7 +1402,9 @@ class _$CourierUserImpl implements CourierUser {
             (identical(other.isOnline, isOnline) ||
                 other.isOnline == isOnline) &&
             (identical(other.vehicleLabel, vehicleLabel) ||
-                other.vehicleLabel == vehicleLabel));
+                other.vehicleLabel == vehicleLabel) &&
+            (identical(other.documentsSubmittedAt, documentsSubmittedAt) ||
+                other.documentsSubmittedAt == documentsSubmittedAt));
   }
 
   @override
@@ -1274,6 +1419,7 @@ class _$CourierUserImpl implements CourierUser {
     city,
     isOnline,
     vehicleLabel,
+    documentsSubmittedAt,
   );
 
   /// Create a copy of AppUser
@@ -1308,6 +1454,9 @@ class _$CourierUserImpl implements CourierUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -1320,6 +1469,7 @@ class _$CourierUserImpl implements CourierUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )
     courier,
     required TResult Function(
@@ -1342,6 +1492,7 @@ class _$CourierUserImpl implements CourierUser {
       city,
       isOnline,
       vehicleLabel,
+      documentsSubmittedAt,
     );
   }
 
@@ -1369,6 +1520,9 @@ class _$CourierUserImpl implements CourierUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -1381,6 +1535,7 @@ class _$CourierUserImpl implements CourierUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult? Function(
@@ -1403,6 +1558,7 @@ class _$CourierUserImpl implements CourierUser {
       city,
       isOnline,
       vehicleLabel,
+      documentsSubmittedAt,
     );
   }
 
@@ -1430,6 +1586,9 @@ class _$CourierUserImpl implements CourierUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -1442,6 +1601,7 @@ class _$CourierUserImpl implements CourierUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult Function(
@@ -1466,6 +1626,7 @@ class _$CourierUserImpl implements CourierUser {
         city,
         isOnline,
         vehicleLabel,
+        documentsSubmittedAt,
       );
     }
     return orElse();
@@ -1520,6 +1681,7 @@ abstract class CourierUser implements AppUser {
     required final String city,
     required final bool isOnline,
     final String? vehicleLabel,
+    final DateTime? documentsSubmittedAt,
   }) = _$CourierUserImpl;
 
   @override
@@ -1536,6 +1698,11 @@ abstract class CourierUser implements AppUser {
   String get city;
   bool get isOnline;
   String? get vehicleLabel;
+
+  /// Date de dépôt des pièces (`0105`). Nulle = rien n'a encore été
+  /// envoyé : l'écran d'attente doit alors réclamer le dossier au lieu
+  /// d'annoncer un examen qui n'a pas commencé.
+  DateTime? get documentsSubmittedAt;
 
   /// Create a copy of AppUser
   /// with the given fields replaced by the non-null parameter values.
@@ -1711,6 +1878,9 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -1723,6 +1893,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )
     courier,
     required TResult Function(
@@ -1769,6 +1940,9 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -1781,6 +1955,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult? Function(
@@ -1827,6 +2002,9 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       double ratingAverage,
       int ratingCount,
       SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -1839,6 +2017,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       bool isOnline,
       String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
     )?
     courier,
     TResult Function(

@@ -1,6 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'courier_dossier.dart';
+
 part 'courier_delivery.freezed.dart';
 
 /// Où en est une course.
@@ -139,10 +141,11 @@ extension CourierDeliveryNavigationX on CourierDelivery {
 
 /// Un livreur en attente de validation, tel que le staff le voit.
 ///
-/// Volontairement pauvre : à ce stade il n'y a pas de dossier à examiner,
-/// seulement une identité et une ville. Le jour où des pièces seront
-/// demandées, c'est ici qu'elles viendront — pas dans `CourierDelivery`,
-/// qui décrit une course et non une personne.
+/// Les pièces sont arrivées (`0105`) : l'agent ne décide plus sur un nom et
+/// une ville, il ouvre la carte d'identité et, pour un véhicule motorisé, le
+/// permis et la carte grise. [documentsSubmittedAt] n'est jamais nul ici —
+/// la file ne liste que les dossiers déposés, un livreur qui n'a rien envoyé
+/// n'a rien à faire examiner.
 @freezed
 class PendingCourier with _$PendingCourier {
   const factory PendingCourier({
@@ -152,5 +155,8 @@ class PendingCourier with _$PendingCourier {
     required String city,
     String? vehicleLabel,
     required DateTime createdAt,
+    required DateTime documentsSubmittedAt,
+    CourierVehicleType? vehicleType,
+    @Default([]) List<CourierDocument> documents,
   }) = _PendingCourier;
 }

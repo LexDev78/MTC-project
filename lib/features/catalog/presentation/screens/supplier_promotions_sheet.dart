@@ -101,13 +101,20 @@ class _BodyState extends ConsumerState<_Body> {
           )
         else ...[
           // Plusieurs remises peuvent coexister ; elles ne se cumulent pas.
-          // Le dire ici évite qu'un fournisseur croie offrir -35% en posant
-          // -15% et -20%.
-          Text(
-            'Quand plusieurs promotions s\'appliquent, le client paie la plus '
-            'avantageuse — elles ne s\'additionnent pas.',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: scheme.onSurfaceVariant,
+          // La règle évite qu'un fournisseur croie offrir -35 % en posant
+          // -15 % et -20 %, mais elle n'a pas à occuper trois lignes
+          // au-dessus de la liste à chaque ouverture.
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: MtcHelpHint(
+              label: 'Plusieurs remises sur un produit ?',
+              title: 'Quand plusieurs promotions s\'appliquent',
+              message:
+                  'Le client paie la plus avantageuse — elles ne '
+                  's\'additionnent pas.\n\n'
+                  'Une remise sur quantité ne vaut qu\'à partir du nombre '
+                  'd\'unités que vous avez fixé. En dessous, c\'est le prix '
+                  'plein, ou une autre remise si elle s\'applique.',
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

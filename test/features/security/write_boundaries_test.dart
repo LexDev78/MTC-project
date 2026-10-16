@@ -369,4 +369,143 @@ void main() {
       await staff.dispose();
     },
   );
+
+  // ------------------------------------------------------------------
+  // Trouvé par l'audit du schéma : trois colonnes qu'un utilisateur
+  // ordinaire pouvait s'attribuer lui-même (`0103`). Chacune se mesurait
+  // par un `UPDATE 1` avant la correction.
+  // ------------------------------------------------------------------
+
+  test('un client ne peut pas se nommer administrateur MTC', () async {
+    // Le trou exact : la contrainte `staff_role_matches_role` n'exigeait que
+    // de changer `role` et `staff_role` **ensemble**, ce que rien
+    // n'empêchait. On en devenait staff et admin dans la même requête,
+    // c'est-à-dire maître des dossiers KYC et des retraits de tous.
+    try {
+      await reviewer
+          .from('profiles')
+          .update({'role': 'supplier_principal', 'staff_role': 'admin'})
+          .eq('id', '3355adef-385d-5eee-a565-815c8cf8e4d3'); // client2
+    } on PostgrestException {
+      // Refusé d'emblée : c'est l'issue attendue.
+    }
+
+    expect(await reviewer.rpc('is_staff'), isFalse);
+    expect(await reviewer.rpc('is_admin'), isFalse);
+  });
+
+  test('un fournisseur ne peut pas se décerner le badge vérifié', () async {
+    // `fournisseur3` (Couture Kayes) est `unverified` dans le jeu de
+    // démonstration : c'est la seule façon de prouver quelque chose, une
+    // boutique déjà vérifiée ne changeant pas de valeur.
+    final patron = await _signIn('fournisseur3');
+    try {
+      await patron
+          .from('suppliers')
+          .update({'verification_status': 'verified'})
+          .eq('id', 'bc82e68c-b1d9-538a-a8ed-8393a5ba739f');
+    } on PostgrestException {
+      // Refusé : c'est ce qu'on veut.
+    }
+
+    final anon = createTestSupabaseClient();
+    final fiche = await anon
+        .from('suppliers')
+        .select('verification_status')
+        .eq('id', 'bc82e68c-b1d9-538a-a8ed-8393a5ba739f')
+        .single();
+    expect(fiche['verification_status'], 'unverified');
+    await anon.dispose();
+    await patron.dispose();
+  });
+
+  test('un fournisseur ne peut pas s\'attribuer une note', () async {
+    final patron = await _signIn('fournisseur1');
+    final avant = await readSupplier();
+
+    try {
+      await patron
+          .from('suppliers')
+          .update({'rating_average': 5, 'rating_count': 9999})
+          .eq('id', supplierId);
+    } on PostgrestException {
+      // Refusé par le déclencheur.
+    }
+    try {
+      await patron
+          .from('products')
+          .update({'rating_average': 5, 'rating_count': 9999})
+          .eq('supplier_id', supplierId);
+    } on PostgrestException {
+      // Idem sur la recopie.
+    }
+
+    final apres = await readSupplier();
+    expect(apres['rating_average'], avant['rating_average']);
+    expect(apres['rating_count'], avant['rating_count']);
+
+    // Et la vitrine, elle, reste modifiable : la correction ne doit pas
+    // avoir fermé ce que le fournisseur a le droit d'écrire.
+    await patron
+        .from('suppliers')
+        .update({'description': 'Tissus bogolan tissés à la main'})
+        .eq('id', supplierId);
+    final vitrine = await patron
+        .from('suppliers')
+        .select('description')
+        .eq('id', supplierId)
+        .single();
+    expect(vitrine['description'], 'Tissus bogolan tissés à la main');
+
+    await patron.dispose();
+  });
+
+  test('un fournisseur ne peut pas réécrire le message du client', () async {
+    // Mesuré avant `0102` : être participant suffisait à modifier n'importe
+    // quelle colonne de n'importe quel message — donc à réécrire ce que
+    // l'acheteur a demandé, ou à lui faire dire ce qu'il n'a pas dit.
+    const messageDuClient = '60c32d08-af5f-51e0-b744-2340fb894aab';
+    const messageDuFournisseur = '6f8c35d7-095a-5944-b617-4bb7d495ed48';
+    final patron = await _signIn('fournisseur1');
+
+    for (final tentative in [
+      {'text': 'RÉÉCRIT'},
+      {'sender_id': clientAwaId},
+    ]) {
+      try {
+        await patron
+            .from('chat_messages')
+            .update(tentative)
+            .eq('id', tentative.containsKey('text')
+                ? messageDuClient
+                : messageDuFournisseur);
+      } on PostgrestException {
+        // Refusé par le droit de colonne.
+      }
+    }
+
+    final message = await patron
+        .from('chat_messages')
+        .select('text, sender_id')
+        .eq('id', messageDuClient)
+        .single();
+    expect(message['text'], startsWith('Bonjour'));
+    expect(message['sender_id'], clientAwaId);
+
+    final reponse = await patron
+        .from('chat_messages')
+        .select('sender_id')
+        .eq('id', messageDuFournisseur)
+        .single();
+    expect(reponse['sender_id'], supplierId);
+
+    // Marquer comme lu doit rester permis : c'est le seul usage légitime de
+    // la mise à jour sur cette table (`markConversationRead`).
+    await patron
+        .from('chat_messages')
+        .update({'is_read': true})
+        .eq('id', messageDuClient);
+
+    await patron.dispose();
+  });
 }
