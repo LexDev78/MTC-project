@@ -61,7 +61,6 @@ class SupabaseOrderRepository implements OrderRepository {
     String? supplierMessageVoicePath,
     int? supplierMessageVoiceDurationSeconds,
     PaymentMethod paymentMethod = PaymentMethod.onDelivery,
-    PaymentStatus paymentStatus = PaymentStatus.pendingOnDelivery,
     MobileMoneyProvider? mobileMoneyProvider,
     String? promoCode,
   }) async {
@@ -109,7 +108,10 @@ class SupabaseOrderRepository implements OrderRepository {
         'p_supplier_message_voice_path': supplierMessageVoicePath,
         'p_supplier_message_voice_duration_seconds': supplierMessageVoiceDurationSeconds,
         'p_payment_method': _paymentMethodToDb(paymentMethod),
-        'p_payment_status': _paymentStatusToDb(paymentStatus),
+        // `p_payment_status` n'est plus transmis : le serveur l'ignore et
+        // force `pending_on_delivery` (`0106`). Le paramètre reste dans la
+        // signature SQL pour ne pas casser une version plus ancienne de
+        // l'app, mais rien ici n'a à prétendre décider d'un paiement.
         'p_mobile_money_provider': mobileMoneyProvider == null
             ? null
             : _mobileMoneyProviderToDb(mobileMoneyProvider),
@@ -182,11 +184,6 @@ String _fulfillmentMethodToDb(FulfillmentMethod method) => switch (method) {
 String _paymentMethodToDb(PaymentMethod method) => switch (method) {
   PaymentMethod.now => 'now',
   PaymentMethod.onDelivery => 'on_delivery',
-};
-
-String _paymentStatusToDb(PaymentStatus status) => switch (status) {
-  PaymentStatus.paid => 'paid',
-  PaymentStatus.pendingOnDelivery => 'pending_on_delivery',
 };
 
 String _mobileMoneyProviderToDb(MobileMoneyProvider provider) => switch (provider) {

@@ -63,9 +63,21 @@ void main() {
   );
 
   test(
-    'paying "now" after a Mobile Money provider is confirmed records the '
-    'order as paid',
+    'paying "now" records the chosen provider but never presumes the money '
+    'arrived',
     () async {
+      // Ce test exigeait auparavant `PaymentStatus.paid` — il encodait donc
+      // la faille, et c'est à ce titre qu'il a échoué quand elle a été
+      // refermée (`0106`). L'app posait ce statut elle-même dès que le
+      // client cochait « payer maintenant », alors qu'aucune intégration
+      // Orange Money ou Moov n'existe : le fournisseur lisait « Payé » et
+      // expédiait sans qu'un franc ait bougé.
+      //
+      // Ce qui est juste, et ce que l'on vérifie : le choix du client est
+      // conservé — méthode et opérateur —, mais l'encaissement n'est pas
+      // présumé. Seul `mark_order_paid()`, réservé au staff MTC, peut dire
+      // une commande payée. Si cette attente est un jour remise à `paid`,
+      // c'est que la faille est revenue.
       container.read(paymentMethodProvider.notifier).state =
           PaymentMethod.now;
       container.read(mobileMoneyProviderChoiceProvider.notifier).state =
@@ -79,8 +91,8 @@ void main() {
       final order = container.read(checkoutControllerProvider).valueOrNull;
       expect(order, isNotNull);
       expect(order!.paymentMethod, PaymentMethod.now);
-      expect(order.paymentStatus, PaymentStatus.paid);
       expect(order.mobileMoneyProvider, MobileMoneyProvider.orangeMoney);
+      expect(order.paymentStatus, PaymentStatus.pendingOnDelivery);
     },
   );
 

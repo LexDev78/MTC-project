@@ -181,9 +181,13 @@ class CheckoutController extends AsyncNotifier<Order?> {
             // policy is keyed by order id, which doesn't exist until this
             // very call returns one (see the upload step below).
             paymentMethod: paymentMethod,
-            paymentStatus: paymentMethod == PaymentMethod.now
-                ? PaymentStatus.paid
-                : PaymentStatus.pendingOnDelivery,
+            // Le statut de paiement n'est plus envoyé : il est décidé par le
+            // serveur (`place_order`, `0106`). Cette ligne posait
+            // `PaymentStatus.paid` dès que le client choisissait « payer
+            // maintenant » — alors qu'aucune intégration opérateur n'existe.
+            // Le fournisseur lisait « Payé via Orange Money » et expédiait ;
+            // aucun franc n'avait bougé. Seul le staff peut désormais
+            // constater un paiement (`mark_order_paid`).
             mobileMoneyProvider: mobileMoneyProvider,
           );
       // Stock is already decremented atomically inside `place_order()`

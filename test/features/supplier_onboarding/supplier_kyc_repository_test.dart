@@ -15,6 +15,13 @@ import 'package:mtc_app/features/supplier_onboarding/presentation/providers/supp
 
 import '../../support/supabase_test_harness.dart';
 
+// Les chemins de pièces s'écrivent `<identifiant du fournisseur>/fichier` :
+// c'est un chemin **dans le bucket**, celui que `uploadPickedImage` produit
+// (`folder: supplierId`). Ces tests écrivaient auparavant `/tmp/rccm.jpg`,
+// c'est-à-dire un chemin local du téléphone — exactement ce que le
+// commentaire de `SupplierKycController.addDocument` interdit de persister.
+// Une garde l'a rendu impossible (`0106`) : une pièce déposée hors du dossier
+// de son propriétaire permettait de présenter la carte d'identité d'un autre.
 void main() {
   late ProviderContainer container;
 
@@ -124,12 +131,12 @@ void main() {
         await repository.addDocument(
           supplierId: supplierId,
           type: SupplierDocumentType.managerIdCard,
-          filePath: '/tmp/manager-id.jpg',
+          filePath: '$supplierId/manager-id.jpg',
         );
         await repository.addDocument(
           supplierId: supplierId,
           type: SupplierDocumentType.rccmCertificate,
-          filePath: '/tmp/rccm.jpg',
+          filePath: '$supplierId/rccm.jpg',
         );
 
         await repository.submit(supplierId: supplierId);
@@ -150,12 +157,12 @@ void main() {
         await repository.addDocument(
           supplierId: supplierId,
           type: SupplierDocumentType.managerIdCard,
-          filePath: '/tmp/manager-id.jpg',
+          filePath: '$supplierId/manager-id.jpg',
         );
         await repository.addDocument(
           supplierId: supplierId,
           type: SupplierDocumentType.entreprenantDeclaration,
-          filePath: '/tmp/entreprenant.jpg',
+          filePath: '$supplierId/entreprenant.jpg',
         );
 
         await repository.submit(supplierId: supplierId);
@@ -174,17 +181,17 @@ void main() {
       await repository.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.managerIdCard,
-        filePath: '/tmp/first.jpg',
+        filePath: '$supplierId/first.jpg',
       );
       await repository.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.managerIdCard,
-        filePath: '/tmp/second.jpg',
+        filePath: '$supplierId/second.jpg',
       );
 
       final kyc = await repository.getForSupplier(supplierId);
       expect(kyc.documents, hasLength(1));
-      expect(kyc.documents.single.filePath, '/tmp/second.jpg');
+      expect(kyc.documents.single.filePath, '$supplierId/second.jpg');
     });
   });
 
@@ -194,17 +201,17 @@ void main() {
       await repository.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.nationalIdFront,
-        filePath: '/tmp/front.jpg',
+        filePath: '$supplierId/front.jpg',
       );
       await repository.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.nationalIdBack,
-        filePath: '/tmp/back.jpg',
+        filePath: '$supplierId/back.jpg',
       );
       await repository.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.selfieWithId,
-        filePath: '/tmp/selfie.jpg',
+        filePath: '$supplierId/selfie.jpg',
       );
     }
 
@@ -256,12 +263,12 @@ void main() {
       await repository.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.managerIdCard,
-        filePath: '/tmp/manager-id.jpg',
+        filePath: '$supplierId/manager-id.jpg',
       );
       await repository.addDocument(
         supplierId: supplierId,
         type: SupplierDocumentType.rccmCertificate,
-        filePath: '/tmp/rccm.jpg',
+        filePath: '$supplierId/rccm.jpg',
       );
       await repository.submit(supplierId: supplierId);
       return supplierId;

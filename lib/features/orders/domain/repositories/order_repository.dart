@@ -44,7 +44,6 @@ abstract interface class OrderRepository {
     String? supplierMessageVoicePath,
     int? supplierMessageVoiceDurationSeconds,
     PaymentMethod paymentMethod = PaymentMethod.onDelivery,
-    PaymentStatus paymentStatus = PaymentStatus.pendingOnDelivery,
     MobileMoneyProvider? mobileMoneyProvider,
 
     /// Code promo saisi par le client. Le serveur le revalide et le
