@@ -14,7 +14,7 @@ import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.d
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
     show ProductImage;
-import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
+import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 
 import '../providers/favorite_providers.dart';
 import 'favorite_toggle_button.dart';

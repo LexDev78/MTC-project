@@ -22,7 +22,6 @@ import 'package:mtc_app/features/comments/presentation/providers/comment_provide
 import 'package:mtc_app/features/ratings/presentation/widgets/product_reviews_section.dart';
 import 'package:mtc_app/features/comments/presentation/widgets/product_comments_modal.dart';
 import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
-import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
 import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
 
 import '../../domain/entities/product.dart';

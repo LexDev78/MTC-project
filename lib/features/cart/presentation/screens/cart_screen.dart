@@ -6,7 +6,6 @@ import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 
-import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
 
 import '../controllers/cart_controller.dart';
 import '../providers/cart_providers.dart';

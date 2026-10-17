@@ -130,3 +130,26 @@ final cartItemForProductProvider = Provider.family<CartItem?, String>((
   }
   return null;
 });
+
+/// L'article qu'on achète sans passer par le panier (« Acheter maintenant »).
+///
+/// Posé ici et non dans les providers de paiement : c'est la même notion que
+/// le panier — ce que le client s'apprête à commander —, et deux
+/// fonctionnalités en dépendent sans dépendre l'une de l'autre (le paiement
+/// et les codes promo). Le laisser côté paiement obligeait les codes promo à
+/// importer le paiement, qui les importe déjà.
+final buyNowItemProvider = StateProvider<CartItem?>((ref) => null);
+
+/// Ce que le client est en train de commander : l'achat direct s'il y en a
+/// un, le panier sinon.
+///
+/// **Source unique.** L'écran de paiement et le champ « code promo » lisaient
+/// chacun leur liste : le paiement tenait compte de l'achat direct, le code
+/// promo non. Un code essayé sur un achat direct répondait donc « votre
+/// panier est vide », ou se calculait sur des articles qui n'étaient pas
+/// ceux de la commande.
+final checkoutItemsProvider = FutureProvider<List<CartItem>>((ref) async {
+  final buyNow = ref.watch(buyNowItemProvider);
+  if (buyNow != null) return [buyNow];
+  return ref.watch(cartItemsProvider.future);
+});

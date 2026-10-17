@@ -10,7 +10,7 @@ import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
-import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
+import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 
 import '../controllers/favorite_controller.dart';
 import '../providers/favorite_providers.dart';

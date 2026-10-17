@@ -15,21 +15,27 @@ final typedPromoCodeProvider = StateProvider<String>((ref) => '');
 /// La réponse du serveur au dernier code essayé — `null` tant qu'aucun n'a
 /// été soumis.
 ///
-/// Remise à zéro quand le **contenu** du panier change : une remise calculée
-/// sur deux articles ne vaut plus quand il y en a trois, et afficher
-/// l'ancien montant annoncerait un prix que la commande ne respecterait pas.
+/// Remise à zéro quand le **contenu** de la commande change : une remise
+/// calculée sur deux articles ne vaut plus quand il y en a trois, et
+/// afficher l'ancien montant annoncerait un prix que la commande ne
+/// respecterait pas.
 ///
-/// Sur le contenu et non sur chaque émission du flux : `cartItemsProvider`
-/// ré-émet à chaque rafraîchissement, y compris sans rien changer. Écouter
-/// les émissions faisait disparaître le code aussitôt appliqué — la
-/// commande partait alors sans lui, au prix plein.
+/// « La commande » et non « le panier » : un achat direct ne passe jamais
+/// par le panier (`checkoutItemsProvider`). S'accrocher au panier rendait le
+/// code promo inopérant sur ce parcours — il répondait « votre panier est
+/// vide » alors que la commande portait bien sur un produit remisable.
+///
+/// Sur le contenu et non sur chaque émission du flux : la source ré-émet à
+/// chaque rafraîchissement, y compris sans rien changer. Écouter les
+/// émissions faisait disparaître le code aussitôt appliqué — la commande
+/// partait alors sans lui, au prix plein.
 final appliedPromoCodeProvider =
     NotifierProvider<AppliedPromoCode, PromoCodePreview?>(AppliedPromoCode.new);
 
-/// Ce qui, dans le panier, peut changer la valeur d'un code : les articles
-/// et leurs quantités. Trié, pour qu'un simple réordonnancement n'ait pas
-/// l'air d'un changement.
-String _cartSignature(AsyncValue<List<CartItem>> value) {
+/// Ce qui, dans la commande, peut changer la valeur d'un code : les
+/// articles et leurs quantités. Trié, pour qu'un simple réordonnancement
+/// n'ait pas l'air d'un changement.
+String _commandeSignature(AsyncValue<List<CartItem>> value) {
   final items = value.valueOrNull ?? const <CartItem>[];
   final parts = [
     for (final item in items)
@@ -41,7 +47,10 @@ String _cartSignature(AsyncValue<List<CartItem>> value) {
 class AppliedPromoCode extends Notifier<PromoCodePreview?> {
   @override
   PromoCodePreview? build() {
-    ref.listen(cartItemsProvider.select(_cartSignature), (previous, next) {
+    ref.listen(checkoutItemsProvider.select(_commandeSignature), (
+      previous,
+      next,
+    ) {
       if (previous == null || previous == next) return;
       state = null;
     });
@@ -68,14 +77,15 @@ class AppliedPromoCode extends Notifier<PromoCodePreview?> {
 
     final List<CartItem> items;
     try {
-      // `await` et non une lecture immédiate : le panier peut n'être pas
-      // encore chargé quand le client colle son code, et un panier vu vide
-      // renverrait « code sans effet » sur un panier qui ne l'est pas.
-      items = await ref.read(cartItemsProvider.future);
+      // `await` et non une lecture immédiate : la commande peut n'être pas
+      // encore chargée quand le client colle son code, et une liste vue
+      // vide renverrait « code sans effet » sur une commande qui ne l'est
+      // pas.
+      items = await ref.read(checkoutItemsProvider.future);
     } catch (_) {
       state = const PromoCodePreview(
         valid: false,
-        reason: 'Panier illisible pour le moment. Réessayez.',
+        reason: 'Commande illisible pour le moment. Réessayez.',
       );
       return;
     }
@@ -83,7 +93,7 @@ class AppliedPromoCode extends Notifier<PromoCodePreview?> {
     if (items.isEmpty) {
       state = const PromoCodePreview(
         valid: false,
-        reason: 'Votre panier est vide : il n\'y a rien à remiser.',
+        reason: 'Aucun article à remiser.',
       );
       return;
     }

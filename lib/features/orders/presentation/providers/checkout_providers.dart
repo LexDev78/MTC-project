@@ -111,7 +111,8 @@ int _mtcDeliveryFeeFor({
 /// item, every cart-based entry point (`cart_screen.dart`,
 /// `favorites_screen.dart`'s multi-select "Acheter") resets it to `null` —
 /// so its value never depends on disposal timing either way.
-final buyNowItemProvider = StateProvider<CartItem?>((ref) => null);
+// `buyNowItemProvider` et `checkoutItemsProvider` vivent désormais dans
+// `cart_providers.dart` — voir le commentaire qui les y accompagne.
 
 /// Ce que l'écran de paiement coûte en réseau : le panier, et les prix de
 /// tous ses produits.
@@ -131,10 +132,7 @@ typedef _CheckoutInputs = ({
 });
 
 final _checkoutInputsProvider = FutureProvider<_CheckoutInputs>((ref) async {
-  final buyNowItem = ref.watch(buyNowItemProvider);
-  final cartItems = buyNowItem != null
-      ? [buyNowItem]
-      : await ref.watch(cartItemsProvider.future);
+  final cartItems = await ref.watch(checkoutItemsProvider.future);
 
   // Une seule lecture pour tout le panier (`fetch_pricing_inputs`, `0068`),
   // là où cet écran appelait `getById` par article — une requête imbriquée

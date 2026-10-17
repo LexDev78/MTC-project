@@ -10,6 +10,8 @@ import 'package:mtc_app/core/auth/pseudo_email.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/cart/domain/entities/cart_item.dart';
+import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/orders/presentation/controllers/checkout_controller.dart';
 import 'package:mtc_app/features/orders/presentation/providers/checkout_providers.dart';
 import 'package:mtc_app/features/orders/presentation/providers/order_providers.dart';
@@ -257,4 +259,51 @@ void main() {
       expect(codes[group.id]?.discountFcfa, 2500 * 2);
     },
   );
+
+  test('un code promo s\'applique aussi à un achat direct, hors panier',
+      () async {
+    // Le défaut : le champ et l'aperçu lisaient `cartItemsProvider`, alors
+    // qu'un « Acheter maintenant » ne passe jamais par le panier. Le client
+    // saisissait son code et s'entendait répondre que son panier était
+    // vide — ou pire, la remise se calculait sur des articles qui
+    // n'étaient pas ceux de sa commande. Les deux lisent désormais
+    // `checkoutItemsProvider`, qui dit ce qu'on est en train de commander.
+    await createCode(code: 'DIRECT10', percent: 10);
+
+    await container
+        .read(authRepositoryProvider)
+        .login(usernameOrPhone: 'client2', password: 'password123');
+    await container.read(currentUserProvider.future);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await container.read(addressesProvider.future);
+
+    // On vide le panier pour que seul l'achat direct reste : c'est
+    // exactement la situation où le défaut se voyait.
+    await container
+        .read(cartRepositoryProvider)
+        .clear(DemoIds.clientMoussa);
+    container.read(buyNowItemProvider.notifier).state = CartItem(
+      id: 'achat-direct',
+      userId: DemoIds.clientMoussa,
+      productId: riz,
+      supplierId: DemoIds.supplierAlimentationSegou,
+      productNameSnapshot: 'Riz local 25kg',
+      unitPriceFcfaSnapshot: prixRiz,
+      quantity: 1,
+      addedAt: DateTime.now(),
+    );
+
+    // Le champ doit s'afficher…
+    expect(
+      await container.read(checkoutHasPromoCodeProvider.future),
+      isTrue,
+      reason: 'le champ code promo doit apparaître sur un achat direct',
+    );
+
+    // …et le code doit valoir quelque chose.
+    await container.read(appliedPromoCodeProvider.notifier).apply('DIRECT10');
+    final preview = container.read(appliedPromoCodeProvider);
+    expect(preview?.valid, isTrue, reason: preview?.reason);
+    expect(preview!.discountFcfa, (prixRiz * 0.10).round());
+  });
 }

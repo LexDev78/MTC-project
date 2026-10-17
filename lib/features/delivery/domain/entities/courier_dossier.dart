@@ -34,13 +34,14 @@ enum CourierVehicleType {
     CourierVehicleType.car => 'car',
   };
 
-  /// Vrai pour les véhicules qui réclament un permis et une carte grise.
-  bool get isMotorised => switch (this) {
-    CourierVehicleType.motorcycle ||
-    CourierVehicleType.tricycle ||
-    CourierVehicleType.car => true,
-    CourierVehicleType.onFoot || CourierVehicleType.bicycle => false,
-  };
+  /// Vrai pour les véhicules dont on exige les papiers — la voiture, et
+  /// elle seule (`0108`).
+  ///
+  /// La première version visait tout véhicule motorisé, moto et tricycle
+  /// compris. C'est faux sur le terrain : à Bamako l'essentiel de la
+  /// livraison se fait en moto ou en tricycle (katakata), et réclamer un
+  /// permis et une carte grise à ces livreurs-là leur ferme l'inscription.
+  bool get requiresVehiclePapers => this == CourierVehicleType.car;
 
   /// Les pièces sans lesquelles le serveur refusera le dépôt.
   ///
@@ -53,7 +54,7 @@ enum CourierVehicleType {
   List<CourierDocumentType> get requiredDocuments => [
     CourierDocumentType.nationalIdFront,
     CourierDocumentType.nationalIdBack,
-    if (isMotorised) ...[
+    if (requiresVehiclePapers) ...[
       CourierDocumentType.drivingLicence,
       CourierDocumentType.vehicleRegistration,
     ],

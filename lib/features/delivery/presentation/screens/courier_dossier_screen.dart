@@ -247,13 +247,42 @@ class _Formulaire extends ConsumerWidget {
               label: type.label,
               hasFile: dossier.documentOf(type) != null,
               isRequired: vehicule!.requiredDocuments.contains(type),
-              onPicked: (file) =>
-                  controller.addDocument(type: type, file: file),
-              onRemove: () {
+              // Le résultat est **affiché**. Une version précédente
+              // l'ignorait : quand l'envoi échouait — service de stockage en
+              // panne, fichier trop lourd, réseau coupé —, le livreur
+              // choisissait sa photo et il ne se passait rien. Rien, c'est
+              // ce qu'on lit comme « l'application est cassée », et on
+              // recommence au lieu de corriger.
+              onPicked: (file) async {
+                final ok = await controller.addDocument(
+                  type: type,
+                  file: file,
+                );
+                if (!context.mounted || ok) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      controller.lastError ??
+                          'La pièce n\'a pas pu être envoyée.',
+                    ),
+                  ),
+                );
+              },
+              onRemove: () async {
                 final existing = dossier.documentOf(type);
-                if (existing != null) {
-                  controller.removeDocument(documentId: existing.id);
-                }
+                if (existing == null) return;
+                final ok = await controller.removeDocument(
+                  documentId: existing.id,
+                );
+                if (!context.mounted || ok) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      controller.lastError ??
+                          'La pièce n\'a pas pu être retirée.',
+                    ),
+                  ),
+                );
               },
             ),
         const SizedBox(height: AppSpacing.lg),
@@ -280,8 +309,13 @@ class _Formulaire extends ConsumerWidget {
 
   /// Les emplacements montrés : les pièces exigées, plus l'assurance, qui
   /// reste facultative mais que l'agent regarde quand elle est là.
+  ///
+  /// L'assurance n'est proposée qu'à qui conduit un engin motorisé : la
+  /// demander à un livreur à pied n'a pas de sens, même en facultatif.
   List<CourierDocumentType> _emplacements(CourierVehicleType vehicule) => [
     ...vehicule.requiredDocuments,
-    if (vehicule.isMotorised) CourierDocumentType.insurance,
+    if (vehicule != CourierVehicleType.onFoot &&
+        vehicule != CourierVehicleType.bicycle)
+      CourierDocumentType.insurance,
   ];
 }

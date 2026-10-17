@@ -65,10 +65,15 @@ void main() {
       }
     });
 
-    test('à pied et à vélo, l\'identité suffit', () {
+    test('hors voiture, l\'identité suffit', () {
+      // Moto et tricycle (katakata) comprises : c'est l'essentiel de la
+      // livraison à Bamako, et leur réclamer permis et carte grise leur
+      // fermerait l'inscription (`0108`).
       for (final vehicule in [
         CourierVehicleType.onFoot,
         CourierVehicleType.bicycle,
+        CourierVehicleType.motorcycle,
+        CourierVehicleType.tricycle,
       ]) {
         expect(vehicule.requiredDocuments, [
           CourierDocumentType.nationalIdFront,
@@ -77,20 +82,14 @@ void main() {
       }
     });
 
-    test('motorisé, le permis et la carte grise s\'ajoutent', () {
-      for (final vehicule in [
-        CourierVehicleType.motorcycle,
-        CourierVehicleType.tricycle,
-        CourierVehicleType.car,
-      ]) {
-        expect(
-          vehicule.requiredDocuments,
-          containsAll([
-            CourierDocumentType.drivingLicence,
-            CourierDocumentType.vehicleRegistration,
-          ]),
-        );
-      }
+    test('en voiture, le permis et la carte grise s\'ajoutent', () {
+      expect(
+        CourierVehicleType.car.requiredDocuments,
+        containsAll([
+          CourierDocumentType.drivingLicence,
+          CourierDocumentType.vehicleRegistration,
+        ]),
+      );
     });
   });
 
@@ -144,7 +143,7 @@ void main() {
       expect(dossier.vehicleLabel, 'Vélo bleu');
     });
 
-    test('à moto, les mêmes deux pièces ne suffisent plus', () async {
+    test('en voiture, les mêmes deux pièces ne suffisent plus', () async {
       final depot = await livreurSansPieces();
       await depot.saveDocument(
         courierId: livreur2,
@@ -158,7 +157,7 @@ void main() {
       );
 
       await expectLater(
-        depot.submitDossier(vehicleType: CourierVehicleType.motorcycle),
+        depot.submitDossier(vehicleType: CourierVehicleType.car),
         throwsA(
           isA<PostgrestException>().having(
             (e) => e.message,
@@ -235,7 +234,8 @@ void main() {
       final fanta = file.firstWhere((c) => c.id == livreur2);
       expect(fanta.displayName, 'Fanta Cissé');
       expect(fanta.vehicleType, CourierVehicleType.tricycle);
-      // Quatre pièces : un tricycle est motorisé.
+      // Quatre pièces : le semis les dépose toutes, même si un
+      // tricycle n'exige plus que l'identité.
       expect(fanta.documents, hasLength(4));
       expect(
         fanta.documents.map((d) => d.type),
