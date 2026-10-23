@@ -49,6 +49,36 @@ class OrderSupplierGroup with _$OrderSupplierGroup {
       _$OrderSupplierGroupFromJson(json);
 }
 
+/// Les numéros et l'adresse du client pour une commande, tels que le
+/// serveur les laisse voir à celui qui demande (`client_contact`, `0120`).
+///
+/// Le client a tout. Ceux qui livrent ont le numéro ; la boutique a
+/// l'adresse tant que sa part est en cours ; après la livraison, plus rien :
+/// chaque champ absent l'est parce que l'appelant n'y a pas droit, pas parce
+/// qu'il manque.
+@freezed
+class OrderContact with _$OrderContact {
+  const OrderContact._();
+
+  const factory OrderContact({
+    /// Le numéro à appeler pour la livraison : celui donné au paiement,
+    /// sinon celui du compte.
+    String? phone,
+    String? alternatePhone,
+
+    /// Le nom de l'adresse (« Maison »), ou celui du point relais.
+    String? addressLabel,
+    String? addressDetails,
+    double? latitude,
+    double? longitude,
+  }) = _OrderContact;
+
+  factory OrderContact.fromJson(Map<String, dynamic> json) =>
+      _$OrderContactFromJson(json);
+
+  bool get hasAddress => addressLabel != null;
+}
+
 @freezed
 class Order with _$Order {
   const factory Order({
@@ -57,32 +87,26 @@ class Order with _$Order {
 
     /// Denormalized at `placeOrder` time from the client's account, the
     /// same way every other order/cart line snapshots the data it needs —
-    /// so a supplier fulfilling the order can identify/reach the client
-    /// without a live join back to their (client-only-readable) profile.
+    /// so a supplier fulfilling the order can identify the client without a
+    /// live join back to their (client-only-readable) profile.
     required String clientDisplayNameSnapshot,
-    required String clientPhoneSnapshot,
     required List<OrderSupplierGroup> supplierGroups,
     required OrderStatus status,
     required DateTime placedAt,
     required int totalFcfa,
-    required String deliveryAddressLabel,
-    required String deliveryCity,
-    required String deliveryDetails,
-    required double deliveryLatitude,
-    required double deliveryLongitude,
 
-    /// Where the client receives the order — home address (the fields
-    /// above are the client's saved address) or a pickup point (the fields
-    /// above are that point's own name/city/address instead). Defaulted so
+    /// La ville seule : elle ne désigne personne, et reste donc visible de
+    /// tous ceux qui voient la commande.
+    required String deliveryCity,
+
+    /// Numéros et adresse — `null` quand l'appelant n'a plus droit à rien
+    /// (une boutique dont la part est livrée, par exemple).
+    OrderContact? clientContact,
+
+    /// Where the client receives the order — home address or a pickup point
+    /// (whose own name/address then fill [clientContact]). Defaulted so
     /// existing seed orders (all home addresses) don't need updating.
     @Default(FulfillmentMethod.homeDelivery) FulfillmentMethod fulfillmentMethod,
-
-    /// Only set for [FulfillmentMethod.homeDelivery].
-    String? courierPhone,
-
-    /// Optional second contact number, in case the courier can't reach the
-    /// client on [courierPhone].
-    String? alternatePhone,
     DateTime? deliveryDate,
     String? deliveryTimeSlotLabel,
     @Default(false) bool isPriority,

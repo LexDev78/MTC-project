@@ -1,29 +1,21 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
-import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
-import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
-import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/app_notification.dart';
-import '../../domain/notification_route_resolver.dart';
-import '../controllers/notification_controller.dart';
+import '../notification_center_logic.dart';
 import '../providers/notification_providers.dart';
 
-/// "Notifications" — reached from a bell icon on the supplier/staff
-/// "Tableau de bord" tab (`operatingSupplierIdProvider` — see
-/// `AppNotification.userId`'s doc comment for what that resolves to for
-/// each role), or from a bell next to the cart / a "Notifications" entry in
-/// the client's Profil menu (plain `currentUserProvider.id` there, since a
-/// client has no operating supplier). One shared screen either way — only
-/// the tap-routing in [_NotificationTile] branches on which kind of account
-/// is viewing.
+/// "Notifications" côté fournisseur et collaborateur — atteint par la cloche
+/// du « Tableau de bord » (`operatingSupplierIdProvider` : voir la doc de
+/// `AppNotification.userId` pour ce qu'il désigne selon le rôle).
+///
+/// Le client a son propre écran, au style du kit
+/// (`ClientNotificationsScreen`) ; les deux partagent la même logique
+/// (`NotificationCenterLogic`) — seule l'apparence diffère.
 class NotificationCenterScreen extends ConsumerStatefulWidget {
   const NotificationCenterScreen({super.key});
 
@@ -33,46 +25,37 @@ class NotificationCenterScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationCenterScreenState
-    extends ConsumerState<NotificationCenterScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // `notificationsProvider` isn't autoDispose (the home header's bell
-    // badge keeps it alive for the whole session) and there's no Realtime
-    // subscription on this table (see the datasource's doc comment) — so
-    // without this, a notification created by another session/device while
-    // this one was already watching the same userId would sit unseen until
-    // an unrelated rebuild happened to invalidate it. Forcing one fresh
-    // fetch whenever this screen actually opens is what makes "see it on
-    // your next visit" (the datasource's documented promise) literally true.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final operatingSupplierId = ref.read(operatingSupplierIdProvider);
-      final currentUser = ref.read(currentUserProvider).valueOrNull;
-      final userId = operatingSupplierId ?? currentUser?.id;
-      if (userId != null) ref.invalidate(notificationsProvider(userId));
-    });
-  }
-
+    extends ConsumerState<NotificationCenterScreen>
+    with NotificationCenterLogic {
   @override
   Widget build(BuildContext context) {
-    final operatingSupplierId = ref.watch(operatingSupplierIdProvider);
-    final currentUser = ref.watch(currentUserProvider).valueOrNull;
-    final userId = operatingSupplierId ?? currentUser?.id;
+    final userId = watchNotificationOwner();
     if (userId == null) {
       return const Scaffold(body: MtcLoadingView());
     }
     final notificationsAsync = ref.watch(notificationsProvider(userId));
+    final notifications = notificationsAsync.valueOrNull ?? const [];
+    final nonLues = notifications.where(isUnreadHere).length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Notifications'),
+            if (nonLues > 0) ...[
+              const SizedBox(width: AppSpacing.sm),
+              _CompteurNonLues(nonLues),
+            ],
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.done_all_rounded),
             tooltip: 'Tout marquer comme lu',
-            onPressed: () => ref
-                .read(notificationControllerProvider.notifier)
-                .markAllRead(userId),
+            onPressed: nonLues == 0
+                ? null
+                : () => markAllRead(userId, notifications),
           ),
         ],
       ),
@@ -89,8 +72,14 @@ class _NotificationCenterScreenState
             padding: const EdgeInsets.all(AppSpacing.md),
             itemCount: notifications.length,
             separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-            itemBuilder: (context, index) =>
-                _NotificationTile(notification: notifications[index]),
+            itemBuilder: (context, index) {
+              final notification = notifications[index];
+              return _NotificationTile(
+                notification: notification,
+                nonLue: isUnreadHere(notification),
+                onTap: () => openNotification(notification),
+              );
+            },
           );
         },
       ),
@@ -98,10 +87,51 @@ class _NotificationCenterScreenState
   }
 }
 
-class _NotificationTile extends ConsumerWidget {
-  const _NotificationTile({required this.notification});
+/// Le nombre de notifications non lues, à côté du titre de l'écran.
+class _CompteurNonLues extends StatelessWidget {
+  const _CompteurNonLues(this.count);
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: count == 1 ? '1 non lue' : '$count non lues',
+      excludeSemantics: true,
+      child: Container(
+        key: const ValueKey('compteur-non-lues'),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: scheme.primary,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+        child: Text(
+          count > 99 ? '99+' : '$count',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: scheme.onPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.notification,
+    required this.nonLue,
+    required this.onTap,
+  });
 
   final AppNotification notification;
+
+  /// Non lue *pour cet écran* : une notification ouverte ici perd sa
+  /// pastille tout de suite, sans attendre le serveur.
+  final bool nonLue;
+
+  final VoidCallback onTap;
 
   IconData get _icon => switch (notification.type) {
     NotificationType.newOrder => Icons.receipt_long_outlined,
@@ -115,42 +145,47 @@ class _NotificationTile extends ConsumerWidget {
     NotificationType.characteristicTypeDecision => Icons.tune_rounded,
   };
 
-  /// Where tapping this notification should land — see
-  /// `resolveNotificationRoute`, shared with the push tap handler so both
-  /// paths route identically.
-  String? _routeFor(WidgetRef ref) {
-    return resolveNotificationRoute(
-      type: notification.type,
-      referenceId: notification.referenceId,
-      isClient: ref.read(currentUserProvider).valueOrNull is ClientUser,
-      supplierRoutePrefix: ref.read(supplierRoutePrefixProvider),
-    );
-  }
-
-  Future<void> _handleTap(BuildContext context, WidgetRef ref) async {
-    if (!notification.isRead) {
-      await ref
-          .read(notificationControllerProvider.notifier)
-          .markRead(notification.id);
-    }
-    final route = _routeFor(ref);
-    if (route != null && context.mounted) {
-      unawaited(context.push(route));
-    }
-  }
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
     return Card(
-      color: notification.isRead ? null : scheme.primaryContainer.withValues(alpha: 0.25),
+      color: nonLue ? scheme.primaryContainer.withValues(alpha: 0.35) : null,
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: scheme.primaryContainer,
-          child: Icon(_icon, color: scheme.onPrimaryContainer),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // La pastille, devant chaque notification non lue — une teinte
+            // de fond à elle seule passait inaperçue.
+            SizedBox(
+              width: 10,
+              child: nonLue
+                  ? Semantics(
+                      label: 'Non lue',
+                      child: Container(
+                        key: ValueKey('non-lue-${notification.id}'),
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            CircleAvatar(
+              backgroundColor: scheme.primaryContainer,
+              child: Icon(_icon, color: scheme.onPrimaryContainer),
+            ),
+          ],
         ),
-        title: Text(notification.title),
+        title: Text(
+          notification.title,
+          style: TextStyle(
+            fontWeight: nonLue ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
         subtitle: Text(notification.body),
         trailing: Text(
           DateFormatter.relative(notification.createdAt),
@@ -158,7 +193,7 @@ class _NotificationTile extends ConsumerWidget {
             context,
           ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
         ),
-        onTap: () => unawaited(_handleTap(context, ref)),
+        onTap: onTap,
       ),
     );
   }

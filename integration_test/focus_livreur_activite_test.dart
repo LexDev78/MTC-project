@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-
 import '../test/support/supabase_test_harness.dart';
 import 'support/parcours_visuel.dart';
 
@@ -31,7 +30,8 @@ Future<void> toucher(WidgetTester tester, Finder cible, {int pas = 6}) async {
 }
 
 Future<void> revenirAuShell(WidgetTester tester, String infobulle) async {
-  for (var i = 0; i < 3; i++) {
+  // Profil → historique → rubrique → fiche → feuille : jusqu'à cinq pages.
+  for (var i = 0; i < 6; i++) {
     if (find.byTooltip(infobulle).evaluate().isNotEmpty) return;
     await tester.pageBack();
     await avancer(tester, pas: 5);
@@ -43,10 +43,7 @@ void main() {
 
   setUp(() async {
     await resetAndSeed();
-    await seedDeliveredDeliveryAsAdmin(
-      groupId: _groupe,
-      courierId: _livreur1,
-    );
+    await seedDeliveredDeliveryAsAdmin(groupId: _groupe, courierId: _livreur1);
   });
 
   testWidgets(
@@ -90,8 +87,12 @@ void main() {
       // Côté client : la feuille de notation, depuis sa commande livrée.
       await etapeVisuelle(tester, 'activite-03c-feuille-notation', () async {
         await toucher(tester, find.text('Mes commandes'), pas: 12);
-        await attendre(tester, find.textContaining('Electro'));
-        await toucher(tester, find.textContaining('Electro'), pas: 12);
+        // Livrée par le livreur : sous « Livrées » dans l'historique, et la
+        // boutique en capitales sur sa carte, comme dans le kit.
+        await attendre(tester, find.text('Livrées'));
+        await toucher(tester, find.text('Livrées'), pas: 12);
+        await attendre(tester, find.text('ELECTRO BAMAKO'));
+        await toucher(tester, find.text('ELECTRO BAMAKO'), pas: 12);
         await attendre(tester, find.text('Noter le livreur'));
         await toucher(tester, find.text('Noter le livreur'), pas: 10);
         await attendre(tester, find.text('Envoyer la note'));
@@ -100,7 +101,11 @@ void main() {
 
       await etapeVisuelle(tester, 'activite-04-note-donnee', () async {
         // Les cinq étoiles sont vides au départ : la quatrième donne 4/5.
-        await toucher(tester, find.byIcon(Icons.star_border_rounded).at(3), pas: 3);
+        await toucher(
+          tester,
+          find.byIcon(Icons.star_border_rounded).at(3),
+          pas: 3,
+        );
         await tester.enterText(
           find.widgetWithText(TextFormField, 'Commentaire (facultatif)').first,
           'Ponctuel et soigneux, colis en parfait état.',
@@ -116,7 +121,7 @@ void main() {
       await etapeVisuelle(tester, 'activite-05-notes-recues', () async {
         await revenirAuShell(tester, 'Profil');
         await ouvrirOnglet(tester, 'Profil');
-        await toucher(tester, find.text('Paramètres'), pas: 10);
+        // La déconnexion est en bas du menu du profil, comme dans le kit.
         await toucher(tester, find.text('Déconnexion'), pas: 12);
         await seConnecter(tester, 'livreur1');
         await attendre(tester, find.byTooltip('Mon activité'));

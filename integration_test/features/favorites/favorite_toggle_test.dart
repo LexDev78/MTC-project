@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
-import 'package:mtc_app/features/favorites/presentation/widgets/favorite_line_item.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 
 import '../../../test/support/supabase_test_harness.dart';
 
@@ -49,26 +49,38 @@ void main() {
     await resetAndSeed();
   });
 
-  testWidgets('toggling a favorite from the catalog updates the Favoris tab', (
+  testWidgets('mettre un article de côté le fait paraître dans Favoris', (
     tester,
   ) async {
     await _loginAsClient1(tester);
 
-    // Awa (client1) already has one pre-seeded favorite; add a second one
-    // by tapping the first visible favorite heart on the catalog grid.
-    final hearts = find.byIcon(Icons.favorite_border_rounded);
-    expect(hearts, findsWidgets);
-    await tester.tap(hearts.first);
+    // Awa (client1) a déjà un favori semé (le Tissu Bogolan traditionnel).
+    // Les cartes du kit n'ont pas de cœur : on met de côté depuis la fiche,
+    // avec le signet — sur un autre article, trouvé par la recherche.
+    await tester.tap(find.byTooltip('Rechercher'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Panier tressé');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.tap(find.byType(ShopProductCard).first);
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    await tester.tap(find.byTooltip('Ajouter aux favoris'));
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    expect(find.byTooltip('Retirer des favoris'), findsOneWidget);
+
+    // Retour à la coquille : la fiche, puis la recherche.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Fermer'));
     await tester.pumpAndSettle();
 
-    // Favoris is a direct bottom-nav tab now (icon-only bar, no labels).
     await tester.tap(find.byTooltip('Favoris'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(seconds: 1));
 
-    // The pre-seeded favorite plus the one just added — `FavoritesScreen`
-    // renders them as a `ListView.separated` of `FavoriteLineItem`s, not a
-    // grid.
-    expect(find.text('Aucun favori pour le moment'), findsNothing);
-    expect(find.byType(FavoriteLineItem), findsNWidgets(2));
+    // Le favori semé et celui qu'on vient d'ajouter, en grille de cartes.
+    expect(find.text('Aucun favori'), findsNothing);
+    expect(find.text('2 articles'), findsOneWidget);
+    expect(find.byType(ShopProductCard), findsNWidgets(2));
   });
 }

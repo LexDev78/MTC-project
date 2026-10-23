@@ -1,24 +1,24 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mtc_app/app/router/app_routes.dart';
-import 'package:mtc_app/app/theme/app_spacing.dart';
-import 'package:mtc_app/core/widgets/core_widgets.dart';
-import 'package:mtc_app/core/widgets/resolved_image.dart';
+import 'package:mtc_app/core/error/user_message.dart';
+import 'package:mtc_app/core/shop/shop.dart';
+import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_grid.dart';
-import 'package:mtc_app/features/chat/presentation/controllers/chat_controller.dart';
-import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
+import 'package:mtc_app/features/catalog/presentation/widgets/shop_product_grid.dart';
+import 'package:mtc_app/features/chat/presentation/open_shop_conversation.dart';
 import 'package:mtc_app/features/ratings/presentation/providers/review_providers.dart';
+import 'package:mtc_app/features/ratings/presentation/widgets/review_media.dart';
 
 import '../../domain/entities/supplier_profile.dart';
 import '../providers/supplier_providers.dart';
 
+/// La vitrine d'une boutique, vue par le client, avec les fragments du
+/// kit : son en-tête et ses états en pastilles, ce qu'il faut savoir pour
+/// commander (adresse, horaires, téléphones, zones livrées), « Écrire à la
+/// boutique », ses produits en grille et ses derniers avis.
 class SupplierProfileScreen extends ConsumerWidget {
   const SupplierProfileScreen({super.key, required this.supplierId});
 
@@ -26,310 +26,325 @@ class SupplierProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final supplierAsync = ref.watch(supplierDetailProvider(supplierId));
+    final boutique = ref.watch(supplierDetailProvider(supplierId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Fournisseur')),
-      body: AsyncValueWidget(
-        value: supplierAsync,
-        data: (supplier) => _SupplierProfileBody(supplier: supplier),
+      appBar: AppBar(
+        title: Text(boutique.valueOrNull?.businessName ?? 'Boutique'),
+      ),
+      body: boutique.when(
+        skipLoadingOnReload: true,
+        loading: () => ListView(
+          padding: const EdgeInsets.all(ShopSizes.screenMargin),
+          children: const [
+            Skeleton(height: 130),
+            SizedBox(height: ShopSizes.padding),
+            Skeleton(height: 64),
+            SizedBox(height: ShopSizes.padding),
+            Skeleton(height: 220),
+          ],
+        ),
+        error: (erreur, _) => IllustratedMessage(
+          illustration: ShopIllustration.serverError,
+          title: 'La boutique n\'a pas pu être chargée',
+          message: messagePourUtilisateur(erreur),
+          action: OutlinedButton(
+            onPressed: () => ref.invalidate(supplierDetailProvider(supplierId)),
+            child: const Text('Réessayer'),
+          ),
+        ),
+        data: (boutique) => _Vitrine(boutique: boutique),
       ),
     );
   }
 }
 
-class _SupplierProfileBody extends ConsumerWidget {
-  const _SupplierProfileBody({required this.supplier});
+class _Vitrine extends ConsumerWidget {
+  const _Vitrine({required this.boutique});
 
-  final SupplierProfile supplier;
+  final SupplierProfile boutique;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final productsAsync = ref.watch(supplierProductsProvider(supplier.id));
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final produits = ref.watch(supplierProductsProvider(boutique.id));
 
     return CustomScrollView(
       slivers: [
-        if (supplier.bannerUrl != null)
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 140,
-              width: double.infinity,
-              child: ResolvedImage(
-                path: supplier.bannerUrl!,
-                bucket: 'supplier-branding',
-                errorBuilder: (context, error, stackTrace) =>
-                    Container(color: scheme.surfaceContainerHigh),
-              ),
-            ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            ShopSizes.screenMargin,
+            ShopSizes.padding,
+            ShopSizes.screenMargin,
+            0,
           ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: scheme.primaryContainer,
-                      child: Icon(
-                        Icons.storefront_rounded,
-                        size: 28,
-                        color: scheme.onPrimaryContainer,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            supplier.businessName,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          Text(
-                            supplier.city,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+          sliver: SliverList.list(
+            children: [
+              if (boutique.bannerUrl case final banniere?) ...[
+                AspectRatio(
+                  aspectRatio: 2.4,
+                  child: ShopImage(
+                    banniere,
+                    bucket: 'supplier-branding',
+                    cacheWidth: 800,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    MtcRatingStars(
-                      rating: supplier.ratingAverage,
-                      ratingCount: supplier.ratingCount,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    if (supplier.verificationStatus ==
-                        VerificationStatus.verified)
-                      RoleBadge(
-                        label: 'Identité vérifiée',
-                        color: scheme.primary,
-                        icon: Icons.verified_rounded,
-                      ),
-                    if (supplier.supplierType == SupplierType.principal)
-                      RoleBadge(
-                        label: 'MTC officiel',
-                        color: scheme.tertiary,
-                        icon: Icons.stars_rounded,
-                      ),
-                    RoleBadge(
-                      label: supplier.isOpen ? 'Ouvert' : 'Fermé',
-                      color: supplier.isOpen ? scheme.primary : scheme.error,
-                      icon: supplier.isOpen
-                          ? Icons.check_circle_outline_rounded
-                          : Icons.schedule_rounded,
-                    ),
-                  ],
-                ),
-                if (supplier.description != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(supplier.description!),
-                ],
-                if (supplier.fullAddress != null ||
-                    supplier.openingHoursLabel != null ||
-                    supplier.publicPhoneNumbers.isNotEmpty ||
-                    supplier.deliveryZones.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  _StorefrontInfo(supplier: supplier),
-                ],
-                const SizedBox(height: AppSpacing.md),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final conversationId = await ref
-                        .read(chatControllerProvider.notifier)
-                        .startConversationWithSupplier(
-                          supplierId: supplier.id,
-                          supplierName: supplier.businessName,
-                        );
-                    if (context.mounted && conversationId != null) {
-                      unawaited(
-                        context.push(AppRoutes.chatThread(conversationId)),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  label: const Text('Contacter le fournisseur'),
-                ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: ShopSizes.padding * 1.5),
+              ],
+              _EnTete(boutique: boutique),
+              if (boutique.description case final description?
+                  when description.trim().isNotEmpty) ...[
+                const SizedBox(height: ShopSizes.padding),
                 Text(
-                  'Produits (${supplier.productCount})',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  description,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                    height: 1.5,
+                  ),
                 ),
               ],
-            ),
+              const SizedBox(height: ShopSizes.padding / 2),
+              if (boutique.fullAddress case final adresse?)
+                _Ligne(icon: ShopIcons.location, text: adresse),
+              if (boutique.openingHoursLabel case final horaires?)
+                _Ligne(icon: ShopIcons.clock, text: horaires),
+              if (boutique.publicPhoneNumbers.isNotEmpty)
+                _Ligne(
+                  icon: ShopIcons.call,
+                  text: boutique.publicPhoneNumbers.join(' · '),
+                ),
+              if (boutique.deliveryZones.isNotEmpty)
+                _Ligne(
+                  icon: ShopIcons.delivery,
+                  text: 'Livre à ${boutique.deliveryZones.join(', ')}',
+                ),
+              const SizedBox(height: ShopSizes.padding),
+              OutlinedButton.icon(
+                onPressed: () => openShopConversation(
+                  context,
+                  ref,
+                  supplierId: boutique.id,
+                  supplierName: boutique.businessName,
+                ),
+                icon: const ShopIcon(ShopIcons.chat, size: 20),
+                label: const Text('Écrire à la boutique'),
+              ),
+              const SizedBox(height: ShopSizes.padding * 1.5),
+              Text(
+                boutique.listedProductCount == 1
+                    ? '1 produit'
+                    : '${boutique.listedProductCount} produits',
+                style: theme.textTheme.titleSmall,
+              ),
+              const SizedBox(height: ShopSizes.padding / 2),
+            ],
           ),
         ),
-        SliverToBoxAdapter(
-          child: AsyncValueWidget(
-            value: productsAsync,
-            data: (products) => ProductGrid(
-              products: products,
-              shrinkWrap: true,
-              cardOverlayBuilder: (product) => FavoriteToggleButton(
-                productId: product.id,
-                size: 20,
-                inactiveColor: Colors.white,
+        ...produits.when(
+          skipLoadingOnReload: true,
+          loading: () => const [
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: ShopSizes.screenMargin),
+              sliver: SliverToBoxAdapter(child: Skeleton(height: 220)),
+            ),
+          ],
+          error: (erreur, _) => [
+            SliverToBoxAdapter(
+              child: IllustratedMessage(
+                compact: true,
+                illustration: ShopIllustration.serverError,
+                title: 'Les produits n\'ont pas pu être chargés',
+                message: messagePourUtilisateur(erreur),
               ),
             ),
-          ),
+          ],
+          data: (liste) => liste.isEmpty
+              ? const [
+                  SliverToBoxAdapter(
+                    child: IllustratedMessage(
+                      compact: true,
+                      illustration: ShopIllustration.emptyState,
+                      title: 'Aucun produit en vente',
+                      message:
+                          'Cette boutique n\'a rien en vente pour le moment.',
+                    ),
+                  ),
+                ]
+              : [
+                  SliverShopProductGrid(
+                    products: liste,
+                    padding: ShopSizes.screenMargin,
+                    top: 0,
+                  ),
+                ],
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.lg,
-              AppSpacing.lg,
-              AppSpacing.xl,
-            ),
-            child: _SupplierReviews(supplierId: supplier.id),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            ShopSizes.screenMargin,
+            ShopSizes.padding * 2,
+            ShopSizes.screenMargin,
+            ShopSizes.screenMargin,
           ),
+          sliver: SliverToBoxAdapter(child: _Avis(boutique: boutique)),
         ),
       ],
     );
   }
 }
 
-/// Address/hours/phones/delivery-zones block — only rendered when at least
-/// one of those is set (see the caller's guard), so an unfinished
-/// storefront profile doesn't show a wall of empty rows.
-class _StorefrontInfo extends StatelessWidget {
-  const _StorefrontInfo({required this.supplier});
+/// La boutique en tête : sa pastille, son nom, sa ville, sa note, et ses
+/// états en pastilles colorées.
+class _EnTete extends StatelessWidget {
+  const _EnTete({required this.boutique});
 
-  final SupplierProfile supplier;
+  final SupplierProfile boutique;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
-
-    Widget row(IconData icon, String text) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(child: Text(text, style: textStyle)),
-          ],
-        ),
-      );
-    }
-
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (supplier.fullAddress != null)
-          row(Icons.location_on_outlined, supplier.fullAddress!),
-        if (supplier.openingHoursLabel != null)
-          row(Icons.schedule_rounded, supplier.openingHoursLabel!),
-        if (supplier.publicPhoneNumbers.isNotEmpty)
-          row(Icons.phone_outlined, supplier.publicPhoneNumbers.join(', ')),
-        if (supplier.deliveryZones.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              for (final zone in supplier.deliveryZones)
-                RoleBadge(
-                  label: zone,
-                  color: scheme.secondary,
-                  icon: Icons.local_shipping_outlined,
-                ),
-            ],
-          ),
-        ],
+        Row(
+          children: [
+            const StoreAvatar(),
+            const SizedBox(width: ShopSizes.padding),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    boutique.businessName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(boutique.city, style: theme.textTheme.bodyMedium),
+                  const SizedBox(height: ShopSizes.padding / 4),
+                  StoreRating(
+                    rating: boutique.ratingAverage,
+                    count: boutique.ratingCount,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: ShopSizes.padding * 0.75),
+        StoreBadges(
+          isOpen: boutique.isOpen,
+          verified: boutique.verificationStatus == VerificationStatus.verified,
+          official: boutique.supplierType == SupplierType.principal,
+        ),
       ],
     );
   }
 }
 
-class _SupplierReviews extends ConsumerWidget {
-  const _SupplierReviews({required this.supplierId});
+/// Une information pratique : l'icône du kit, puis le texte.
+class _Ligne extends StatelessWidget {
+  const _Ligne({required this.icon, required this.text});
 
-  final String supplierId;
+  final String icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: ShopSizes.padding / 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ShopIcon(
+            icon,
+            size: 18,
+            color: theme.iconTheme.color?.withValues(alpha: 0.5),
+          ),
+          const SizedBox(width: ShopSizes.padding / 2),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Les cinq derniers avis, en cartes du kit, avec la réponse de la
+/// boutique.
+class _Avis extends ConsumerWidget {
+  const _Avis({required this.boutique});
+
+  final SupplierProfile boutique;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reviewsAsync = ref.watch(supplierReviewsProvider(supplierId));
-    final scheme = Theme.of(context).colorScheme;
-
+    final theme = Theme.of(context);
+    final avis = ref.watch(supplierReviewsProvider(boutique.id));
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Avis clients', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
-        AsyncValueWidget(
-          value: reviewsAsync,
-          data: (reviews) {
-            if (reviews.isEmpty) {
+        Text('Avis clients', style: theme.textTheme.titleSmall),
+        const SizedBox(height: ShopSizes.padding),
+        avis.when(
+          skipLoadingOnReload: true,
+          loading: () => const Skeleton(height: 120),
+          error: (erreur, _) => Text(
+            messagePourUtilisateur(
+              erreur,
+              repli: 'Les avis n\'ont pas pu être chargés.',
+            ),
+            style: theme.textTheme.bodyMedium,
+          ),
+          data: (liste) {
+            if (liste.isEmpty) {
               return Text(
-                'Aucun avis pour le moment.',
-                style: TextStyle(color: scheme.onSurfaceVariant),
+                'Aucun avis pour le moment : les clients notent la boutique '
+                'une fois leur commande reçue.',
+                style: theme.textTheme.bodyMedium,
               );
             }
             return Column(
               children: [
-                for (final review in reviews.take(5))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            MtcRatingStars(
-                              rating: review.stars.toDouble(),
-                              showValue: false,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(review.comment),
-                            if (review.supplierReply != null) ...[
-                              const SizedBox(height: AppSpacing.sm),
-                              Container(
-                                padding: const EdgeInsets.all(AppSpacing.sm),
-                                decoration: BoxDecoration(
-                                  color: scheme.surfaceContainerLow,
-                                  borderRadius: BorderRadius.circular(
-                                    AppSpacing.radiusSm,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Réponse du fournisseur',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color: scheme.primary,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(review.supplierReply!),
-                                  ],
-                                ),
+                for (final un in liste.take(5)) ...[
+                  ReviewTile(
+                    // Un avis ne se laisse qu'après une commande livrée ;
+                    // le nom de son auteur n'est pas rendu ici. « Client »,
+                    // comme les notes anonymes des livreurs.
+                    author: 'Client',
+                    timeAgo: DateFormatter.relative(un.createdAt),
+                    rating: un.stars.toDouble(),
+                    title: un.title,
+                    comment: un.comment,
+                    footer:
+                        un.imagePaths.isEmpty &&
+                            un.videoPath == null &&
+                            un.supplierReply == null
+                        ? null
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              MediaStrip(
+                                imagePaths: un.imagePaths,
+                                videoPath: un.videoPath,
+                                thumbnailSize: 64,
                               ),
+                              if (un.supplierReply case final reponse?) ...[
+                                const SizedBox(height: ShopSizes.padding / 2),
+                                SellerReply(text: reponse),
+                              ],
                             ],
-                          ],
-                        ),
-                      ),
-                    ),
+                          ),
                   ),
+                  const SizedBox(height: ShopSizes.padding),
+                ],
               ],
             );
           },

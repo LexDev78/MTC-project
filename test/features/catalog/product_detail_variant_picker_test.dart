@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
-import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
@@ -202,7 +202,7 @@ Future<void> settle(WidgetTester tester) async {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
     await tester.pump();
   }
-  // `_ProductDetailContentState.initState` defers its default-variant
+  // `_FicheState.initState` defers its default-variant
   // selection via a bare `Future(() {...})` (a zero-duration `Timer.run`,
   // per Riverpod's own recommendation for "can't write a provider
   // synchronously from initState") — a duration-less `pump()` alone doesn't
@@ -212,6 +212,17 @@ Future<void> settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 50));
 }
 
+/// Opens the purchase sheet — the kit's product page keeps the variant
+/// picker there, behind the bottom "Acheter" button, not on the page.
+Future<void> openPurchaseSheet(WidgetTester tester) async {
+  await tester.tap(find.text('Acheter'));
+  await settle(tester);
+}
+
+/// The purchase sheet's own bottom button (the page's is underneath it).
+CartButton sheetButton(WidgetTester tester) =>
+    tester.widget<CartButton>(find.byType(CartButton).last);
+
 // IDs for [_createBundledSizeOnlyProduct]'s fixture — a single characteristic
 // ("taille") bundled two different ways across two *disjoint* variants
 // (Groupe1: S/M, Groupe2: L/XL, sharing no size), so switching between them
@@ -220,7 +231,7 @@ Future<void> settle(WidgetTester tester) async {
 // left for that check to compare against, so it's vacuously satisfied and
 // every size stays reachable. That isolates the second regression below from
 // the first: any variant offering the tapped size is always a legal switch,
-// so if the destination remains ambiguous, it's `_derivePicks`' carry-over —
+// so if the destination remains ambiguous, it's `derivePicks`' carry-over —
 // not `reachable()` — that has to resolve it.
 const _tailleOnlyCharId = 'test-char-taille-only';
 const _sId = 'test-opt-s';
@@ -392,6 +403,7 @@ void main() {
         ),
       );
       await settle(tester);
+      await openPurchaseSheet(tester);
 
       // Starts on the default "Noir" variant (stock 30).
       expect(find.text('30 en stock'), findsOneWidget);
@@ -427,15 +439,13 @@ void main() {
         ),
       );
       await settle(tester);
+      await openPurchaseSheet(tester);
 
       // "Noir" bundles three sizes with nothing picked yet — the client is
       // prompted, and both purchase buttons are disabled.
       expect(find.text('Choisissez une valeur.'), findsOneWidget);
-      expect(find.text('Choisissez une taille'), findsOneWidget);
-      final addToCartButtonBefore = tester.widget<MtcPrimaryButton>(
-        find.byType(MtcPrimaryButton),
-      );
-      expect(addToCartButtonBefore.onPressed, isNull);
+      expect(find.text('Choisir : taille'), findsOneWidget);
+      expect(sheetButton(tester).onPressed, isNull);
 
       // Tapping "46" resolves the choice: only that chip highlights (not
       // 42 or 48 too), and the buttons unlock.
@@ -443,12 +453,9 @@ void main() {
       await settle(tester);
 
       expect(find.text('Choisissez une valeur.'), findsNothing);
-      expect(find.text('Choisissez une taille'), findsNothing);
+      expect(find.text('Choisir : taille'), findsNothing);
       expect(find.text('Ajouter au panier'), findsOneWidget);
-      final addToCartButtonAfter = tester.widget<MtcPrimaryButton>(
-        find.byType(MtcPrimaryButton),
-      );
-      expect(addToCartButtonAfter.onPressed, isNotNull);
+      expect(sheetButton(tester).onPressed, isNotNull);
 
       await tester.tap(find.text('Ajouter au panier'));
       await settle(tester);
@@ -468,9 +475,9 @@ void main() {
   );
 
   // Regression test for a second, related bug: switching variants via a tap
-  // used to only ever set `_selectedVariantIdProvider`, never record the
+  // used to only ever set `productVariantIdProvider`, never record the
   // tapped option itself — so when the *destination* variant was itself
-  // bundled on that same characteristic, pure carry-over (`_derivePicks`)
+  // bundled on that same characteristic, pure carry-over (`derivePicks`)
   // had nothing to carry over, and the tap looked like it did nothing
   // ("Choisissez une valeur." stayed up) until an identical second tap
   // resolved it. Uses [_createBundledSizeOnlyProduct] rather than the
@@ -496,6 +503,7 @@ void main() {
         ),
       );
       await settle(tester);
+      await openPurchaseSheet(tester);
 
       // Starts on the default "Groupe1" (S/M), nothing picked yet.
       expect(find.text('20 en stock'), findsOneWidget);
@@ -509,10 +517,7 @@ void main() {
 
       expect(find.text('15 en stock'), findsOneWidget); // now on "Groupe2"
       expect(find.text('Choisissez une valeur.'), findsNothing);
-      final addToCartButton = tester.widget<MtcPrimaryButton>(
-        find.byType(MtcPrimaryButton),
-      );
-      expect(addToCartButton.onPressed, isNotNull);
+      expect(sheetButton(tester).onPressed, isNotNull);
 
       container.dispose();
       await tester.runAsync(client.dispose);

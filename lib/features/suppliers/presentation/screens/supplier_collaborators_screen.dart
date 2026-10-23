@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/error/user_message.dart';
+import 'package:mtc_app/core/utils/date_formatter.dart';
 
 import '../../domain/entities/supplier_collaborator.dart';
 import '../providers/supplier_providers.dart';
@@ -41,8 +43,10 @@ class SupplierCollaboratorsScreen extends ConsumerWidget {
                 'demander un retrait d\'argent, le dossier de vérification, '
                 'la suppression du compte, et cette page.\n\n'
                 'Retirer un collaborateur lui coupe l\'accès immédiatement. '
-                'Son compte continue d\'exister : les commandes qu\'il a '
-                'traitées gardent son nom.',
+                'Il reste visible ici, dans « Accès retirés » : vous pouvez '
+                'rétablir son accès d\'un geste, avec les mêmes droits, sans '
+                'recréer de compte. Les commandes qu\'il a traitées gardent '
+                'son nom.',
           ),
         ],
       ),
@@ -57,19 +61,7 @@ class SupplierCollaboratorsScreen extends ConsumerWidget {
                       'Ajoutez un collaborateur pour qu\'il vous aide à tenir '
                       'la boutique, sans lui donner votre mot de passe.',
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    96,
-                  ),
-                  itemCount: liste.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, index) =>
-                      _CollaboratorCard(collaborateur: liste[index]),
-                ),
+              : _ListeEquipe(liste: liste),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -98,15 +90,23 @@ class _CollaboratorCard extends ConsumerWidget {
         .where((p) => collaborateur.permissions.contains(p.code))
         .toList();
 
-    return Card(
+    final carte = Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              collaborateur.displayName,
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    collaborateur.displayName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                if (!collaborateur.isActive)
+                  _PastilleRetrait(depuis: collaborateur.deactivatedAt!),
+              ],
             ),
             Text(
               'Se connecte avec « ${collaborateur.usernameOrPhone} »',
@@ -171,18 +171,31 @@ class _CollaboratorCard extends ConsumerWidget {
                   icon: const Icon(Icons.tune_rounded, size: 18),
                   label: const Text('Accès'),
                 ),
-                TextButton.icon(
-                  onPressed: () => _confirmerRetrait(context, ref),
-                  style: TextButton.styleFrom(foregroundColor: scheme.error),
-                  icon: const Icon(Icons.person_remove_outlined, size: 18),
-                  label: const Text('Retirer'),
-                ),
+                if (collaborateur.isActive)
+                  TextButton.icon(
+                    onPressed: () => _confirmerRetrait(context, ref),
+                    style: TextButton.styleFrom(foregroundColor: scheme.error),
+                    icon: const Icon(Icons.person_remove_outlined, size: 18),
+                    label: const Text('Retirer'),
+                  )
+                else
+                  FilledButton.tonalIcon(
+                    onPressed: () => _retablir(context, ref),
+                    icon: const Icon(Icons.person_add_alt_rounded, size: 18),
+                    label: const Text('Rétablir l\'accès'),
+                  ),
               ],
             ),
           ],
         ),
       ),
     );
+
+    // Un accès retiré se lit d'un coup d'œil : la carte est atténuée, et
+    // une pastille dit depuis quand. Elle reste lisible — on la consulte
+    // justement pour décider de la rétablir.
+    if (collaborateur.isActive) return carte;
+    return Opacity(opacity: 0.72, child: carte);
   }
 
   Future<void> _confirmerRetrait(BuildContext context, WidgetRef ref) async {
@@ -191,9 +204,9 @@ class _CollaboratorCard extends ConsumerWidget {
       builder: (dialogContext) => AlertDialog(
         title: Text('Retirer ${collaborateur.displayName} ?'),
         content: const Text(
-          'Son accès à la boutique est coupé immédiatement. Son compte '
-          'continue d\'exister, et les commandes qu\'il a traitées gardent '
-          'son nom.',
+          'Son accès à la boutique est coupé immédiatement. Il reste dans '
+          'votre liste : vous pourrez le rétablir plus tard, avec les mêmes '
+          'droits.',
         ),
         actions: [
           TextButton(
@@ -208,13 +221,143 @@ class _CollaboratorCard extends ConsumerWidget {
       ),
     );
     if (confirme != true) return;
-    await ref
+    final ok = await ref
         .read(supplierCollaboratorControllerProvider.notifier)
         .remove(collaborateur.userId);
+    if (!context.mounted) return;
+    // Le résultat est dit, réussi ou non. Avant, un retrait refusé ne
+    // produisait rien : le patron croyait avoir coupé un accès qui restait
+    // ouvert.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Accès de ${collaborateur.displayName} retiré. Vous pourrez '
+                    'le rétablir à tout moment.'
+              : messagePourUtilisateur(
+                  ref.read(supplierCollaboratorControllerProvider).error,
+                  repli: 'L\'accès n\'a pas pu être retiré. Réessayez.',
+                ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _retablir(BuildContext context, WidgetRef ref) async {
+    final ok = await ref
+        .read(supplierCollaboratorControllerProvider.notifier)
+        .reactivate(collaborateur.userId);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? '${collaborateur.displayName} a de nouveau accès à la '
+                    'boutique.'
+              : messagePourUtilisateur(
+                  ref.read(supplierCollaboratorControllerProvider).error,
+                  repli: 'L\'accès n\'a pas pu être rétabli. Réessayez.',
+                ),
+        ),
+      ),
+    );
   }
 }
 
 /// Les cases à cocher, partagées par la création et la modification.
+
+/// L'équipe : les collaborateurs actifs, puis ceux dont l'accès est retiré.
+class _ListeEquipe extends StatelessWidget {
+  const _ListeEquipe({required this.liste});
+
+  final List<SupplierCollaborator> liste;
+
+  @override
+  Widget build(BuildContext context) {
+    final actifs = [for (final c in liste) if (c.isActive) c];
+    final retires = [for (final c in liste) if (!c.isActive) c];
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        96,
+      ),
+      children: [
+        if (actifs.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Text(
+              'Aucun collaborateur actif.',
+              style: textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        for (final c in actifs) ...[
+          _CollaboratorCard(collaborateur: c),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        if (retires.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Accès retirés',
+            style: textTheme.titleSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Ces comptes ne peuvent plus rien faire dans votre boutique. '
+            'Rétablissez un accès pour le rendre, avec les mêmes droits.',
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final c in retires) ...[
+            _CollaboratorCard(collaborateur: c),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+/// « Retiré le 12/10/2026 », en pastille.
+class _PastilleRetrait extends StatelessWidget {
+  const _PastilleRetrait({required this.depuis});
+
+  final DateTime depuis;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+      ),
+      child: Text(
+        'Retiré le ${DateFormatter.formatDate(depuis)}',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: scheme.onErrorContainer,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _PermissionsPicker extends StatelessWidget {
   const _PermissionsPicker({required this.choisies, required this.onChanged});
 

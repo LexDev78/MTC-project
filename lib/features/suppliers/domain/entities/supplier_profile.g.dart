@@ -16,6 +16,7 @@ _$SupplierProfileImpl _$$SupplierProfileImplFromJson(
   ratingAverage: (json['rating_average'] as num).toDouble(),
   ratingCount: (json['rating_count'] as num).toInt(),
   productCount: (json['product_count'] as num).toInt(),
+  listedProductCount: (json['listed_product_count'] as num?)?.toInt() ?? 0,
   verificationStatus: $enumDecodeNullable(
     _$VerificationStatusEnumMap,
     json['verification_status'],
@@ -56,6 +57,7 @@ Map<String, dynamic> _$$SupplierProfileImplToJson(
   'rating_average': instance.ratingAverage,
   'rating_count': instance.ratingCount,
   'product_count': instance.productCount,
+  'listed_product_count': instance.listedProductCount,
   'verification_status':
       _$VerificationStatusEnumMap[instance.verificationStatus],
   'legal_type': _$SupplierLegalTypeEnumMap[instance.legalType],

@@ -69,16 +69,20 @@ void main() {
         await attendre(tester, find.text('Mes commandes'));
       });
 
-      // Les cartes de la liste portent le nom du fournisseur, pas le mot
-      // « Commande » : c'est « Electro Bamako », en livraison, qu'on ouvre.
+      // L'historique range les commandes par étape (maquette « Orders » du
+      // kit) : celle d'« Electro Bamako » est sous « En livraison ». Les
+      // cartes écrivent la boutique en capitales, comme le kit.
       await etapeVisuelle(tester, 'suivi-02-commandes', () async {
         await tester.tap(find.text('Mes commandes'));
         await avancer(tester, pas: 10);
-        await attendre(tester, find.text('Electro Bamako'));
+        await attendre(tester, find.text('En livraison'));
+        await tester.tap(find.text('En livraison'));
+        await avancer(tester, pas: 10);
+        await attendre(tester, find.text('ELECTRO BAMAKO'));
       });
 
       await etapeVisuelle(tester, 'suivi-03-commande', () async {
-        await tester.tap(find.text('Electro Bamako').first);
+        await tester.tap(find.text('ELECTRO BAMAKO').first);
         await avancer(tester, pas: 10);
         await attendre(tester, find.text('Suivre la livraison'));
         expect(find.text('Suivre la livraison'), findsWidgets);

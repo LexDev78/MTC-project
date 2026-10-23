@@ -1,5 +1,6 @@
 import '../../../catalog/domain/entities/product_category.dart';
 import '../../../catalog/domain/repositories/product_repository.dart';
+import '../../domain/entities/recent_search.dart';
 import '../../domain/entities/suggestion_reason.dart';
 import '../../domain/repositories/recommendation_repository.dart';
 import '../datasources/supabase_recommendation_datasource.dart';
@@ -54,4 +55,20 @@ class SupabaseRecommendationRepository implements RecommendationRepository {
   @override
   Future<void> logCartAdd(String productId) =>
       _datasource.logEvent(kind: 'cart_add', productId: productId);
+
+  @override
+  Future<List<RecentSearch>> fetchRecentSearches({int limit = 30}) async {
+    final rows = await _datasource.fetchRecentSearches(limit: limit);
+    return [
+      for (final row in rows)
+        (
+          query: row['query'] as String,
+          searchedAt: DateTime.parse(row['searched_at'] as String).toLocal(),
+        ),
+    ];
+  }
+
+  @override
+  Future<int> forgetSearches({String? query}) =>
+      _datasource.forgetSearches(query: query);
 }

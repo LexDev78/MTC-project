@@ -6,6 +6,7 @@ import 'package:mtc_app/features/catalog/presentation/providers/catalog_provider
 
 import '../../data/datasources/supabase_recommendation_datasource.dart';
 import '../../data/repositories/supabase_recommendation_repository.dart';
+import '../../domain/entities/recent_search.dart';
 import '../../domain/entities/suggestion_reason.dart';
 import '../../domain/repositories/recommendation_repository.dart';
 
@@ -37,4 +38,15 @@ final recommendedFeedProvider = FutureProvider<List<ProductSuggestion>>((ref) as
   final user = await ref.watch(currentUserProvider.future);
   if (user == null) return const [];
   return ref.watch(recommendationRepositoryProvider).fetchSuggestions();
+});
+
+/// Les recherches récentes du compte, pour l'écran de recherche et son
+/// historique. Relu à chaque ouverture (`autoDispose`), et invalidé après
+/// une recherche validée ou un effacement.
+final recentSearchesProvider = FutureProvider.autoDispose<List<RecentSearch>>((
+  ref,
+) async {
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return const [];
+  return ref.watch(recommendationRepositoryProvider).fetchRecentSearches();
 });

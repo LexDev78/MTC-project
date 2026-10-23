@@ -4,6 +4,11 @@ abstract final class AppRoutes {
   static const String splash = '/splash';
   static const String welcome = '/welcome';
   static const String login = '/login';
+
+  /// Mot de passe oublié (`0127`) : l'identifiant, puis le code reçu par
+  /// e-mail et le nouveau mot de passe. Ouvert sans être connecté.
+  static const String forgotPassword = '/mot-de-passe-oublie';
+  static const String forgotPasswordCode = '/mot-de-passe-oublie/code';
   static const String loading = '/loading';
   static const String signUp = '/sign-up';
   static const String signUpRole = '/sign-up/role';
@@ -14,30 +19,69 @@ abstract final class AppRoutes {
   /// unique que son patron lui a dicté (`0098`).
   static const String changePassword = '/change-password';
 
+  /// Le compte lui-même — mot de passe, adresse e-mail —, hors des aires de
+  /// rôle : client, fournisseur, collaborateur et livreur y ont tous accès,
+  /// chacun pour le sien. Le garde de routes ne redirige pas ces chemins,
+  /// puisqu'ils n'appartiennent à aucun rôle en particulier.
+  static const String accountPassword = '/compte/mot-de-passe';
+  static const String accountEmail = '/compte/e-mail';
+
+  /// Le code qui valide une nouvelle adresse e-mail (`0124`) ; `extra` porte
+  /// la demande partie (`ContactEmailCodeRequest`).
+  static const String accountEmailCode = '/compte/e-mail/code';
+
   // Client shell
   static const String clientHome = '/client/home';
   static const String clientCatalogue = '/client/catalogue';
   static const String clientCatalogueCategory = '/client/catalogue/:category';
   static const String clientProductDetail = '/client/product/:productId';
+  static const String clientProductReviews =
+      '/client/product/:productId/reviews';
   static const String clientSearch = '/client/search';
 
   /// Recherche par photo. Une route à part et non un mode de l'écran de
   /// recherche : elle a son propre quota, ses propres refus à expliquer, et
   /// un état qui ne se mélange pas à une recherche texte.
   static const String clientVisualSearch = '/client/search/photo';
+  static const String clientSearchHistory = '/client/search/history';
   static const String clientFavorites = '/client/favorites';
+
+  /// Les produits en promotion (« On sale » du kit FlutterShop).
+  static const String clientOnSale = '/client/promotions';
   static const String clientCart = '/client/cart';
   static const String clientCheckout = '/client/checkout';
+  static const String clientCheckoutPayment = '/client/checkout/payment';
   static const String clientOrders = '/client/orders';
   static const String clientOrderDetail = '/client/orders/:orderId';
+  static const String clientOrderSuccess = '/client/orders/:orderId/merci';
   static const String clientOrderTrack = '/client/orders/:orderId/track';
   static const String clientOrderReview = '/client/orders/:orderId/review';
+
+  /// Une rubrique de l'historique (« En attente », « Livrées »…), par le nom
+  /// de son `OrderHistoryCategory`.
+  static const String clientOrdersByCategory =
+      '/client/orders/status/:category';
+  static const String clientOrderCancel =
+      '/client/orders/:orderId/cancel/:groupId';
   static const String clientChat = '/client/chat';
   static const String clientChatThread = '/client/chat/:conversationId';
   static const String clientSupplierProfile = '/client/supplier/:supplierId';
+
+  /// « Boutiques du Mali » : les boutiques que le client peut visiter.
+  static const String clientShops = '/client/shops';
   static const String clientProfile = '/client/profile';
   static const String clientProfileEdit = '/client/profile/edit';
+
+  /// Les informations du compte (maquette « Profile » du kit).
+  static const String clientProfileInfo = '/client/profile/info';
+
+  /// Modifier le nom et l'e-mail (maquette « Edit profile » du kit).
+  static const String clientProfileInfoEdit = '/client/profile/info/edit';
   static const String clientNotifications = '/client/notifications';
+
+  /// Les réglages de notification (maquette « Notifications » du kit).
+  static const String clientNotificationSettings =
+      '/client/notifications/settings';
   static const String clientSettings = '/client/settings';
 
   // Supplier tiers shell — 6 branches, mirrored 1:1 by the "principal" group
@@ -49,7 +93,8 @@ abstract final class AppRoutes {
   static const String supplierTiersFinances = '/supplier-tiers/finances';
   static const String supplierTiersAccount = '/supplier-tiers/account';
   static const String supplierOnboarding = '/supplier-tiers/onboarding';
-  static const String supplierTiersProductForm = '/supplier-tiers/products/form';
+  static const String supplierTiersProductForm =
+      '/supplier-tiers/products/form';
   static const String supplierTiersCommentInbox =
       '/supplier-tiers/products/comments';
   static const String supplierTiersReviewManagement =
@@ -95,8 +140,7 @@ abstract final class AppRoutes {
       '/supplier-principal/messages';
   static const String supplierPrincipalFinances =
       '/supplier-principal/finances';
-  static const String supplierPrincipalAccount =
-      '/supplier-principal/account';
+  static const String supplierPrincipalAccount = '/supplier-principal/account';
   static const String supplierPrincipalProductForm =
       '/supplier-principal/products/form';
   static const String supplierPrincipalCommentInbox =
@@ -140,9 +184,21 @@ abstract final class AppRoutes {
   static String catalogueCategory(String categoryName) =>
       '/client/catalogue/$categoryName';
   static String productDetail(String productId) => '/client/product/$productId';
+  static String productReviews(String productId) =>
+      '/client/product/$productId/reviews';
   static String orderDetail(String orderId) => '/client/orders/$orderId';
+  static String orderSuccess(String orderId) => '/client/orders/$orderId/merci';
   static String orderTrack(String orderId) => '/client/orders/$orderId/track';
-  static String orderReview(String orderId) => '/client/orders/$orderId/review';
+
+  /// [groupId] : la part de la commande à noter — une commande livrée par
+  /// deux boutiques reçoit un avis par boutique.
+  static String orderReview(String orderId, {String? groupId}) =>
+      '/client/orders/$orderId/review'
+      '${groupId == null ? '' : '?group=${Uri.encodeQueryComponent(groupId)}'}';
+  static String ordersByCategory(String category) =>
+      '/client/orders/status/$category';
+  static String orderCancel(String orderId, String groupId) =>
+      '/client/orders/$orderId/cancel/$groupId';
   static String chatThread(String conversationId) =>
       '/client/chat/$conversationId';
   static String supplierProfile(String supplierId) =>

@@ -9,6 +9,7 @@ import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/courier_delivery.dart';
 import '../controllers/courier_controller.dart';
@@ -50,6 +51,11 @@ class _CourierHomeScreenState extends ConsumerState<CourierHomeScreen> {
             icon: const Icon(Icons.bar_chart_rounded),
             tooltip: 'Mon activité',
             onPressed: () => context.push(AppRoutes.courierHistory),
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline_rounded),
+            tooltip: 'Mon compte',
+            onPressed: () => context.push(AppRoutes.courierProfile),
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
@@ -347,7 +353,10 @@ class _OfferActions extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error?.toString() ?? 'Cette course n\'est plus disponible.',
+            messagePourUtilisateur(
+              error,
+              repli: 'Cette course n\'est plus disponible.',
+            ),
           ),
         ),
       );

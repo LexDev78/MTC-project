@@ -44,6 +44,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Mali Trade Connect'), findsOneWidget);
+    expect(find.text('Bon retour !'), findsOneWidget);
   });
 }

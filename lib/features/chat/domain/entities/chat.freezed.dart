@@ -35,6 +35,10 @@ mixin _$ChatConversation {
   int get unreadCountClient => throw _privateConstructorUsedError;
   int get unreadCountSupplier => throw _privateConstructorUsedError;
 
+  /// Posée quand le client ferme la conversation (`0122`) : la boutique ne
+  /// peut plus lui écrire. Il la rouvre en écrivant, ou d'un geste.
+  DateTime? get closedAt => throw _privateConstructorUsedError;
+
   /// Serializes this ChatConversation to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -62,6 +66,7 @@ abstract class $ChatConversationCopyWith<$Res> {
     DateTime lastMessageAt,
     int unreadCountClient,
     int unreadCountSupplier,
+    DateTime? closedAt,
   });
 }
 
@@ -89,6 +94,7 @@ class _$ChatConversationCopyWithImpl<$Res, $Val extends ChatConversation>
     Object? lastMessageAt = null,
     Object? unreadCountClient = null,
     Object? unreadCountSupplier = null,
+    Object? closedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -128,6 +134,10 @@ class _$ChatConversationCopyWithImpl<$Res, $Val extends ChatConversation>
                 ? _value.unreadCountSupplier
                 : unreadCountSupplier // ignore: cast_nullable_to_non_nullable
                       as int,
+            closedAt: freezed == closedAt
+                ? _value.closedAt
+                : closedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -153,6 +163,7 @@ abstract class _$$ChatConversationImplCopyWith<$Res>
     DateTime lastMessageAt,
     int unreadCountClient,
     int unreadCountSupplier,
+    DateTime? closedAt,
   });
 }
 
@@ -179,6 +190,7 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
     Object? lastMessageAt = null,
     Object? unreadCountClient = null,
     Object? unreadCountSupplier = null,
+    Object? closedAt = freezed,
   }) {
     return _then(
       _$ChatConversationImpl(
@@ -218,6 +230,10 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
             ? _value.unreadCountSupplier
             : unreadCountSupplier // ignore: cast_nullable_to_non_nullable
                   as int,
+        closedAt: freezed == closedAt
+            ? _value.closedAt
+            : closedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
@@ -225,7 +241,7 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$ChatConversationImpl implements _ChatConversation {
+class _$ChatConversationImpl extends _ChatConversation {
   const _$ChatConversationImpl({
     required this.id,
     required this.clientId,
@@ -236,7 +252,8 @@ class _$ChatConversationImpl implements _ChatConversation {
     required this.lastMessageAt,
     required this.unreadCountClient,
     required this.unreadCountSupplier,
-  });
+    this.closedAt,
+  }) : super._();
 
   factory _$ChatConversationImpl.fromJson(Map<String, dynamic> json) =>
       _$$ChatConversationImplFromJson(json);
@@ -264,9 +281,14 @@ class _$ChatConversationImpl implements _ChatConversation {
   @override
   final int unreadCountSupplier;
 
+  /// Posée quand le client ferme la conversation (`0122`) : la boutique ne
+  /// peut plus lui écrire. Il la rouvre en écrivant, ou d'un geste.
+  @override
+  final DateTime? closedAt;
+
   @override
   String toString() {
-    return 'ChatConversation(id: $id, clientId: $clientId, clientDisplayNameSnapshot: $clientDisplayNameSnapshot, supplierId: $supplierId, supplierName: $supplierName, lastMessagePreview: $lastMessagePreview, lastMessageAt: $lastMessageAt, unreadCountClient: $unreadCountClient, unreadCountSupplier: $unreadCountSupplier)';
+    return 'ChatConversation(id: $id, clientId: $clientId, clientDisplayNameSnapshot: $clientDisplayNameSnapshot, supplierId: $supplierId, supplierName: $supplierName, lastMessagePreview: $lastMessagePreview, lastMessageAt: $lastMessageAt, unreadCountClient: $unreadCountClient, unreadCountSupplier: $unreadCountSupplier, closedAt: $closedAt)';
   }
 
   @override
@@ -293,7 +315,9 @@ class _$ChatConversationImpl implements _ChatConversation {
             (identical(other.unreadCountClient, unreadCountClient) ||
                 other.unreadCountClient == unreadCountClient) &&
             (identical(other.unreadCountSupplier, unreadCountSupplier) ||
-                other.unreadCountSupplier == unreadCountSupplier));
+                other.unreadCountSupplier == unreadCountSupplier) &&
+            (identical(other.closedAt, closedAt) ||
+                other.closedAt == closedAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -309,6 +333,7 @@ class _$ChatConversationImpl implements _ChatConversation {
     lastMessageAt,
     unreadCountClient,
     unreadCountSupplier,
+    closedAt,
   );
 
   /// Create a copy of ChatConversation
@@ -328,7 +353,7 @@ class _$ChatConversationImpl implements _ChatConversation {
   }
 }
 
-abstract class _ChatConversation implements ChatConversation {
+abstract class _ChatConversation extends ChatConversation {
   const factory _ChatConversation({
     required final String id,
     required final String clientId,
@@ -339,7 +364,9 @@ abstract class _ChatConversation implements ChatConversation {
     required final DateTime lastMessageAt,
     required final int unreadCountClient,
     required final int unreadCountSupplier,
+    final DateTime? closedAt,
   }) = _$ChatConversationImpl;
+  const _ChatConversation._() : super._();
 
   factory _ChatConversation.fromJson(Map<String, dynamic> json) =
       _$ChatConversationImpl.fromJson;
@@ -366,6 +393,11 @@ abstract class _ChatConversation implements ChatConversation {
   int get unreadCountClient;
   @override
   int get unreadCountSupplier;
+
+  /// Posée quand le client ferme la conversation (`0122`) : la boutique ne
+  /// peut plus lui écrire. Il la rouvre en écrivant, ou d'un geste.
+  @override
+  DateTime? get closedAt;
 
   /// Create a copy of ChatConversation
   /// with the given fields replaced by the non-null parameter values.

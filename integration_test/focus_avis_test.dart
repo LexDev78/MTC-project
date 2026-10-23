@@ -7,7 +7,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:mtc_app/core/auth/pseudo_email.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/product_detail_screen.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 
 import '../test/support/supabase_test_harness.dart';
 import 'support/parcours_visuel.dart';
@@ -39,7 +39,8 @@ Future<void> toucher(WidgetTester tester, Finder cible, {int pas = 6}) async {
 }
 
 Future<void> revenirAuShell(WidgetTester tester, String infobulle) async {
-  for (var i = 0; i < 3; i++) {
+  // Profil → historique → rubrique → fiche → avis : jusqu'à cinq pages.
+  for (var i = 0; i < 6; i++) {
     if (find.byTooltip(infobulle).evaluate().isNotEmpty) return;
     await tester.pageBack();
     await avancer(tester, pas: 5);
@@ -79,7 +80,8 @@ Future<void> semerAvisIllustre() async {
       'p_order_id': groupe['order_id'],
       'p_supplier_group_id': _groupeAwaBogolan,
       'p_stars': 4,
-      'p_comment': 'Tissu conforme à la photo, couleurs très vives. '
+      'p_comment':
+          'Tissu conforme à la photo, couleurs très vives. '
           'Voici ce que j\'ai reçu.',
       'p_image_paths': chemins,
     },
@@ -104,15 +106,16 @@ void main() {
 
       await etapeVisuelle(tester, 'avis-01-section', () async {
         await seConnecter(tester, 'client2');
-        await attendre(tester, find.text('Rechercher un produit...'));
-        await toucher(tester, find.text('Rechercher un produit...'));
-        await tester.enterText(find.byType(TextField).first, 'Bogolan tradition');
+        await chercher(tester, 'Bogolan tradition');
         await avancer(tester, pas: 10);
-        await attendre(tester, find.byType(ProductCard));
-        await toucher(tester, find.byType(ProductCard).first, pas: 12);
+        await attendre(tester, find.byType(ShopProductCard));
+        await toucher(tester, find.byType(ShopProductCard).first, pas: 12);
         await attendre(tester, find.byType(ProductDetailScreen));
-        await attendre(tester, find.text('Avis des acheteurs'));
-        await cadrer(tester, find.text('Avis des acheteurs'), alignement: 0.1);
+        // La fiche du kit résume les avis ; la liste est derrière « Avis ».
+        await attendre(tester, find.text('Avis'));
+        await cadrer(tester, find.text('Avis'));
+        await toucher(tester, find.text('Avis'), pas: 12);
+        await attendre(tester, find.text('Avis clients'));
         expect(find.text('Awa Traoré'), findsWidgets);
       });
 
@@ -125,7 +128,7 @@ void main() {
 
       await etapeVisuelle(tester, 'avis-03-commentaire-publie', () async {
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Votre commentaire').first,
+          find.widgetWithText(TextField, 'Votre commentaire').first,
           'Le tissu est-il épais ? Je cherche de quoi faire un boubou.',
         );
         await avancer(tester, pas: 3);
@@ -141,8 +144,12 @@ void main() {
         await revenirAuShell(tester, 'Profil');
         await ouvrirOnglet(tester, 'Profil');
         await toucher(tester, find.text('Mes commandes'), pas: 12);
-        await attendre(tester, find.textContaining('Ségou'));
-        await toucher(tester, find.textContaining('Ségou'), pas: 12);
+        // Sous « Livrées » dans l'historique ; la boutique est en capitales
+        // sur les cartes, comme dans le kit.
+        await attendre(tester, find.text('Livrées'));
+        await toucher(tester, find.text('Livrées'), pas: 12);
+        await attendre(tester, find.text('ALIMENTATION SÉGOU'));
+        await toucher(tester, find.text('ALIMENTATION SÉGOU'), pas: 12);
         await attendre(tester, find.text('Laisser un avis'));
         await toucher(tester, find.text('Laisser un avis'), pas: 12);
         await attendre(tester, find.text('Ajouter des photos'));
@@ -155,9 +162,7 @@ void main() {
       await etapeVisuelle(tester, 'avis-05-cote-vendeur', () async {
         await revenirAuShell(tester, 'Profil');
         await ouvrirOnglet(tester, 'Profil');
-        // La déconnexion d'un client est dans « Paramètres », pas sur la
-        // page de profil elle-même.
-        await toucher(tester, find.text('Paramètres'), pas: 10);
+        // La déconnexion est en bas du menu du profil, comme dans le kit.
         await toucher(tester, find.text('Déconnexion'), pas: 12);
         await seConnecter(tester, 'fournisseur1');
         await ouvrirOnglet(tester, 'Profil');

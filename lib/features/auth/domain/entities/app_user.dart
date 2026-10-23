@@ -19,6 +19,13 @@ sealed class AppUser with _$AppUser {
     required String phoneNumber,
     required DateTime createdAt,
     String? defaultAddressId,
+
+    /// Facultative, et lue par lui seul (`0121`).
+    DateTime? birthDate,
+
+    /// Chemin dans le bucket privé `avatars` : la photo n'est montrée qu'à
+    /// son propriétaire. `null` = les initiales.
+    String? avatarPath,
   }) = ClientUser;
 
   const factory AppUser.supplierTiers({

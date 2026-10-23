@@ -1,3 +1,7 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:mtc_app/core/error/exceptions.dart';
+
 import '../../domain/entities/address.dart';
 import '../../domain/repositories/address_repository.dart';
 import '../datasources/supabase_address_datasource.dart';
@@ -53,5 +57,15 @@ class SupabaseAddressRepository implements AddressRepository {
     required String addressId,
   }) {
     return _datasource.remove(addressId);
+  }
+
+  @override
+  Future<void> setDefaultAddress(String? addressId) async {
+    try {
+      await _datasource.setDefault(addressId);
+    } on PostgrestException catch (e) {
+      // « Adresse introuvable. » : rédigé pour l'utilisateur côté serveur.
+      throw ValidationException(e.message);
+    }
   }
 }

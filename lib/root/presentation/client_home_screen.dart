@@ -5,456 +5,357 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
-import 'package:mtc_app/app/theme/app_spacing.dart';
-import 'package:mtc_app/core/widgets/animated_count_badge.dart';
-import 'package:mtc_app/core/widgets/screen_idle_detector.dart';
-import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
-import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
+import 'package:mtc_app/core/shop/shop.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
-import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/catalog/presentation/screens/catalog_tab_screen.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
-    show ProductCategoryIcon;
-import 'package:mtc_app/features/catalog/presentation/widgets/product_filter_sheet.dart';
-import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
+import 'package:mtc_app/features/catalog/presentation/widgets/shop_product_data.dart';
 import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
-import 'package:mtc_app/features/recommendations/presentation/widgets/recommended_feed.dart';
 
-import 'widgets/promo_hero_banner.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/home_catalog.dart';
 
-/// Hosts the two catalog tabs — "Fournisseur principal" (shown first; the
-/// aggregated MTC catalog, includes third-party products too) and
-/// "Fournisseurs tiers" (third-party products only) — each with its own
-/// scroll/filter state so browsing one never leaks into the other.
-class ClientHomeScreen extends ConsumerStatefulWidget {
+/// L'accueil du client, d'après le `HomeScreen` du kit FlutterShop.
+///
+/// Le même enchaînement que le kit — offres, catégories, produits
+/// populaires, vente flash, bannières, rangées de produits — rempli avec le
+/// vrai catalogue. Une règle tient tout l'écran : **aucune remise affichée
+/// qui ne soit pas en cours**. Les bannières qui annoncent un pourcentage
+/// ne viennent que des promotions réelles ; sans promotion, l'accueil n'en
+/// montre pas.
+///
+/// La barre du haut (nom, recherche, notifications) et les onglets du bas
+/// appartiennent à la coquille, `ClientShell`.
+class ClientHomeScreen extends ConsumerWidget {
   const ClientHomeScreen({super.key});
 
   @override
-  ConsumerState<ClientHomeScreen> createState() => _ClientHomeScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalogue = ref.watch(homeProductsProvider);
 
-class _ClientHomeScreenState extends ConsumerState<ClientHomeScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this)
-      // The category button reflects whichever tab is active, so it needs
-      // to rebuild on every swipe/tap, not just when a category is picked.
-      ..addListener(() => setState(() {}));
-    // Accueil is the client shell's landing branch and stays mounted (via
-    // the `IndexedStack`) for the whole logged-in session, so the header
-    // bell's badge — `notificationsProvider`, not autoDispose, no Realtime
-    // on that table — would otherwise only ever reflect whatever was true
-    // the very first time this screen built. One fresh fetch per app open
-    // keeps that badge honest without needing a live subscription; see
-    // `NotificationCenterScreen`'s `initState` for the same fix on the
-    // actual notification list.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userId = ref.read(currentUserProvider).valueOrNull?.id;
-      if (userId != null) ref.invalidate(notificationsProvider(userId));
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  /// The category menu is a home-level shortcut, not tab-scoped UI, but the
-  /// filter it drives lives per-[SupplierType] — so a pick applies to
-  /// whichever catalog tab is currently in view. "Fournisseur principal" is
-  /// the first tab, so it maps to index 0.
-  SupplierType get _activeSupplierType =>
-      _tabController.index == 0 ? SupplierType.principal : SupplierType.tiers;
-
-  void _toggleCategory(ProductCategory category) {
-    final provider = catalogCategoryProvider(_activeSupplierType);
-    final current = ref.read(provider);
-    final next = current == category ? null : category;
-    ref.read(provider.notifier).state = next;
-    // Choisir une catégorie est un signal d'intérêt ; la désélectionner, non.
-    if (next != null) {
-      unawaited(
-        ref.read(recommendationRepositoryProvider).logCategoryOpen(next),
-      );
+    Future<void> rafraichir() async {
+      ref.invalidate(homeProductsProvider);
+      ref.invalidate(recommendedFeedProvider);
+      await ref
+          .read(homeProductsProvider.future)
+          .catchError((_) => <Product>[]);
     }
-  }
 
-  void _clearCategory() {
-    ref.read(catalogCategoryProvider(_activeSupplierType).notifier).state =
-        null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cartCount = ref.watch(cartItemCountProvider);
-    final currentUserId = ref.watch(
-      currentUserProvider.select((u) => u.valueOrNull?.id),
-    );
-    final unreadNotificationCount = currentUserId == null
-        ? 0
-        : ref.watch(unreadNotificationCountProvider(currentUserId));
-    final selectedCategory = ref.watch(
-      catalogCategoryProvider(_activeSupplierType),
-    );
-    final hasActiveFilter = ref.watch(
-      catalogHasActiveFilterProvider(_activeSupplierType),
-    );
-
-    return ScreenIdleDetector(
-      child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          titleSpacing: AppSpacing.md,
-          title: _HomeHeader(
-            onSearchTap: () => context.push(AppRoutes.clientSearch),
-            onCartTap: () => context.go(AppRoutes.clientCart),
-            onNotificationsTap: () =>
-                context.push(AppRoutes.clientNotifications),
-            cartCount: cartCount,
-            notificationCount: unreadNotificationCount,
-          ),
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Fournisseur principal'),
-              Tab(text: 'Fournisseurs tiers'),
-            ],
-          ),
-        ),
-        body: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            const SliverToBoxAdapter(child: PromoHeroBanner()),
-            // Au-dessus des onglets et non dans chacun : les suggestions
-            // mêlent les deux types de fournisseurs, et les répéter sous
-            // chaque onglet les afficherait deux fois pour une seule liste.
-            const SliverToBoxAdapter(child: RecommendedFeed()),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  AppSpacing.xs,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _CategoryMenuButton(
-                      selected: selectedCategory,
-                      onSelectCategory: _toggleCategory,
-                      onClear: _clearCategory,
-                    ),
-                    _FilterIconButton(
-                      active: hasActiveFilter,
-                      onTap: () => showProductFilterSheet(
-                        context,
-                        supplierType: _activeSupplierType,
-                      ),
-                    ),
-                  ],
-                ),
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: rafraichir,
+        child: catalogue.when(
+          skipLoadingOnReload: true,
+          loading: () => const _AccueilEnChargement(),
+          error: (error, _) => _Message(
+            child: IllustratedMessage(
+              illustration: ShopIllustration.serverError,
+              title: 'Le catalogue n\'a pas pu être chargé',
+              message: messagePourUtilisateur(error),
+              action: OutlinedButton(
+                onPressed: rafraichir,
+                child: const Text('Réessayer'),
               ),
             ),
-          ],
-          body: TabBarView(
-            controller: _tabController,
-            children: const [
-              CatalogTabScreen(supplierType: SupplierType.principal),
-              CatalogTabScreen(supplierType: SupplierType.tiers),
-            ],
           ),
+          data: (produits) => produits.isEmpty
+              ? const _Message(
+                  child: IllustratedMessage(
+                    illustration: ShopIllustration.emptyState,
+                    title: 'Aucun produit pour le moment',
+                    message:
+                        'Les boutiques ajoutent leurs articles : revenez bientôt.',
+                  ),
+                )
+              : _Accueil(sections: HomeSections(produits)),
         ),
       ),
     );
   }
 }
 
-class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({
-    required this.onSearchTap,
-    required this.onCartTap,
-    required this.onNotificationsTap,
-    required this.cartCount,
-    required this.notificationCount,
-  });
+/// Un message plein écran qui reste rafraîchissable d'un geste.
+class _Message extends StatelessWidget {
+  const _Message({required this.child});
 
-  final VoidCallback onSearchTap;
-  final VoidCallback onCartTap;
-  final VoidCallback onNotificationsTap;
-  final int cartCount;
-  final int notificationCount;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, contraintes) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(height: contraintes.maxHeight, child: child),
+      ),
+    );
+  }
+}
 
-    return Row(
+class _Accueil extends ConsumerWidget {
+  const _Accueil({required this.sections});
+
+  final HomeSections sections;
+
+  void _ouvrir(BuildContext context, Product produit) =>
+      context.push(AppRoutes.productDetail(produit.id));
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final suggestions = ref.watch(recommendedFeedProvider).valueOrNull;
+    final populaires = sections.popular;
+    final flash = sections.flashSale;
+    final finFlash = sections.flashSaleEndsAt;
+    final promos = sections.onSale;
+    final vus = sections.mostViewed;
+    final tiers = sections.ofSupplierType(SupplierType.tiers);
+
+    List<ShopProductData> cartes(List<Product> liste) => [
+      for (final p in liste) p.shopData(),
+    ];
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(child: _OffresEtCategories(promos: promos)),
+        SliverToBoxAdapter(
+          child: ProductCarouselSection(
+            title: 'Produits populaires',
+            products: cartes(populaires),
+            onTap: (i) => _ouvrir(context, populaires[i]),
+          ),
+        ),
+        if (flash.isNotEmpty && finFlash != null)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(
+              vertical: ShopSizes.padding * 1.5,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CountdownBanner(
+                    image: _photo(flash.first.product),
+                    text: 'Vente flash\njusqu\'à -${flash.first.percent} %',
+                    endsAt: finFlash,
+                    onTap: () => context.push(AppRoutes.clientOnSale),
+                  ),
+                  const SizedBox(height: ShopSizes.padding / 2),
+                  ProductCarouselSection(
+                    title: 'Vente flash',
+                    products: cartes([for (final p in flash) p.product]),
+                    onTap: (i) => _ouvrir(context, flash[i].product),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (promos.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: ShopSizes.padding / 4),
+              child: OfferBannerStyle2(
+                image: _photo(promos.last.product),
+                size: ShopBannerSize.small,
+                title: 'Bons\nplans',
+                subtitle: 'Offre spéciale',
+                discountPercent: promos.first.percent,
+                onTap: () => context.push(AppRoutes.clientOnSale),
+              ),
+            ),
+          ),
+        if (suggestions == null || suggestions.isNotEmpty)
+          SliverToBoxAdapter(
+            child: ProductCarouselSection(
+              title: 'Pour vous',
+              products: suggestions == null
+                  ? null
+                  : cartes([for (final s in suggestions) s.product]),
+              onTap: (i) => _ouvrir(context, suggestions![i].product),
+            ),
+          ),
+        SliverToBoxAdapter(
+          child: ProductCarouselSection(
+            title: 'Les plus populaires',
+            secondary: true,
+            products: cartes(vus),
+            onTap: (i) => _ouvrir(context, vus[i]),
+          ),
+        ),
+        if (tiers.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(
+                top: ShopSizes.padding * 1.5 + ShopSizes.padding / 4,
+                bottom: ShopSizes.padding / 4,
+              ),
+              child: OfferBannerStyle5(
+                image: _photo(tiers.first),
+                title: 'Boutiques\ndu Mali',
+                subtitle: 'Fournisseurs tiers',
+                bottomText: 'VOIR LES BOUTIQUES',
+                onTap: () => context.push(AppRoutes.clientShops),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: ProductCarouselSection(
+              title: 'Fournisseurs tiers',
+              products: cartes(tiers),
+              onTap: (i) => _ouvrir(context, tiers[i]),
+            ),
+          ),
+        ],
+        const SliverToBoxAdapter(child: SizedBox(height: ShopSizes.padding)),
+      ],
+    );
+  }
+}
+
+String? _photo(Product produit) =>
+    produit.imageUrls.isEmpty ? null : produit.imageUrls.first;
+
+/// Le carrousel d'offres puis les catégories (`OffersCarouselAndCategories`
+/// du kit).
+class _OffresEtCategories extends ConsumerWidget {
+  const _OffresEtCategories({required this.promos});
+
+  final List<PromotedProduct> promos;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    void ouvrirProduit(Product p) =>
+        context.push(AppRoutes.productDetail(p.id));
+    void ouvrirCategorie(ProductCategory categorie) {
+      unawaited(
+        ref.read(recommendationRepositoryProvider).logCategoryOpen(categorie),
+      );
+      context.push(AppRoutes.catalogueCategory(categorie.name));
+    }
+
+    // Les accroches de MTC, sans remise : elles complètent le carrousel
+    // jusqu'à quatre offres quand les promotions manquent.
+    final accroches = [
+      OfferBannerStyle1(
+        image: 'assets/images/products/textiles/fabric.jpg',
+        text: 'Le meilleur du Mali,\nlivré chez vous',
+        onTap: () => context.go(AppRoutes.clientCatalogue),
+      ),
+      OfferBannerStyle1(
+        image: 'assets/images/products/artisanat/mask.jpg',
+        text: 'Artisanat authentique,\nfait main',
+        onTap: () => ouvrirCategorie(ProductCategory.artisanat),
+      ),
+      OfferBannerStyle1(
+        image: 'assets/images/products/electronique/solar_panel.jpg',
+        text: 'MTC Officiel,\nqualité garantie',
+        onTap: () => context.go(AppRoutes.clientCatalogue),
+      ),
+    ];
+    String titre(PromotedProduct p) => p.label?.trim().isNotEmpty == true
+        ? p.label!.trim()
+        : p.product.category.label;
+    final offres = <Widget>[
+      accroches.first,
+      if (promos.isNotEmpty)
+        OfferBannerStyle2(
+          image: _photo(promos[0].product),
+          title: titre(promos[0]),
+          subtitle: promos[0].product.supplierName,
+          discountPercent: promos[0].percent,
+          onTap: () => ouvrirProduit(promos[0].product),
+        ),
+      if (promos.length > 1)
+        OfferBannerStyle3(
+          image: _photo(promos[1].product),
+          title: titre(promos[1]),
+          discountPercent: promos[1].percent,
+          onTap: () => ouvrirProduit(promos[1].product),
+        ),
+      if (promos.length > 2)
+        OfferBannerStyle4(
+          image: _photo(promos[2].product),
+          title: titre(promos[2]),
+          subtitle: 'OFFRE SPÉCIALE',
+          discountPercent: promos[2].percent,
+          onTap: () => ouvrirProduit(promos[2].product),
+        ),
+    ];
+    for (final accroche in accroches.skip(1)) {
+      if (offres.length >= 4) break;
+      offres.add(accroche);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: scheme.primaryContainer,
-          child: Icon(
-            Icons.storefront_rounded,
-            color: scheme.onPrimaryContainer,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(child: _SearchBar(onTap: onSearchTap)),
-        const SizedBox(width: AppSpacing.sm),
-        // Bell sits immediately to the left of the cart — the two most
-        // frequent "check something" actions grouped together, mirroring
-        // the supplier dashboard's bell placement.
-        _HeaderIconButton(
-          icon: Icons.notifications_outlined,
-          count: notificationCount,
-          onTap: onNotificationsTap,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        _HeaderIconButton(
-          icon: Icons.shopping_cart_outlined,
-          count: cartCount,
-          onTap: onCartTap,
+        OffersCarousel(banners: offres),
+        const SizedBox(height: ShopSizes.padding / 2),
+        const SectionTitle('Catégories'),
+        ShopPillRow(
+          children: [
+            ShopPill(
+              label: 'Toutes les catégories',
+              active: true,
+              onTap: () => context.go(AppRoutes.clientCatalogue),
+            ),
+            ShopPill(
+              label: 'Promotions',
+              icon: ShopIcons.sale,
+              active: false,
+              onTap: () => context.push(AppRoutes.clientOnSale),
+            ),
+            for (final categorie in ProductCategory.values)
+              ShopPill(
+                label: categorie.label,
+                icon: categorie.shopIcon,
+                active: false,
+                onTap: () => ouvrirCategorie(categorie),
+              ),
+          ],
         ),
       ],
     );
   }
 }
 
-/// A circular icon button with a live count badge — used for both the cart
-/// and notifications bell in [_HomeHeader], identical styling.
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.count,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final int count;
-  final VoidCallback onTap;
+/// L'accueil pendant le premier chargement : la même mise en page, en
+/// silhouettes (« le chargement n'est plus ennuyeux », dit le kit).
+class _AccueilEnChargement extends StatelessWidget {
+  const _AccueilEnChargement();
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          shape: BoxShape.circle,
-        ),
-        child: Center(
-          child: AnimatedCountBadge(
-            count: count,
-            child: Icon(icon, color: scheme.onSurface, size: 20),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        const BannerSkeleton(),
+        const SizedBox(height: ShopSizes.padding / 2),
+        const SectionTitle('Catégories'),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: ShopSizes.padding),
+          physics: const NeverScrollableScrollPhysics(),
+          child: Row(
+            children: [
+              for (final largeur in const [140.0, 100.0, 90.0, 110.0])
+                Padding(
+                  padding: const EdgeInsets.only(right: ShopSizes.padding / 2),
+                  child: Skeleton(height: 36, width: largeur, radius: 30),
+                ),
+            ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-      onTap: onTap,
-      child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+        ProductCarouselSection(
+          title: 'Produits populaires',
+          products: null,
+          onTap: (_) {},
         ),
-        child: Row(
-          children: [
-            Icon(Icons.search_rounded, color: scheme.onSurfaceVariant),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                'Rechercher un produit...',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
+        ProductCarouselSection(
+          title: 'Les plus populaires',
+          secondary: true,
+          products: null,
+          onTap: (_) {},
         ),
-      ),
-    );
-  }
-}
-
-/// The catalog filter/sort entry point — kept in the same row as the
-/// category dropdown (rather than floating inside each tab's body) so the
-/// two controls read as one aligned toolbar.
-class _FilterIconButton extends StatelessWidget {
-  const _FilterIconButton({required this.active, required this.onTap});
-
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: active ? scheme.primary : scheme.surfaceContainerHigh,
-          shape: BoxShape.circle,
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(
-              Icons.tune_rounded,
-              size: 20,
-              color: active ? scheme.onPrimary : scheme.onSurface,
-            ),
-            if (active)
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: scheme.tertiary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: scheme.primary, width: 1.5),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Collapses the category shortcuts into a single pill button + dropdown
-/// menu (rather than a permanently-visible icon grid) so the home screen
-/// stays compact regardless of how many categories exist.
-class _CategoryMenuButton extends StatelessWidget {
-  const _CategoryMenuButton({
-    required this.selected,
-    required this.onSelectCategory,
-    required this.onClear,
-  });
-
-  final ProductCategory? selected;
-  final void Function(ProductCategory category) onSelectCategory;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final active = selected != null;
-    final foreground = active ? scheme.onPrimary : scheme.onSurface;
-
-    return PopupMenuButton<ProductCategory?>(
-      tooltip: 'Catégories',
-      position: PopupMenuPosition.under,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      ),
-      // PopupMenuButton treats a `null` popped value as "dismissed without
-      // selecting" and never calls `onSelected` for it — so the "Toutes les
-      // catégories" entry can't go through the value-based path below. Its
-      // own `onTap` fires independently of that null-value quirk.
-      onSelected: (category) {
-        if (category != null) onSelectCategory(category);
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: null,
-          onTap: onClear,
-          child: Text(
-            'Toutes les catégories',
-            style: TextStyle(
-              fontWeight: selected == null ? FontWeight.w700 : FontWeight.w400,
-            ),
-          ),
-        ),
-        const PopupMenuDivider(),
-        for (final category in ProductCategory.values)
-          PopupMenuItem(
-            value: category,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  category.icon,
-                  size: 20,
-                  color: category == selected
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  category.label,
-                  style: TextStyle(
-                    fontWeight: category == selected
-                        ? FontWeight.w700
-                        : FontWeight.w400,
-                    color: category == selected ? scheme.primary : null,
-                  ),
-                ),
-              ],
-            ),
-          ),
       ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: active ? scheme.primary : scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              selected?.icon ?? Icons.category_rounded,
-              size: 18,
-              color: foreground,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              selected?.label ?? 'Catégories',
-              style: TextStyle(fontWeight: FontWeight.w600, color: foreground),
-            ),
-            const SizedBox(width: 2),
-            Icon(Icons.expand_more_rounded, size: 18, color: foreground),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/ratings/presentation/widgets/star_rating_input.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../controllers/courier_rating_controller.dart';
 import '../providers/courier_history_providers.dart';
@@ -84,7 +85,12 @@ class _CourierRatingSheetState extends ConsumerState<_CourierRatingSheet> {
     final error = ref.read(courierRatingControllerProvider).error;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(error?.toString() ?? 'La note n\'a pas pu être envoyée.'),
+        content: Text(
+          messagePourUtilisateur(
+            error,
+            repli: 'La note n\'a pas pu être envoyée.',
+          ),
+        ),
       ),
     );
   }

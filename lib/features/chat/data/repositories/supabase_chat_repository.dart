@@ -1,3 +1,7 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:mtc_app/core/error/exceptions.dart';
+
 import '../../domain/entities/chat.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../datasources/supabase_chat_datasource.dart';
@@ -81,14 +85,31 @@ class SupabaseChatRepository implements ChatRepository {
     );
   }
 
+  /// [readBy] reste dans la signature pour les appelants ; le serveur
+  /// déduit lui-même le côté de l'appelant, et ne se fie pas à ce qu'on lui
+  /// dit.
   @override
   Future<void> markConversationRead({
     required String conversationId,
     required ChatParticipant readBy,
   }) {
-    return _datasource.markConversationRead(
-      conversationId: conversationId,
-      readByClient: readBy == ChatParticipant.client,
-    );
+    return _datasource.markConversationRead(conversationId: conversationId);
+  }
+
+  @override
+  Future<DateTime?> setConversationClosed({
+    required String conversationId,
+    required bool closed,
+  }) async {
+    try {
+      return await _datasource.setConversationClosed(
+        conversationId: conversationId,
+        closed: closed,
+      );
+    } on PostgrestException catch (e) {
+      // Les refus de `set_my_conversation_closed` sont rédigés pour
+      // l'utilisateur.
+      throw ValidationException(e.message);
+    }
   }
 }

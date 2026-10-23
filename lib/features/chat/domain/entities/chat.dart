@@ -14,6 +14,8 @@ enum ChatParticipant { client, supplier }
 
 @freezed
 class ChatConversation with _$ChatConversation {
+  const ChatConversation._();
+
   const factory ChatConversation({
     required String id,
     required String clientId,
@@ -28,7 +30,13 @@ class ChatConversation with _$ChatConversation {
     required DateTime lastMessageAt,
     required int unreadCountClient,
     required int unreadCountSupplier,
+
+    /// Posée quand le client ferme la conversation (`0122`) : la boutique ne
+    /// peut plus lui écrire. Il la rouvre en écrivant, ou d'un geste.
+    DateTime? closedAt,
   }) = _ChatConversation;
+
+  bool get isClosed => closedAt != null;
 
   factory ChatConversation.fromJson(Map<String, dynamic> json) =>
       _$ChatConversationFromJson(json);

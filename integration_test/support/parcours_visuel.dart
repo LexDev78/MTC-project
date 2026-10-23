@@ -27,8 +27,8 @@ final List<String> echecs = [];
 
 /// Avance le temps par pas fixes, **jamais** `pumpAndSettle`.
 ///
-/// `WelcomeScreen` et `LoginScreen` portent une animation décorative
-/// permanente (le chat qui observe) qui ne se déclare jamais stabilisée :
+/// `WelcomeScreen` porte une animation décorative permanente (ses balles
+/// qui rebondissent) qui ne se déclare jamais stabilisée :
 /// `pumpAndSettle` y attend jusqu'à son timeout, app figée à l'écran. Les
 /// autres tests d'intégration de ce dépôt documentent déjà ce piège et
 /// l'évitent de la même façon.
@@ -212,3 +212,16 @@ Future<void> ouvrirOnglet(WidgetTester tester, String infobulle) async {
   await tester.tap(find.byTooltip(infobulle));
   await avancer(tester, pas: 8);
 }
+
+/// Ouvre la recherche depuis la coquille client, tape [texte] et le
+/// valide : la recherche du kit n'affiche ses résultats qu'une fois validée
+/// (pendant la frappe, ce sont des suggestions).
+Future<void> chercher(WidgetTester tester, String texte) async {
+  await attendre(tester, find.byTooltip('Rechercher'));
+  await tester.tap(find.byTooltip('Rechercher'));
+  await avancer(tester, pas: 8);
+  await tester.enterText(find.byType(TextField).first, texte);
+  await tester.testTextInput.receiveAction(TextInputAction.search);
+  await avancer(tester, pas: 10);
+}
+

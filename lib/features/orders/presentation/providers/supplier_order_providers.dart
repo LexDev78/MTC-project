@@ -10,15 +10,17 @@ import 'order_providers.dart';
 /// items, prices, status) are never exposed through this type, even though
 /// `OrderRepository.watchOrdersForSupplier` returns the full `Order` under
 /// the hood — this typedef is the privacy boundary between them.
+///
+/// [contact] est ce que le serveur laisse voir à cette boutique (`0120`) :
+/// l'adresse tant que sa part est en cours, le numéro seulement si elle livre
+/// elle-même, plus rien une fois sa part livrée ou annulée.
 typedef SupplierOrderView = ({
   String orderId,
   DateTime placedAt,
   String clientDisplayNameSnapshot,
-  String clientPhoneSnapshot,
   String clientId,
-  String deliveryAddressLabel,
   String deliveryCity,
-  String deliveryDetails,
+  OrderContact? contact,
   OrderSupplierGroup myGroup,
 });
 
@@ -27,11 +29,9 @@ SupplierOrderView _toView(Order order, String supplierId) {
     orderId: order.id,
     placedAt: order.placedAt,
     clientDisplayNameSnapshot: order.clientDisplayNameSnapshot,
-    clientPhoneSnapshot: order.clientPhoneSnapshot,
     clientId: order.clientId,
-    deliveryAddressLabel: order.deliveryAddressLabel,
     deliveryCity: order.deliveryCity,
-    deliveryDetails: order.deliveryDetails,
+    contact: order.clientContact,
     myGroup: order.supplierGroups.firstWhere((g) => g.supplierId == supplierId),
   );
 }

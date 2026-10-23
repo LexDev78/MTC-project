@@ -194,9 +194,7 @@ final checkoutGroupsProvider = FutureProvider<List<CheckoutGroupView>>((
     // donc elle s'impute entièrement à ce groupe.
     final applied = ref.watch(appliedPromoCodeProvider);
     var promoDiscount = 0;
-    if (applied != null &&
-        applied.valid &&
-        applied.supplierId == entry.key) {
+    if (applied != null && applied.valid && applied.supplierId == entry.key) {
       promoDiscount = applied.discountFcfa.clamp(0, subtotal);
       subtotal -= promoDiscount;
     }
@@ -280,7 +278,7 @@ final courierPhoneProvider = StateProvider<String>((ref) {
 });
 
 /// Optional second contact number — `null` until the client taps "add
-/// another number"; [HomeDeliveryForm] removes it by setting this back to
+/// another number"; the checkout screen removes it by setting this back to
 /// `null`.
 final alternatePhoneProvider = StateProvider<String?>((ref) => null);
 
@@ -310,7 +308,11 @@ final selectedDeliveryDateProvider = StateProvider<DateTime>(
   (ref) => ref.watch(deliveryDateOptionsProvider).first,
 );
 
-const deliveryTimeSlotOptions = ['10:00 - 12:00', '12:00 - 15:00', '15:00 - 18:00'];
+const deliveryTimeSlotOptions = [
+  '10:00 - 12:00',
+  '12:00 - 15:00',
+  '15:00 - 18:00',
+];
 
 final selectedDeliveryTimeSlotProvider = StateProvider<String>(
   (ref) => deliveryTimeSlotOptions.first,
@@ -320,6 +322,12 @@ final selectedDeliveryTimeSlotProvider = StateProvider<String>(
 /// touches this selector still gets today's (no-payment-step) behavior.
 final paymentMethodProvider = StateProvider<PaymentMethod>(
   (ref) => PaymentMethod.onDelivery,
+);
+
+/// L'opérateur choisi dans « Mode de paiement » : la feuille de paiement
+/// Mobile Money s'ouvre dessus, sans le redemander.
+final preferredMobileMoneyProvider = StateProvider<MobileMoneyProvider>(
+  (ref) => MobileMoneyProvider.orangeMoney,
 );
 
 /// Set once the mocked Mobile Money sheet reports a successful payment for

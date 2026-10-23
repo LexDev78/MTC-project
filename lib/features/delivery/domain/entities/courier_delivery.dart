@@ -83,16 +83,19 @@ class CourierDelivery with _$CourierDelivery {
     @Default([]) List<String> supplierPhones,
 
     // ---- remise -----------------------------------------------------------
+    // Ce que le serveur laisse voir au livreur (`0120`) : l'adresse dès que
+    // la course lui est proposée, le numéro une fois qu'il l'a acceptée, plus
+    // rien une fois livrée. Un champ nul est un champ retiré.
     required String clientName,
-    required String clientPhone,
+    String? clientPhone,
     String? clientAlternatePhone,
-    required String deliveryAddressLabel,
+    String? deliveryAddressLabel,
     required String deliveryCity,
 
     /// Indications libres saisies par le client (étage, repère, portail…).
-    required String deliveryDetails,
-    required double deliveryLatitude,
-    required double deliveryLongitude,
+    String? deliveryDetails,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
 
     // ---- marchandise et argent --------------------------------------------
     @Default([]) List<DeliveryItem> items,
@@ -127,10 +130,10 @@ extension CourierDeliveryNavigationX on CourierDelivery {
         if (latitude == null || longitude == null) return null;
         return (target: LatLng(latitude, longitude), isPickup: true);
       case DeliveryStatus.pickedUp:
-        return (
-          target: LatLng(deliveryLatitude, deliveryLongitude),
-          isPickup: false,
-        );
+        final latitude = deliveryLatitude;
+        final longitude = deliveryLongitude;
+        if (latitude == null || longitude == null) return null;
+        return (target: LatLng(latitude, longitude), isPickup: false);
       case DeliveryStatus.offered:
       case DeliveryStatus.delivered:
       case DeliveryStatus.cancelled:

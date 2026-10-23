@@ -37,7 +37,8 @@ void main() {
         await attendre(tester, find.text('Mes adresses'));
         await tester.tap(find.text('Mes adresses'));
         await avancer(tester, pas: 8);
-        await tester.tap(find.text('Ajouter'));
+        // Le bouton en pointillés de la maquette « Address » du kit.
+        await tester.tap(find.text('Ajouter une adresse'));
         await avancer(tester, pas: 8);
         await attendre(tester, find.text('Placer sur la carte'));
         expect(find.text('Placer sur la carte'), findsOneWidget);

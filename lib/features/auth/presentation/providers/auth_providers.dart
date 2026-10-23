@@ -32,3 +32,24 @@ final currentUserProvider = StreamProvider<AppUser?>((ref) async* {
 /// detour through the loading animation instead of landing on the
 /// dashboard immediately.
 final justLoggedInProvider = StateProvider<bool>((ref) => false);
+
+/// L'adresse e-mail de contact du compte en session (`0109`), ou `null`.
+///
+/// Distincte de l'identifiant de connexion, qui reste le téléphone. Relue à
+/// chaque ouverture (`autoDispose`) : elle change rarement, mais un écran
+/// qui montrerait l'ancienne juste après qu'on l'a modifiée ferait croire
+/// que l'enregistrement a échoué.
+/// L'adresse de contact et si elle est vérifiée (`0124`) — pour les écrans
+/// qui doivent le dire.
+final contactEmailStatusProvider =
+    FutureProvider.autoDispose<ContactEmailStatus>((ref) {
+      ref.watch(currentUserProvider.select((u) => u.valueOrNull?.id));
+      return ref.watch(authRepositoryProvider).fetchContactEmailStatus();
+    });
+
+final contactEmailProvider = FutureProvider.autoDispose<String?>((ref) {
+  // Dépend de la session : sans cela, l'adresse du compte précédent
+  // survivrait à une déconnexion.
+  ref.watch(currentUserProvider.select((u) => u.valueOrNull?.id));
+  return ref.watch(authRepositoryProvider).fetchContactEmail();
+});

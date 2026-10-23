@@ -73,36 +73,16 @@ class SupabaseChatDatasource {
     return _client.from('chat_conversations').select().eq('id', conversationId).single();
   }
 
+  /// L'insertion seule : l'aperçu, la date et le compteur du destinataire
+  /// sont tenus par la base (`chat_message_touch_conversation`, `0122`).
+  /// L'application les écrivait elle-même, ce qui laissait chaque côté
+  /// réécrire l'aperçu que l'autre lit. Dans une conversation que le client
+  /// a fermée, la base refuse le message de la boutique.
   Future<void> sendMessage(Map<String, dynamic> row) async {
-    final conversationId = row['conversation_id'] as String;
-    final senderId = row['sender_id'] as String;
-
-    await _client.from('chat_messages').insert({'id': IdGenerator.next(), ...row});
-
-    final conversation = await getConversationById(conversationId);
-    final isFromClient = senderId == conversation['client_id'];
-    final String preview;
-    if (row['attachment_type'] == 'image') {
-      preview = '📷 Photo';
-    } else if (row['attachment_type'] == 'voice') {
-      preview = '🎤 Message vocal';
-    } else if (row['product_name_snapshot'] != null) {
-      preview = '📦 ${row['product_name_snapshot']}';
-    } else {
-      preview = row['text'] as String;
-    }
-
-    await _client
-        .from('chat_conversations')
-        .update({
-          'last_message_preview': preview,
-          'last_message_at': DateTime.now().toUtc().toIso8601String(),
-          if (isFromClient)
-            'unread_count_supplier': (conversation['unread_count_supplier'] as int) + 1
-          else
-            'unread_count_client': (conversation['unread_count_client'] as int) + 1,
-        })
-        .eq('id', conversationId);
+    await _client.from('chat_messages').insert({
+      'id': IdGenerator.next(),
+      ...row,
+    });
   }
 
   Future<String> startOrGetConversation({
@@ -111,37 +91,61 @@ class SupabaseChatDatasource {
     required String supplierId,
     required String supplierName,
   }) async {
-    final existing = await _client
-        .from('chat_conversations')
-        .select('id')
-        .eq('client_id', clientId)
-        .eq('supplier_id', supplierId)
-        .maybeSingle();
-    if (existing != null) return existing['id'] as String;
+    Future<String?> existante() async {
+      final row = await _client
+          .from('chat_conversations')
+          .select('id')
+          .eq('client_id', clientId)
+          .eq('supplier_id', supplierId)
+          .maybeSingle();
+      return row?['id'] as String?;
+    }
 
+    final deja = await existante();
+    if (deja != null) return deja;
+
+    // Les noms envoyés ici sont remplacés par ceux des comptes à la création
+    // (`chat_conversation_defaults`, `0122`).
     final id = IdGenerator.next();
-    await _client.from('chat_conversations').insert({
-      'id': id,
-      'client_id': clientId,
-      'client_display_name_snapshot': clientDisplayNameSnapshot,
-      'supplier_id': supplierId,
-      'supplier_name': supplierName,
-    });
+    try {
+      await _client.from('chat_conversations').insert({
+        'id': id,
+        'client_id': clientId,
+        'client_display_name_snapshot': clientDisplayNameSnapshot,
+        'supplier_id': supplierId,
+        'supplier_name': supplierName,
+      });
+    } on PostgrestException catch (e) {
+      // Une seule conversation par client et par boutique : si l'autre côté
+      // l'a créée entre la lecture et l'écriture, c'est la sienne.
+      if (e.code != '23505') rethrow;
+      final creee = await existante();
+      if (creee == null) rethrow;
+      return creee;
+    }
     return id;
   }
 
-  Future<void> markConversationRead({
+  /// Ferme ([closed] vrai) ou rouvre la conversation — le client seul, la
+  /// base refuse tout autre appelant. Rend la date de fermeture.
+  Future<DateTime?> setConversationClosed({
     required String conversationId,
-    required bool readByClient,
+    required bool closed,
   }) async {
-    await _client
-        .from('chat_conversations')
-        .update({readByClient ? 'unread_count_client' : 'unread_count_supplier': 0})
-        .eq('id', conversationId);
-    await _client
-        .from('chat_messages')
-        .update({'is_read': true})
-        .eq('conversation_id', conversationId)
-        .eq('is_read', false);
+    final ferme = await _client.rpc(
+      'set_my_conversation_closed',
+      params: {'p_conversation_id': conversationId, 'p_closed': closed},
+    );
+    return ferme == null ? null : DateTime.parse(ferme as String);
+  }
+
+  /// Remet à zéro le compteur du côté de l'appelant et marque lus les
+  /// messages de l'autre côté — la base sait de quel côté il est
+  /// (`mark_my_conversation_read`, `0122`).
+  Future<void> markConversationRead({required String conversationId}) {
+    return _client.rpc(
+      'mark_my_conversation_read',
+      params: {'p_conversation_id': conversationId},
+    );
   }
 }

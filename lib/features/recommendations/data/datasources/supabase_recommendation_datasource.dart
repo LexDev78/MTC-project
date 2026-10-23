@@ -66,4 +66,25 @@ class SupabaseRecommendationDatasource {
     );
     return (remaining as num?)?.toInt() ?? -1;
   }
+
+  /// `fetch_recent_searches` (`0115`) — dédoublonnées, triées, du compte
+  /// connecté seulement.
+  Future<List<Map<String, dynamic>>> fetchRecentSearches({
+    required int limit,
+  }) async {
+    final rows = await _client.rpc(
+      'fetch_recent_searches',
+      params: {'p_limit': limit},
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  /// `forget_searches` (`0115`) : [query] nul efface tout.
+  Future<int> forgetSearches({String? query}) async {
+    final effacees = await _client.rpc(
+      'forget_searches',
+      params: {'p_query': query},
+    );
+    return (effacees as num?)?.toInt() ?? 0;
+  }
 }

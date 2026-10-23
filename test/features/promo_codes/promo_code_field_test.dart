@@ -79,7 +79,7 @@ Future<_DepotFactice> _poser(
 
 Future<void> _saisirEtAppliquer(WidgetTester tester, String code) async {
   await tester.enterText(find.byType(TextFormField), code);
-  await tester.tap(find.text('Appliquer le code'));
+  await tester.tap(find.text('Appliquer'));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
 }
@@ -114,7 +114,7 @@ void main() {
     await _saisirEtAppliquer(tester, 'BIENVENUE');
 
     expect(find.textContaining('BIENVENUE'), findsOneWidget);
-    expect(find.text('Appliquer le code'), findsNothing);
+    expect(find.text('Appliquer'), findsNothing);
   });
 
   testWidgets('un champ vide ne part pas au serveur, mais le dit', (
@@ -126,7 +126,7 @@ void main() {
       panier: [_article],
     );
 
-    await tester.tap(find.text('Appliquer le code'));
+    await tester.tap(find.text('Appliquer'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -160,10 +160,15 @@ void main() {
 
     expect(find.textContaining('Impossible de vérifier'), findsOneWidget);
     // Et le bouton doit redevenir cliquable, sinon l'écran paraît bloqué.
-    expect(find.text('Appliquer le code'), findsOneWidget);
+    expect(find.text('Appliquer'), findsOneWidget);
   });
 
-  testWidgets('un panier vide le dit aussi', (tester) async {
+  testWidgets('une commande sans article le dit aussi', (tester) async {
+    // Le message ne parle plus du « panier » : depuis que le code promo lit
+    // `checkoutItemsProvider`, il couvre aussi l'achat direct, qui ne passe
+    // jamais par le panier. Dire « votre panier est vide » à quelqu'un qui
+    // achète un produit en direct l'envoyait chercher une erreur qui
+    // n'existait pas.
     final depot = await _poser(
       tester,
       reponse: const PromoCodePreview(valid: false, reason: _refus),
@@ -172,7 +177,8 @@ void main() {
 
     await _saisirEtAppliquer(tester, 'BIENVENUE');
 
+    // Rien n'est envoyé au serveur : il n'y a rien à remiser.
     expect(depot.appels, 0);
-    expect(find.textContaining('panier est vide'), findsOneWidget);
+    expect(find.textContaining('Aucun article à remiser'), findsOneWidget);
   });
 }

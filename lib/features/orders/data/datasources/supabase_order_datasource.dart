@@ -23,8 +23,12 @@ class SupabaseOrderDatasource {
   /// the order's client, or an admin) — the same privacy boundary
   /// `SupplierOrderView` already imposed in Dart, now imposed by Postgres
   /// itself (verified in Lot 1). No extra filtering needed here for that.
+  ///
+  /// `client_contact` n'est pas une colonne mais une fonction (`0120`) : les
+  /// numéros et l'adresse du client vivent à part, et le serveur n'en rend
+  /// que ce que l'appelant peut voir. `*` ne l'inclut pas : il faut la nommer.
   static const _nestedSelect =
-      '*, supplier_groups:order_supplier_groups(*, items:order_items(*))';
+      '*, client_contact, supplier_groups:order_supplier_groups(*, items:order_items(*))';
 
   Future<List<Map<String, dynamic>>> _fetchOrders({String? clientId}) {
     var query = _client.from('orders').select(_nestedSelect);

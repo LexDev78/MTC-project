@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:mtc_app/features/catalog/presentation/screens/product_detail_screen.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 
 import '../test/support/supabase_test_harness.dart';
 import 'support/parcours_visuel.dart';
@@ -172,8 +172,8 @@ void main() {
         await revenirAuShell(tester, 'Profil');
         await ouvrirOnglet(tester, 'Profil');
         await toucher(tester, find.text('Déconnexion'), pas: 12);
-        await attendre(tester, find.text('Connectez-vous pour continuer'));
-        expect(find.text('Connectez-vous pour continuer'), findsOneWidget);
+        await attendre(tester, find.text('Bon retour !'));
+        expect(find.text('Bon retour !'), findsOneWidget);
       });
 
       // Par la recherche plutôt que par le flux d'accueil : la vignette
@@ -181,20 +181,22 @@ void main() {
       // sans ambiguïté.
       await etapeVisuelle(tester, 'promos-08-vignette', () async {
         await seConnecter(tester, 'client1');
-        await attendre(tester, find.text('Rechercher un produit...'));
-        await toucher(tester, find.text('Rechercher un produit...'));
-        await tester.enterText(find.byType(TextField).first, 'Bogolan tradition');
+        await chercher(tester, 'Bogolan tradition');
         await avancer(tester, pas: 10);
-        await attendre(tester, find.byType(ProductCard));
-        // Le badge annonce le meilleur palier (-20% dès 10) alors que le
-        // prix affiché reste celui d'une unité (-15%) : une vignette qui
-        // annoncerait -20% sur son prix mentirait.
-        expect(find.textContaining('-20%'), findsWidgets);
+        await attendre(tester, find.byType(ShopProductCard));
+        // La carte du kit annonce la remise du prix qu'elle affiche, celui
+        // d'une unité (-15 %) — pas le palier « dès 10 » (-20 %), qu'elle
+        // ne pourrait annoncer sans mentir sur son prix.
+        expect(find.textContaining('-15 %'), findsWidgets);
       });
 
+      // Le prix par quantité vit dans la feuille d'achat du kit, derrière
+      // « Acheter ».
       await etapeVisuelle(tester, 'promos-09-fiche-une-unite', () async {
-        await toucher(tester, find.byType(ProductCard).first, pas: 12);
+        await toucher(tester, find.byType(ShopProductCard).first, pas: 12);
         await attendre(tester, find.byType(ProductDetailScreen));
+        await toucher(tester, find.text('Acheter'), pas: 8);
+        await attendre(tester, find.textContaining('unités pour'));
         expect(find.textContaining('unités pour'), findsOneWidget);
       });
 
@@ -202,16 +204,17 @@ void main() {
       // l'incitation disparaître puisqu'il n'y a plus de palier à atteindre.
       await etapeVisuelle(tester, 'promos-10-fiche-dix-unites', () async {
         for (var i = 0; i < 9; i++) {
-          await toucher(tester, find.byIcon(Icons.add_rounded).first, pas: 2);
+          await toucher(tester, find.byTooltip('Ajouter un'), pas: 2);
         }
         expect(find.textContaining('Encore'), findsNothing);
       });
 
-      // La fiche est une route poussée : sa barre d'onglets n'existe pas
-      // tant qu'on ne l'a pas quittée.
+      // L'ajout ouvre la confirmation du kit ; « Continuer mes achats »
+      // ramène à l'accueil, d'où l'onglet Panier.
       await etapeVisuelle(tester, 'promos-11-panier', () async {
         await toucher(tester, find.text('Ajouter au panier'), pas: 12);
-        await revenirAuShell(tester, 'Panier');
+        await attendre(tester, find.text('Ajouté au panier'));
+        await toucher(tester, find.text('Continuer mes achats'), pas: 12);
         await ouvrirOnglet(tester, 'Panier');
         await attendre(tester, find.textContaining('Bogolan'));
         expect(find.textContaining('Bogolan'), findsWidgets);

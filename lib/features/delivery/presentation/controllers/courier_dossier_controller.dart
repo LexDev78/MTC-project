@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/storage/image_upload.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/courier_dossier.dart';
 import '../providers/delivery_providers.dart';
@@ -77,17 +78,15 @@ class CourierDossierController extends AsyncNotifier<void> {
     return !state.hasError;
   }
 
-  /// Le message du serveur, débarrassé du bruit PostgREST — « Pièces
-  /// manquantes : … » est écrit pour être lu par le livreur.
+  /// Le message à montrer au livreur si la dernière action a échoué —
+  /// « Pièces manquantes : … », ou la cause traduite d'une panne.
   String? get lastError {
     final error = state.error;
     if (error == null) return null;
-    final texte = error.toString();
-    final debut = texte.indexOf('message: ');
-    if (debut == -1) return texte;
-    final reste = texte.substring(debut + 'message: '.length);
-    final fin = reste.indexOf(', code:');
-    return fin == -1 ? reste : reste.substring(0, fin);
+    return messagePourUtilisateur(
+      error,
+      repli: 'L\'action n\'a pas abouti. Réessayez.',
+    );
   }
 }
 

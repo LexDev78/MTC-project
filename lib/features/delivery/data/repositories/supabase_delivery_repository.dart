@@ -43,15 +43,19 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   @override
-  Future<({String id, DeliveryStatus status})?> fetchByGroup(
+  Stream<({String id, DeliveryStatus status})?> watchByGroup(
     String supplierGroupId,
-  ) async {
-    final row = await _datasource.fetchByGroup(supplierGroupId);
-    if (row == null) return null;
-    return (
-      id: row['id'] as String,
-      status: DeliveryStatus.fromRow(row['status'] as String),
-    );
+  ) {
+    return _datasource
+        .watchByGroup(supplierGroupId)
+        .map(
+          (row) => row == null
+              ? null
+              : (
+                  id: row['id'] as String,
+                  status: DeliveryStatus.fromRow(row['status'] as String),
+                ),
+        );
   }
 
   @override
@@ -290,6 +294,7 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
   /// intermédiaires qui ne servent nulle part ailleurs.
   static CourierDelivery _fromRow(Map<String, dynamic> row) {
     final order = row['order_data'] as Map<String, dynamic>;
+    final contact = order['client_contact'] as Map<String, dynamic>?;
     final group = row['group_data'] as Map<String, dynamic>;
     final supplier = group['supplier'] as Map<String, dynamic>?;
     final items = (group['items'] as List<dynamic>? ?? const []);
@@ -311,13 +316,13 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
         supplier?['public_phone_numbers'] as List<dynamic>? ?? const [],
       ),
       clientName: order['client_display_name_snapshot'] as String,
-      clientPhone: order['client_phone_snapshot'] as String,
-      clientAlternatePhone: order['alternate_phone'] as String?,
-      deliveryAddressLabel: order['delivery_address_label'] as String,
+      clientPhone: contact?['phone'] as String?,
+      clientAlternatePhone: contact?['alternate_phone'] as String?,
+      deliveryAddressLabel: contact?['address_label'] as String?,
       deliveryCity: order['delivery_city'] as String,
-      deliveryDetails: order['delivery_details'] as String? ?? '',
-      deliveryLatitude: (order['delivery_latitude'] as num).toDouble(),
-      deliveryLongitude: (order['delivery_longitude'] as num).toDouble(),
+      deliveryDetails: contact?['address_details'] as String?,
+      deliveryLatitude: (contact?['latitude'] as num?)?.toDouble(),
+      deliveryLongitude: (contact?['longitude'] as num?)?.toDouble(),
       items: [
         for (final item in items.cast<Map<String, dynamic>>())
           DeliveryItem(

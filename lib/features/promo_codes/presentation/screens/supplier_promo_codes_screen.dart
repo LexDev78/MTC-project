@@ -9,6 +9,7 @@ import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/supplier_product_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/promo_code.dart';
 import '../controllers/promo_code_controller.dart';
@@ -473,7 +474,7 @@ class _PromoCodeFormState extends ConsumerState<_PromoCodeForm> {
         content: Text(
           // Le motif vient du serveur (code déjà pris, par exemple) : on
           // l'affiche tel quel plutôt que d'en inventer un.
-          error?.toString() ?? 'Le code n\'a pas pu être créé.',
+          messagePourUtilisateur(error, repli: 'Le code n\'a pas pu être créé.'),
         ),
       ),
     );

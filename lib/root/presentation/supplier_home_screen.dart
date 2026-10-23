@@ -17,7 +17,7 @@ import 'package:mtc_app/features/catalog/domain/repositories/product_repository.
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/characteristic_type_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/supplier_product_providers.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
+import 'package:mtc_app/features/catalog/presentation/widgets/product_image.dart'
     show ProductCategoryIcon, ProductImage;
 import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:mtc_app/features/supplier_onboarding/presentation/providers/supplier_kyc_providers.dart';

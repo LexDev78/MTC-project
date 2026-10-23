@@ -1,6 +1,8 @@
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 
 import '../../data/datasources/supabase_address_datasource.dart';
@@ -25,10 +27,25 @@ final addressesProvider = StreamProvider<List<Address>>((ref) {
   return ref.watch(addressRepositoryProvider).watchAddresses(userId);
 });
 
-/// The address used as checkout/tracking destination by default — simply
-/// the first one on file for this pass (no explicit "default" flag yet).
+/// L'identifiant de l'adresse que le client a choisie par défaut (`0117`),
+/// ou `null` s'il n'en a pas choisi.
+final chosenDefaultAddressIdProvider = Provider<String?>((ref) {
+  return ref.watch(
+    currentUserProvider.select(
+      (u) => switch (u.valueOrNull) {
+        ClientUser(:final defaultAddressId) => defaultAddressId,
+        _ => null,
+      },
+    ),
+  );
+});
+
+/// L'adresse que le paiement propose : celle que le client a choisie par
+/// défaut, sinon la première enregistrée.
 final defaultAddressProvider = Provider<Address?>((ref) {
   final addresses =
       ref.watch(addressesProvider).valueOrNull ?? const <Address>[];
-  return addresses.isEmpty ? null : addresses.first;
+  final choisie = ref.watch(chosenDefaultAddressIdProvider);
+  return addresses.firstWhereOrNull((a) => a.id == choisie) ??
+      addresses.firstOrNull;
 });

@@ -6,6 +6,7 @@ import 'package:mtc_app/core/utils/currency_formatter.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/promotion.dart';
@@ -377,7 +378,7 @@ class _NewPromotionFormState extends ConsumerState<_NewPromotionForm> {
     final error = ref.read(supplierPromotionControllerProvider).error;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(error?.toString() ?? 'La promotion n\'a pas pu être créée.'),
+        content: Text(messagePourUtilisateur(error, repli: 'La promotion n\'a pas pu être créée.')),
       ),
     );
   }

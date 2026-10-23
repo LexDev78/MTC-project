@@ -9,7 +9,7 @@ import 'package:mtc_app/features/suppliers/presentation/providers/operating_supp
 import '../../domain/entities/review.dart';
 import '../controllers/review_controller.dart';
 import '../providers/review_providers.dart';
-import '../widgets/product_reviews_section.dart' show MediaStrip;
+import '../widgets/review_media.dart';
 
 /// Every review left on the operating supplier's storefront, with the
 /// ability to write (or edit) a public reply — reached from an action on
@@ -116,6 +116,14 @@ class _ReviewManagementTileState extends ConsumerState<_ReviewManagementTile> {
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
+            // Le titre que l'acheteur a donné (`0119`), quand il y en a un.
+            if (review.title case final titre? when titre.trim().isNotEmpty)
+              Text(
+                titre,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
             Text(review.comment),
             // Les photos de l'acheteur (`0061`) : un reproche illustré ne se
             // traite pas comme un reproche décrit, et le vendeur doit voir ce

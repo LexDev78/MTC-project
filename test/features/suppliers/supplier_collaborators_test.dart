@@ -1,11 +1,16 @@
 @Tags(['integration'])
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mtc_app/core/auth/pseudo_email.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
+import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/core/error/exceptions.dart';
+import 'package:mtc_app/core/error/user_message.dart';
+import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 
 import '../../support/supabase_test_harness.dart';
 
@@ -264,7 +269,11 @@ void main() {
         'remove_supplier_collaborator',
         params: {'p_user_id': userId},
       );
-      expect(await patron.rpc('fetch_my_collaborators'), isEmpty);
+      // Retirer ne supprime plus (`0110`) : le collaborateur reste dans la
+      // liste, désactivé, pour que le patron puisse le rétablir.
+      equipe = await patron.rpc('fetch_my_collaborators') as List;
+      expect(equipe, hasLength(1));
+      expect((equipe.single as Map)['deactivated_at'], isNotNull);
     });
 
     test('retirer coupe l\'accès sans supprimer le compte', () async {
@@ -712,4 +721,168 @@ void main() {
       expect((dossiers as List).length, greaterThan(1));
     });
   });
+
+  group('retirer un collaborateur ne fait que le désactiver', () {
+    Future<String> retire(String nom, Set<String> droits) async {
+      final userId = await createCollaboratorAsAdmin(
+        supplierId: DemoIds.supplierBogolanBamako,
+        username: nom,
+        permissions: droits,
+      );
+      final patron = await _connecte('fournisseur1');
+      await patron.rpc(
+        'remove_supplier_collaborator',
+        params: {'p_user_id': userId},
+      );
+      return userId;
+    }
+
+    test('le patron le voit encore, et le rétablit avec les mêmes droits',
+        () async {
+      final userId = await retire('vendeur_pause', {'products', 'orders'});
+
+      // Retiré : plus aucune boutique, plus aucune permission.
+      final retire_ = await _connecte('vendeur_pause');
+      expect(await retire_.rpc('operating_supplier_id'), isNull);
+      expect(
+        await retire_.rpc('supplier_can', params: {'p_permission': 'products'}),
+        isFalse,
+      );
+
+      // Rétabli d'un geste, sans recréer de compte.
+      final patron = await _connecte('fournisseur1');
+      await patron.rpc(
+        'reactivate_supplier_collaborator',
+        params: {'p_user_id': userId},
+      );
+      final revenu = await _connecte('vendeur_pause');
+      expect(
+        await revenu.rpc('operating_supplier_id'),
+        DemoIds.supplierBogolanBamako,
+      );
+      // Avec les droits qu'il avait : c'est tout l'intérêt de garder la
+      // ligne plutôt que de la recréer.
+      expect(
+        await revenu.rpc('supplier_can', params: {'p_permission': 'orders'}),
+        isTrue,
+      );
+      final equipe = await patron.rpc('fetch_my_collaborators') as List;
+      expect((equipe.single as Map)['deactivated_at'], isNull);
+    });
+
+    test('rétablir un accès qui n\'est pas retiré est refusé', () async {
+      final userId = await createCollaboratorAsAdmin(
+        supplierId: DemoIds.supplierBogolanBamako,
+        username: 'vendeur_actif',
+        permissions: const {'products'},
+      );
+      final patron = await _connecte('fournisseur1');
+      await expectLater(
+        patron.rpc(
+          'reactivate_supplier_collaborator',
+          params: {'p_user_id': userId},
+        ),
+        throwsA(
+          isA<PostgrestException>().having(
+            (e) => e.message,
+            'message',
+            contains('déjà accès'),
+          ),
+        ),
+      );
+    });
+
+    test('un collaborateur retiré ne se rétablit pas lui-même', () async {
+      final userId = await retire('vendeur_malin', {'products'});
+      final lui = await _connecte('vendeur_malin');
+      await expectLater(
+        lui.rpc(
+          'reactivate_supplier_collaborator',
+          params: {'p_user_id': userId},
+        ),
+        throwsA(isA<PostgrestException>()),
+      );
+      expect(await lui.rpc('operating_supplier_id'), isNull);
+    });
+  });
+
+  group('la connexion d\'un collaborateur retiré', () {
+    late ProviderContainer container;
+
+    setUp(() {
+      container = ProviderContainer(
+        overrides: [
+          supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+        ],
+      );
+      addTearDown(container.dispose);
+    });
+
+    test('dit que l\'accès est retiré, nomme la boutique, et ferme la session',
+        () async {
+      final userId = await createCollaboratorAsAdmin(
+        supplierId: DemoIds.supplierBogolanBamako,
+        username: 'vendeur_parti',
+        permissions: const {'products'},
+      );
+      final patron = await _connecte('fournisseur1');
+      await patron.rpc(
+        'remove_supplier_collaborator',
+        params: {'p_user_id': userId},
+      );
+
+      // Le vrai chemin de l'écran de connexion : le dépôt d'authentification.
+      Object? erreur;
+      try {
+        await container
+            .read(authRepositoryProvider)
+            .login(usernameOrPhone: 'vendeur_parti', password: 'password123');
+      } catch (e) {
+        erreur = e;
+      }
+
+      expect(erreur, isA<CollaboratorAccessRevokedException>());
+      final message = messagePourUtilisateur(erreur);
+      expect(message, contains('Bogolan Bamako'));
+      expect(message, contains('retiré'));
+      // Avant `0110` et ce correctif, c'est ceci qu'il lisait.
+      expect(message, isNot(contains('PGRST')));
+      expect(message, isNot(contains('Exception')));
+      // Pas de session ouverte à moitié derrière le message.
+      expect(
+        container.read(supabaseClientProvider).auth.currentSession,
+        isNull,
+      );
+    });
+
+    test('un compte retiré avant la désactivation reçoit lui aussi un message',
+        () async {
+      // Avant `0110`, retirer effaçait la ligne : ces comptes n'ont plus ni
+      // boutique ni rattachement. C'était exactement le cas signalé — la
+      // connexion levait `PGRST116` et l'écran affichait ce code.
+      final userId = await createCollaboratorAsAdmin(
+        supplierId: DemoIds.supplierBogolanBamako,
+        username: 'vendeur_ancien',
+        permissions: const {'products'},
+      );
+      await adminDeleteCollaboratorLink(userId);
+
+      Object? erreur;
+      try {
+        await container
+            .read(authRepositoryProvider)
+            .login(usernameOrPhone: 'vendeur_ancien', password: 'password123');
+      } catch (e) {
+        erreur = e;
+      }
+
+      expect(erreur, isA<AccountNotAttachedException>());
+      expect(messagePourUtilisateur(erreur), contains('aucune boutique'));
+      expect(
+        container.read(supabaseClientProvider).auth.currentSession,
+        isNull,
+      );
+    });
+  });
 }
+

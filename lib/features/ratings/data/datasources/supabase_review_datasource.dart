@@ -48,6 +48,7 @@ class SupabaseReviewDatasource {
     required String comment,
     List<String> imagePaths = const [],
     String? videoPath,
+    String? title,
   }) async {
     final id = await _client.rpc(
       'submit_review',
@@ -58,6 +59,7 @@ class SupabaseReviewDatasource {
         'p_comment': comment,
         'p_image_paths': imagePaths,
         'p_video_path': videoPath,
+        'p_title': title,
       },
     );
     _notify();
@@ -96,7 +98,7 @@ class SupabaseReviewDatasource {
   }
 
   /// Avis des acheteurs d'un produit, commentaires compris
-  /// (`fetch_product_reviews`, `0061`).
+  /// (`fetch_product_reviews`, `0061`), triés selon [sort] (`0114`).
   ///
   /// Une RPC et non un `select` : le rattachement d'un avis à un produit
   /// passe par `order_items`, que ni un visiteur sans compte ni un autre
@@ -106,6 +108,7 @@ class SupabaseReviewDatasource {
     required String productId,
     int limit = 20,
     int offset = 0,
+    String sort = 'recent',
   }) async {
     final rows = await _client.rpc(
       'fetch_product_reviews',
@@ -113,6 +116,7 @@ class SupabaseReviewDatasource {
         'p_product_id': productId,
         'p_limit': limit,
         'p_offset': offset,
+        'p_sort': sort,
       },
     );
     return List<Map<String, dynamic>>.from(rows as List);
@@ -127,6 +131,19 @@ class SupabaseReviewDatasource {
     );
     final list = List<Map<String, dynamic>>.from(rows as List);
     return list.isEmpty ? null : list.first;
+  }
+
+  /// Le nombre d'avis par note, de 1 à 5 (`0113`) — compté en base : la
+  /// liste des avis est paginée, une répartition calculée sur sa première
+  /// page serait fausse.
+  Future<List<Map<String, dynamic>>> fetchProductRatingDistribution(
+    String productId,
+  ) async {
+    final rows = await _client.rpc(
+      'fetch_product_rating_distribution',
+      params: {'p_product_id': productId},
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
   }
 
   /// Commente un avis.

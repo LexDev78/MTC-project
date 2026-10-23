@@ -151,7 +151,7 @@ void main() {
       await etapeVisuelle(tester, 'codes-07-utilisation', () async {
         await revenirAuShell(tester, 'Profil');
         await ouvrirOnglet(tester, 'Profil');
-        await toucher(tester, find.text('Paramètres'), pas: 10);
+        // La déconnexion est en bas du menu du profil, comme dans le kit.
         await toucher(tester, find.text('Déconnexion'), pas: 12);
         await seConnecter(tester, 'fournisseur6');
         await ouvrirOnglet(tester, 'Profil');

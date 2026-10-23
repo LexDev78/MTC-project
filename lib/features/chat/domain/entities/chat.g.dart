@@ -18,6 +18,9 @@ _$ChatConversationImpl _$$ChatConversationImplFromJson(
   lastMessageAt: DateTime.parse(json['last_message_at'] as String),
   unreadCountClient: (json['unread_count_client'] as num).toInt(),
   unreadCountSupplier: (json['unread_count_supplier'] as num).toInt(),
+  closedAt: json['closed_at'] == null
+      ? null
+      : DateTime.parse(json['closed_at'] as String),
 );
 
 Map<String, dynamic> _$$ChatConversationImplToJson(
@@ -32,6 +35,7 @@ Map<String, dynamic> _$$ChatConversationImplToJson(
   'last_message_at': instance.lastMessageAt.toIso8601String(),
   'unread_count_client': instance.unreadCountClient,
   'unread_count_supplier': instance.unreadCountSupplier,
+  'closed_at': instance.closedAt?.toIso8601String(),
 };
 
 _$ChatMessageImpl _$$ChatMessageImplFromJson(Map<String, dynamic> json) =>

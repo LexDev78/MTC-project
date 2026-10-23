@@ -1,8 +1,10 @@
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/mock_data/malian_locations.dart';
+import 'package:mtc_app/features/orders/domain/entities/order.dart';
 import 'package:mtc_app/features/orders/domain/entities/order_status.dart';
 import 'package:mtc_app/features/orders/presentation/providers/order_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
@@ -50,10 +52,17 @@ final trackingParamsProvider = FutureProvider.family<TrackingParams, String>((
   orderId,
 ) async {
   final order = await ref.watch(orderDetailProvider(orderId).future);
-  final group = order.supplierGroups.firstWhere(
-    (g) => g.status == OrderStatus.inTransit,
-    orElse: () => order.supplierGroups.first,
-  );
+  // Une commande chez deux boutiques peut avoir deux parts en route : celle
+  // qu'un livreur MTC transporte est la seule qui se suive. La prendre
+  // d'abord évite d'annoncer « Suivi indisponible » pour la part livrée par
+  // la boutique quand l'autre, elle, est sur la carte.
+  bool enRoute(OrderSupplierGroup g) => g.status == OrderStatus.inTransit;
+  final group =
+      order.supplierGroups.firstWhereOrNull(
+        (g) => enRoute(g) && g.deliveryMode == DeliveryMode.mtcDelivery,
+      ) ??
+      order.supplierGroups.firstWhereOrNull(enRoute) ??
+      order.supplierGroups.first;
   final supplier = await ref.watch(
     supplierDetailProvider(group.supplierId).future,
   );
@@ -74,7 +83,21 @@ final trackingParamsProvider = FutureProvider.family<TrackingParams, String>((
   return (
     groupId: group.id,
     origin: origin,
-    destination: LatLng(order.deliveryLatitude, order.deliveryLongitude),
+    // Le client voit toujours son adresse ; le centre de sa ville ne sert
+    // que si le serveur n'a rien rendu.
+    destination: switch (order.clientContact) {
+      OrderContact(:final latitude?, :final longitude?) => LatLng(
+        latitude,
+        longitude,
+      ),
+      _ =>
+        MalianCity.values
+            .firstWhere(
+              (c) => c.label == order.deliveryCity,
+              orElse: () => MalianCity.bamako,
+            )
+            .coordinates,
+    },
     isMtcDelivery: group.deliveryMode == DeliveryMode.mtcDelivery,
   );
 });

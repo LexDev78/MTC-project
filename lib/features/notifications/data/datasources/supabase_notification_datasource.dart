@@ -63,4 +63,19 @@ class SupabaseNotificationDatasource {
         .eq('is_read', false);
     _notify();
   }
+
+  /// La ligne de réglages de [userId] (`0118`), ou `null` s'il n'a jamais
+  /// rien réglé. La RLS ne laisse lire que la sienne.
+  Future<Map<String, dynamic>?> fetchPreferences(String userId) {
+    return _client
+        .from('notification_preferences')
+        .select()
+        .eq('user_id', userId)
+        .maybeSingle();
+  }
+
+  /// Crée ou remplace la ligne de réglages (clé : `user_id`).
+  Future<void> savePreferences(Map<String, dynamic> row) async {
+    await _client.from('notification_preferences').upsert(row);
+  }
 }

@@ -2,6 +2,7 @@ import 'package:mtc_app/core/error/exceptions.dart';
 
 import '../../domain/entities/product_review.dart';
 import '../../domain/entities/review.dart';
+import '../../domain/entities/review_sort.dart';
 import '../../domain/repositories/review_repository.dart';
 import '../datasources/supabase_review_datasource.dart';
 
@@ -25,6 +26,7 @@ class SupabaseReviewRepository implements ReviewRepository {
     required String comment,
     List<String> imagePaths = const [],
     String? videoPath,
+    String? title,
   }) {
     return _datasource.submitReview(
       orderId: orderId,
@@ -33,6 +35,7 @@ class SupabaseReviewRepository implements ReviewRepository {
       comment: comment,
       imagePaths: imagePaths,
       videoPath: videoPath,
+      title: title,
     );
   }
 
@@ -41,11 +44,13 @@ class SupabaseReviewRepository implements ReviewRepository {
     required String productId,
     int limit = 20,
     int offset = 0,
+    ReviewSort sort = ReviewSort.recent,
   }) async {
     final rows = await _datasource.fetchProductReviews(
       productId: productId,
       limit: limit,
       offset: offset,
+      sort: sort.rpcValue,
     );
     return rows.map(ProductReview.fromJson).toList();
   }
@@ -83,6 +88,15 @@ class SupabaseReviewRepository implements ReviewRepository {
   @override
   Future<void> deleteComment(String commentId) =>
       _datasource.deleteComment(commentId);
+
+  @override
+  Future<Map<int, int>> fetchProductRatingDistribution(String productId) async {
+    final rows = await _datasource.fetchProductRatingDistribution(productId);
+    return {
+      for (final row in rows)
+        (row['stars'] as num).toInt(): (row['review_count'] as num).toInt(),
+    };
+  }
 
   @override
   Future<bool> canReview({

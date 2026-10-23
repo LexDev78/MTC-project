@@ -31,6 +31,12 @@ class SupabaseSupplierRepository implements SupplierRepository {
         .map((rows) => rows.map(SupplierProfile.fromJson).toList());
   }
 
+  @override
+  Future<List<SupplierProfile>> fetchListed() async {
+    final rows = await _datasource.fetchListed();
+    return rows.map(SupplierProfile.fromJson).toList();
+  }
+
   /// Kept for interface completeness — `AuthController.signUpSupplierTiers`
   /// no longer calls this (the `suppliers` row is created atomically by
   /// `handle_new_user()`, see `supabase/migrations/0001_initial_schema.sql`).
@@ -159,6 +165,10 @@ class SupabaseSupplierRepository implements SupplierRepository {
   @override
   Future<void> removeCollaborator(String userId) =>
       _datasource.removeCollaborator(userId);
+
+  @override
+  Future<void> reactivateCollaborator(String userId) =>
+      _datasource.reactivateCollaborator(userId);
 
   @override
   Future<void> setOpen({required String supplierId, required bool isOpen}) {

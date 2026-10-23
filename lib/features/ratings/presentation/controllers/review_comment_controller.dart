@@ -12,12 +12,12 @@ class ReviewCommentController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  /// [productId] n'est pas utilisé par l'écriture : il sert à invalider la
-  /// bonne fiche après coup. Sans lui, le commentaire partirait sans que la
-  /// liste bouge, et on le réécrirait en croyant l'avoir perdu.
+  /// Après coup, les pages d'avis sont relues — toutes : une famille ne
+  /// s'invalide pas par clé partielle, et ni le produit ni le tri en cours
+  /// ne sont connus d'ici. Sans cette relecture, le commentaire partirait
+  /// sans que la liste bouge, et on le réécrirait en croyant l'avoir perdu.
   Future<bool> add({
     required String reviewId,
-    required String productId,
     required String body,
     List<String> imagePaths = const [],
     String? videoPath,
@@ -34,20 +34,17 @@ class ReviewCommentController extends AsyncNotifier<void> {
           ),
     );
     if (state.hasError) return false;
-    ref.invalidate(productReviewsProvider(productId));
+    ref.invalidate(productReviewsPageProvider);
     return true;
   }
 
-  Future<bool> remove({
-    required String commentId,
-    required String productId,
-  }) async {
+  Future<bool> remove({required String commentId}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref.read(reviewRepositoryProvider).deleteComment(commentId),
     );
     if (state.hasError) return false;
-    ref.invalidate(productReviewsProvider(productId));
+    ref.invalidate(productReviewsPageProvider);
     return true;
   }
 }

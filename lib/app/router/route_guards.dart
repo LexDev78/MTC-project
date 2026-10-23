@@ -23,6 +23,7 @@ String? authRedirect(Ref ref, GoRouterState state) {
       path == AppRoutes.splash ||
       path == AppRoutes.welcome ||
       path == AppRoutes.login ||
+      path.startsWith(AppRoutes.forgotPassword) ||
       path.startsWith(AppRoutes.signUp);
 
   if (user == null) {

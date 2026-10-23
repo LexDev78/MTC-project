@@ -10,6 +10,7 @@ import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart
 import 'package:mtc_app/features/orders/domain/entities/payment.dart';
 import 'package:mtc_app/features/orders/presentation/providers/supplier_order_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/compute_financial_summary.dart';
 import '../../domain/entities/payout_request.dart';
@@ -317,7 +318,7 @@ class _RequestPayoutSheetState extends ConsumerState<_RequestPayoutSheet> {
     } else {
       final error = ref.read(supplierFinanceControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+        SnackBar(content: Text(messagePourUtilisateur(error))),
       );
     }
   }

@@ -6,6 +6,7 @@ import '../../data/datasources/supabase_product_datasource.dart';
 import '../../data/repositories/supabase_product_repository.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
+import '../../domain/product_list_filters.dart';
 import '../../domain/repositories/product_repository.dart';
 
 final productDatasourceProvider = Provider<SupabaseProductDatasource>((ref) {
@@ -14,151 +15,6 @@ final productDatasourceProvider = Provider<SupabaseProductDatasource>((ref) {
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   return SupabaseProductRepository(ref.watch(productDatasourceProvider));
-});
-
-/// Selected category filter, isolated per [SupplierType] tab.
-final catalogCategoryProvider =
-    StateProvider.family<ProductCategory?, SupplierType>((ref, type) => null);
-
-/// Sort applied on top of the repository query, isolated per tab.
-final catalogSortProvider = StateProvider.family<ProductSortOption, SupplierType>(
-  (ref, type) => ProductSortOption.relevance,
-);
-
-/// Price-range filter (inclusive, in FCFA), isolated per tab. `null` means
-/// "no bound on this side".
-final catalogMinPriceProvider = StateProvider.family<int?, SupplierType>(
-  (ref, type) => null,
-);
-final catalogMaxPriceProvider = StateProvider.family<int?, SupplierType>(
-  (ref, type) => null,
-);
-
-/// Selected size/color filters, isolated per tab. Empty set means "no
-/// restriction on this axis" — a product matches if it has *any* of the
-/// selected values (OR within an axis, AND across axes).
-final catalogSelectedSizesProvider =
-    StateProvider.family<Set<String>, SupplierType>((ref, type) => const {});
-final catalogSelectedColorsProvider =
-    StateProvider.family<Set<String>, SupplierType>((ref, type) => const {});
-
-/// Selected region filter (provenance: Chine/Europe/Afrique/Mali/Autre),
-/// isolated per tab — same OR-within-axis semantics as sizes/colors, and
-/// unlike them it's a fixed enum so the filter sheet always shows every
-/// value rather than only the ones present in the current result set.
-final catalogSelectedRegionsProvider =
-    StateProvider.family<Set<ProductRegion>, SupplierType>(
-      (ref, type) => const {},
-    );
-
-/// Every distinct size/color value available across this tab's products
-/// (ignoring the current filter selections), used to populate the filter
-/// sheet's chip options — empty for tabs where no product has that axis
-/// (e.g. matériaux/alimentation), so the sheet just hides that section.
-final catalogAvailableSizesProvider =
-    StreamProvider.family<List<String>, SupplierType>((ref, type) {
-      final repository = ref.watch(productRepositoryProvider);
-      return repository.watchProducts(supplierType: type).map((products) {
-        final values = <String>{};
-        for (final p in products) {
-          values.addAll(p.sizes);
-        }
-        final sorted = values.toList()..sort();
-        return sorted;
-      });
-    });
-final catalogAvailableColorsProvider =
-    StreamProvider.family<List<String>, SupplierType>((ref, type) {
-      final repository = ref.watch(productRepositoryProvider);
-      return repository.watchProducts(supplierType: type).map((products) {
-        final values = <String>{};
-        for (final p in products) {
-          values.addAll(p.colors);
-        }
-        final sorted = values.toList()..sort();
-        return sorted;
-      });
-    });
-
-/// Whether any filter (price/size/color/sort) beyond category/search is
-/// currently active — drives the badge dot on the filter icon.
-final catalogHasActiveFilterProvider = Provider.family<bool, SupplierType>((
-  ref,
-  type,
-) {
-  return ref.watch(catalogMinPriceProvider(type)) != null ||
-      ref.watch(catalogMaxPriceProvider(type)) != null ||
-      ref.watch(catalogSelectedSizesProvider(type)).isNotEmpty ||
-      ref.watch(catalogSelectedColorsProvider(type)).isNotEmpty ||
-      ref.watch(catalogSelectedRegionsProvider(type)).isNotEmpty ||
-      ref.watch(catalogSortProvider(type)) != ProductSortOption.relevance;
-});
-
-/// The cheapest/priciest product currently available for this tab
-/// (ignoring the price filter itself, so the slider's bounds stay stable
-/// while the user drags it), used to size the filter sheet's price slider.
-final catalogPriceBoundsProvider =
-    StreamProvider.family<(int min, int max), SupplierType>((ref, type) {
-      final repository = ref.watch(productRepositoryProvider);
-      return repository.watchProducts(supplierType: type).map((products) {
-        if (products.isEmpty) return (0, 0);
-        var min = products.first.priceFcfa;
-        var max = products.first.priceFcfa;
-        for (final p in products) {
-          if (p.priceFcfa < min) min = p.priceFcfa;
-          if (p.priceFcfa > max) max = p.priceFcfa;
-        }
-        return (min, max);
-      });
-    });
-
-final productListProvider = StreamProvider.family<List<Product>, SupplierType>((
-  ref,
-  type,
-) {
-  final repository = ref.watch(productRepositoryProvider);
-  final category = ref.watch(catalogCategoryProvider(type));
-  final minPrice = ref.watch(catalogMinPriceProvider(type));
-  final maxPrice = ref.watch(catalogMaxPriceProvider(type));
-  final sort = ref.watch(catalogSortProvider(type));
-  final selectedSizes = ref.watch(catalogSelectedSizesProvider(type));
-  final selectedColors = ref.watch(catalogSelectedColorsProvider(type));
-  final selectedRegions = ref.watch(catalogSelectedRegionsProvider(type));
-
-  return repository
-      .watchProducts(supplierType: type, category: category)
-      .map((products) {
-        var filtered = products.where((p) {
-          if (minPrice != null && p.priceFcfa < minPrice) return false;
-          if (maxPrice != null && p.priceFcfa > maxPrice) return false;
-          if (selectedSizes.isNotEmpty &&
-              !p.sizes.any(selectedSizes.contains)) {
-            return false;
-          }
-          if (selectedColors.isNotEmpty &&
-              !p.colors.any(selectedColors.contains)) {
-            return false;
-          }
-          if (selectedRegions.isNotEmpty &&
-              !selectedRegions.contains(p.region)) {
-            return false;
-          }
-          return true;
-        }).toList();
-        switch (sort) {
-          case ProductSortOption.relevance:
-            break;
-          case ProductSortOption.priceAsc:
-            filtered.sort((a, b) => a.priceFcfa.compareTo(b.priceFcfa));
-          case ProductSortOption.priceDesc:
-            filtered.sort((a, b) => b.priceFcfa.compareTo(a.priceFcfa));
-          case ProductSortOption.ratingDesc:
-            filtered.sort((a, b) => b.ratingAverage.compareTo(a.ratingAverage));
-          case ProductSortOption.newest:
-            filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        }
-        return filtered;
-      });
 });
 
 /// Products similar to [product] — same category and supplier side,
@@ -195,84 +51,61 @@ final supplierProductsProvider = StreamProvider.family<List<Product>, String>((
       .watchProducts(supplierId: supplierId);
 });
 
-/// Sort/price filter state for the Catalogue tab's per-category product
-/// list (`CategoryProductsScreen`) — isolated per [ProductCategory], and
-/// deliberately supplier-type-agnostic (unlike `catalogSortProvider` &
-/// friends above): Catalogue groups by category across both principal and
-/// tiers suppliers combined, so there's no `SupplierType` to key on.
-final categorySortProvider = StateProvider.family<ProductSortOption, ProductCategory>(
-  (ref, category) => ProductSortOption.relevance,
-);
-final categoryMinPriceProvider = StateProvider.family<int?, ProductCategory>(
-  (ref, category) => null,
-);
-final categoryMaxPriceProvider = StateProvider.family<int?, ProductCategory>(
-  (ref, category) => null,
-);
+/// Les filtres et le tri de la liste d'une catégorie (`CategoryProductsScreen`),
+/// gardés par catégorie : en revenant sur « Électronique », on retrouve ses
+/// propres réglages.
+final categoryFiltersProvider =
+    StateProvider.family<ProductListFilters, ProductCategory>(
+      (ref, category) => const ProductListFilters(),
+    );
 
-final categoryPriceBoundsProvider =
-    StreamProvider.family<(int min, int max), ProductCategory>((ref, category) {
-      final repository = ref.watch(productRepositoryProvider);
-      return repository.watchProducts(category: category).map((products) {
-        if (products.isEmpty) return (0, 0);
-        var min = products.first.priceFcfa;
-        var max = products.first.priceFcfa;
-        for (final p in products) {
-          if (p.priceFcfa < min) min = p.priceFcfa;
-          if (p.priceFcfa > max) max = p.priceFcfa;
-        }
-        return (min, max);
-      });
-    });
-
-final categoryHasActiveFilterProvider = Provider.family<bool, ProductCategory>((
-  ref,
-  category,
-) {
-  return ref.watch(categoryMinPriceProvider(category)) != null ||
-      ref.watch(categoryMaxPriceProvider(category)) != null ||
-      ref.watch(categorySortProvider(category)) != ProductSortOption.relevance;
-});
-
-/// Every product in [category], from both supplier types combined — the
-/// Catalogue tab's whole point is browsing by nature of product rather than
-/// by which side of the marketplace sells it.
-final categoryProductListProvider =
+/// Tout ce que [ProductCategory] propose, des deux types de fournisseurs, avant
+/// filtres : la matière des facettes et des bornes de prix de la feuille, qui
+/// ne doivent pas rétrécir à mesure qu'on filtre.
+final categoryAllProductsProvider =
     StreamProvider.family<List<Product>, ProductCategory>((ref, category) {
-      final repository = ref.watch(productRepositoryProvider);
-      final minPrice = ref.watch(categoryMinPriceProvider(category));
-      final maxPrice = ref.watch(categoryMaxPriceProvider(category));
-      final sort = ref.watch(categorySortProvider(category));
-
-      return repository.watchProducts(category: category).map((products) {
-        var filtered = products.where((p) {
-          if (minPrice != null && p.priceFcfa < minPrice) return false;
-          if (maxPrice != null && p.priceFcfa > maxPrice) return false;
-          return true;
-        }).toList();
-        switch (sort) {
-          case ProductSortOption.relevance:
-            break;
-          case ProductSortOption.priceAsc:
-            filtered.sort((a, b) => a.priceFcfa.compareTo(b.priceFcfa));
-          case ProductSortOption.priceDesc:
-            filtered.sort((a, b) => b.priceFcfa.compareTo(a.priceFcfa));
-          case ProductSortOption.ratingDesc:
-            filtered.sort((a, b) => b.ratingAverage.compareTo(a.ratingAverage));
-          case ProductSortOption.newest:
-            filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        }
-        return filtered;
-      });
+      return ref
+          .watch(productRepositoryProvider)
+          .watchProducts(category: category);
     });
 
-/// Global search (across both supplier types), used by `search_screen.dart`.
-final globalSearchQueryProvider = StateProvider<String>((ref) => '');
+/// La liste de la catégorie, filtres et tri appliqués.
+final categoryProductListProvider =
+    Provider.family<AsyncValue<List<Product>>, ProductCategory>((
+      ref,
+      category,
+    ) {
+      final filtres = ref.watch(categoryFiltersProvider(category));
+      return ref
+          .watch(categoryAllProductsProvider(category))
+          .whenData(filtres.apply);
+    });
 
-final globalSearchResultsProvider = StreamProvider<List<Product>>((ref) {
+/// Le texte cherché, une fois la frappe posée (`SearchScreen`). Oublié en
+/// quittant l'écran, comme ses filtres : une recherche rouverte part vide.
+final globalSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+
+/// Les filtres et le tri des résultats de recherche.
+final searchFiltersProvider = StateProvider.autoDispose<ProductListFilters>(
+  (ref) => const ProductListFilters(),
+);
+
+/// Tous les produits qui répondent au texte cherché, des deux types de
+/// fournisseurs, avant filtres.
+final globalSearchResultsProvider = StreamProvider.autoDispose<List<Product>>((
+  ref,
+) {
   final query = ref.watch(globalSearchQueryProvider).trim();
   if (query.isEmpty) return Stream.value(const []);
   return ref.watch(productRepositoryProvider).watchProducts(query: query);
+});
+
+/// Les résultats de recherche, filtres et tri appliqués.
+final searchResultsProvider = Provider.autoDispose<AsyncValue<List<Product>>>((
+  ref,
+) {
+  final filtres = ref.watch(searchFiltersProvider);
+  return ref.watch(globalSearchResultsProvider).whenData(filtres.apply);
 });
 
 /// Per-product favorite/order counts for the supplier dashboard's product

@@ -1,5 +1,6 @@
 
 import '../../domain/entities/app_notification.dart';
+import '../../domain/entities/notification_preferences.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../datasources/supabase_notification_datasource.dart';
 
@@ -34,5 +35,20 @@ class SupabaseNotificationRepository implements NotificationRepository {
       userId: userId,
       referenceId: referenceId,
     );
+  }
+
+  @override
+  Future<NotificationPreferences> fetchPreferences(String userId) async {
+    return NotificationPreferences.fromRow(
+      await _datasource.fetchPreferences(userId),
+    );
+  }
+
+  @override
+  Future<void> savePreferences(
+    String userId,
+    NotificationPreferences preferences,
+  ) {
+    return _datasource.savePreferences(preferences.toRow(userId));
   }
 }

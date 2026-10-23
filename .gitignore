@@ -56,3 +56,4 @@ supabase/functions/.env
 # Journaux du CLI Firebase
 firebase-debug.log
 firestore-debug.log
+/E-commerce-Complete-Flutter-UI

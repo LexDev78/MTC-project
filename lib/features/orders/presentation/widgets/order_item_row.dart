@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
+import 'package:mtc_app/features/catalog/presentation/widgets/product_image.dart'
     show ProductImage;
 
 /// One product line item, shown identically wherever one appears — the

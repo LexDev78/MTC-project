@@ -31,6 +31,8 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -82,6 +84,8 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -133,6 +137,8 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(
@@ -284,6 +290,8 @@ abstract class _$$ClientUserImplCopyWith<$Res>
     String phoneNumber,
     DateTime createdAt,
     String? defaultAddressId,
+    DateTime? birthDate,
+    String? avatarPath,
   });
 }
 
@@ -307,6 +315,8 @@ class __$$ClientUserImplCopyWithImpl<$Res>
     Object? phoneNumber = null,
     Object? createdAt = null,
     Object? defaultAddressId = freezed,
+    Object? birthDate = freezed,
+    Object? avatarPath = freezed,
   }) {
     return _then(
       _$ClientUserImpl(
@@ -334,6 +344,14 @@ class __$$ClientUserImplCopyWithImpl<$Res>
             ? _value.defaultAddressId
             : defaultAddressId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        birthDate: freezed == birthDate
+            ? _value.birthDate
+            : birthDate // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        avatarPath: freezed == avatarPath
+            ? _value.avatarPath
+            : avatarPath // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -349,6 +367,8 @@ class _$ClientUserImpl implements ClientUser {
     required this.phoneNumber,
     required this.createdAt,
     this.defaultAddressId,
+    this.birthDate,
+    this.avatarPath,
   });
 
   @override
@@ -364,9 +384,18 @@ class _$ClientUserImpl implements ClientUser {
   @override
   final String? defaultAddressId;
 
+  /// Facultative, et lue par lui seul (`0121`).
+  @override
+  final DateTime? birthDate;
+
+  /// Chemin dans le bucket privé `avatars` : la photo n'est montrée qu'à
+  /// son propriétaire. `null` = les initiales.
+  @override
+  final String? avatarPath;
+
   @override
   String toString() {
-    return 'AppUser.client(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, defaultAddressId: $defaultAddressId)';
+    return 'AppUser.client(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, defaultAddressId: $defaultAddressId, birthDate: $birthDate, avatarPath: $avatarPath)';
   }
 
   @override
@@ -384,7 +413,11 @@ class _$ClientUserImpl implements ClientUser {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.defaultAddressId, defaultAddressId) ||
-                other.defaultAddressId == defaultAddressId));
+                other.defaultAddressId == defaultAddressId) &&
+            (identical(other.birthDate, birthDate) ||
+                other.birthDate == birthDate) &&
+            (identical(other.avatarPath, avatarPath) ||
+                other.avatarPath == avatarPath));
   }
 
   @override
@@ -396,6 +429,8 @@ class _$ClientUserImpl implements ClientUser {
     phoneNumber,
     createdAt,
     defaultAddressId,
+    birthDate,
+    avatarPath,
   );
 
   /// Create a copy of AppUser
@@ -416,6 +451,8 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -465,6 +502,8 @@ class _$ClientUserImpl implements ClientUser {
       phoneNumber,
       createdAt,
       defaultAddressId,
+      birthDate,
+      avatarPath,
     );
   }
 
@@ -478,6 +517,8 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -527,6 +568,8 @@ class _$ClientUserImpl implements ClientUser {
       phoneNumber,
       createdAt,
       defaultAddressId,
+      birthDate,
+      avatarPath,
     );
   }
 
@@ -540,6 +583,8 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(
@@ -591,6 +636,8 @@ class _$ClientUserImpl implements ClientUser {
         phoneNumber,
         createdAt,
         defaultAddressId,
+        birthDate,
+        avatarPath,
       );
     }
     return orElse();
@@ -642,6 +689,8 @@ abstract class ClientUser implements AppUser {
     required final String phoneNumber,
     required final DateTime createdAt,
     final String? defaultAddressId,
+    final DateTime? birthDate,
+    final String? avatarPath,
   }) = _$ClientUserImpl;
 
   @override
@@ -655,6 +704,13 @@ abstract class ClientUser implements AppUser {
   @override
   DateTime get createdAt;
   String? get defaultAddressId;
+
+  /// Facultative, et lue par lui seul (`0121`).
+  DateTime? get birthDate;
+
+  /// Chemin dans le bucket privé `avatars` : la photo n'est montrée qu'à
+  /// son propriétaire. `null` = les initiales.
+  String? get avatarPath;
 
   /// Create a copy of AppUser
   /// with the given fields replaced by the non-null parameter values.
@@ -938,6 +994,8 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -1008,6 +1066,8 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -1078,6 +1138,8 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(
@@ -1440,6 +1502,8 @@ class _$CourierUserImpl implements CourierUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -1506,6 +1570,8 @@ class _$CourierUserImpl implements CourierUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -1572,6 +1638,8 @@ class _$CourierUserImpl implements CourierUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(
@@ -1864,6 +1932,8 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -1926,6 +1996,8 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -1988,6 +2060,8 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(

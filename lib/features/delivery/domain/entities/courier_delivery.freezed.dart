@@ -213,16 +213,19 @@ mixin _$CourierDelivery {
   double? get supplierLongitude => throw _privateConstructorUsedError;
   List<String> get supplierPhones =>
       throw _privateConstructorUsedError; // ---- remise -----------------------------------------------------------
+  // Ce que le serveur laisse voir au livreur (`0120`) : l'adresse dès que
+  // la course lui est proposée, le numéro une fois qu'il l'a acceptée, plus
+  // rien une fois livrée. Un champ nul est un champ retiré.
   String get clientName => throw _privateConstructorUsedError;
-  String get clientPhone => throw _privateConstructorUsedError;
+  String? get clientPhone => throw _privateConstructorUsedError;
   String? get clientAlternatePhone => throw _privateConstructorUsedError;
-  String get deliveryAddressLabel => throw _privateConstructorUsedError;
+  String? get deliveryAddressLabel => throw _privateConstructorUsedError;
   String get deliveryCity => throw _privateConstructorUsedError;
 
   /// Indications libres saisies par le client (étage, repère, portail…).
-  String get deliveryDetails => throw _privateConstructorUsedError;
-  double get deliveryLatitude => throw _privateConstructorUsedError;
-  double get deliveryLongitude =>
+  String? get deliveryDetails => throw _privateConstructorUsedError;
+  double? get deliveryLatitude => throw _privateConstructorUsedError;
+  double? get deliveryLongitude =>
       throw _privateConstructorUsedError; // ---- marchandise et argent --------------------------------------------
   List<DeliveryItem> get items => throw _privateConstructorUsedError;
   int get deliveryFeeFcfa => throw _privateConstructorUsedError;
@@ -260,13 +263,13 @@ abstract class $CourierDeliveryCopyWith<$Res> {
     double? supplierLongitude,
     List<String> supplierPhones,
     String clientName,
-    String clientPhone,
+    String? clientPhone,
     String? clientAlternatePhone,
-    String deliveryAddressLabel,
+    String? deliveryAddressLabel,
     String deliveryCity,
-    String deliveryDetails,
-    double deliveryLatitude,
-    double deliveryLongitude,
+    String? deliveryDetails,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
     List<DeliveryItem> items,
     int deliveryFeeFcfa,
     int subtotalFcfa,
@@ -301,13 +304,13 @@ class _$CourierDeliveryCopyWithImpl<$Res, $Val extends CourierDelivery>
     Object? supplierLongitude = freezed,
     Object? supplierPhones = null,
     Object? clientName = null,
-    Object? clientPhone = null,
+    Object? clientPhone = freezed,
     Object? clientAlternatePhone = freezed,
-    Object? deliveryAddressLabel = null,
+    Object? deliveryAddressLabel = freezed,
     Object? deliveryCity = null,
-    Object? deliveryDetails = null,
-    Object? deliveryLatitude = null,
-    Object? deliveryLongitude = null,
+    Object? deliveryDetails = freezed,
+    Object? deliveryLatitude = freezed,
+    Object? deliveryLongitude = freezed,
     Object? items = null,
     Object? deliveryFeeFcfa = null,
     Object? subtotalFcfa = null,
@@ -363,34 +366,34 @@ class _$CourierDeliveryCopyWithImpl<$Res, $Val extends CourierDelivery>
                 ? _value.clientName
                 : clientName // ignore: cast_nullable_to_non_nullable
                       as String,
-            clientPhone: null == clientPhone
+            clientPhone: freezed == clientPhone
                 ? _value.clientPhone
                 : clientPhone // ignore: cast_nullable_to_non_nullable
-                      as String,
+                      as String?,
             clientAlternatePhone: freezed == clientAlternatePhone
                 ? _value.clientAlternatePhone
                 : clientAlternatePhone // ignore: cast_nullable_to_non_nullable
                       as String?,
-            deliveryAddressLabel: null == deliveryAddressLabel
+            deliveryAddressLabel: freezed == deliveryAddressLabel
                 ? _value.deliveryAddressLabel
                 : deliveryAddressLabel // ignore: cast_nullable_to_non_nullable
-                      as String,
+                      as String?,
             deliveryCity: null == deliveryCity
                 ? _value.deliveryCity
                 : deliveryCity // ignore: cast_nullable_to_non_nullable
                       as String,
-            deliveryDetails: null == deliveryDetails
+            deliveryDetails: freezed == deliveryDetails
                 ? _value.deliveryDetails
                 : deliveryDetails // ignore: cast_nullable_to_non_nullable
-                      as String,
-            deliveryLatitude: null == deliveryLatitude
+                      as String?,
+            deliveryLatitude: freezed == deliveryLatitude
                 ? _value.deliveryLatitude
                 : deliveryLatitude // ignore: cast_nullable_to_non_nullable
-                      as double,
-            deliveryLongitude: null == deliveryLongitude
+                      as double?,
+            deliveryLongitude: freezed == deliveryLongitude
                 ? _value.deliveryLongitude
                 : deliveryLongitude // ignore: cast_nullable_to_non_nullable
-                      as double,
+                      as double?,
             items: null == items
                 ? _value.items
                 : items // ignore: cast_nullable_to_non_nullable
@@ -435,13 +438,13 @@ abstract class _$$CourierDeliveryImplCopyWith<$Res>
     double? supplierLongitude,
     List<String> supplierPhones,
     String clientName,
-    String clientPhone,
+    String? clientPhone,
     String? clientAlternatePhone,
-    String deliveryAddressLabel,
+    String? deliveryAddressLabel,
     String deliveryCity,
-    String deliveryDetails,
-    double deliveryLatitude,
-    double deliveryLongitude,
+    String? deliveryDetails,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
     List<DeliveryItem> items,
     int deliveryFeeFcfa,
     int subtotalFcfa,
@@ -475,13 +478,13 @@ class __$$CourierDeliveryImplCopyWithImpl<$Res>
     Object? supplierLongitude = freezed,
     Object? supplierPhones = null,
     Object? clientName = null,
-    Object? clientPhone = null,
+    Object? clientPhone = freezed,
     Object? clientAlternatePhone = freezed,
-    Object? deliveryAddressLabel = null,
+    Object? deliveryAddressLabel = freezed,
     Object? deliveryCity = null,
-    Object? deliveryDetails = null,
-    Object? deliveryLatitude = null,
-    Object? deliveryLongitude = null,
+    Object? deliveryDetails = freezed,
+    Object? deliveryLatitude = freezed,
+    Object? deliveryLongitude = freezed,
     Object? items = null,
     Object? deliveryFeeFcfa = null,
     Object? subtotalFcfa = null,
@@ -537,34 +540,34 @@ class __$$CourierDeliveryImplCopyWithImpl<$Res>
             ? _value.clientName
             : clientName // ignore: cast_nullable_to_non_nullable
                   as String,
-        clientPhone: null == clientPhone
+        clientPhone: freezed == clientPhone
             ? _value.clientPhone
             : clientPhone // ignore: cast_nullable_to_non_nullable
-                  as String,
+                  as String?,
         clientAlternatePhone: freezed == clientAlternatePhone
             ? _value.clientAlternatePhone
             : clientAlternatePhone // ignore: cast_nullable_to_non_nullable
                   as String?,
-        deliveryAddressLabel: null == deliveryAddressLabel
+        deliveryAddressLabel: freezed == deliveryAddressLabel
             ? _value.deliveryAddressLabel
             : deliveryAddressLabel // ignore: cast_nullable_to_non_nullable
-                  as String,
+                  as String?,
         deliveryCity: null == deliveryCity
             ? _value.deliveryCity
             : deliveryCity // ignore: cast_nullable_to_non_nullable
                   as String,
-        deliveryDetails: null == deliveryDetails
+        deliveryDetails: freezed == deliveryDetails
             ? _value.deliveryDetails
             : deliveryDetails // ignore: cast_nullable_to_non_nullable
-                  as String,
-        deliveryLatitude: null == deliveryLatitude
+                  as String?,
+        deliveryLatitude: freezed == deliveryLatitude
             ? _value.deliveryLatitude
             : deliveryLatitude // ignore: cast_nullable_to_non_nullable
-                  as double,
-        deliveryLongitude: null == deliveryLongitude
+                  as double?,
+        deliveryLongitude: freezed == deliveryLongitude
             ? _value.deliveryLongitude
             : deliveryLongitude // ignore: cast_nullable_to_non_nullable
-                  as double,
+                  as double?,
         items: null == items
             ? _value._items
             : items // ignore: cast_nullable_to_non_nullable
@@ -602,13 +605,13 @@ class _$CourierDeliveryImpl implements _CourierDelivery {
     this.supplierLongitude,
     final List<String> supplierPhones = const [],
     required this.clientName,
-    required this.clientPhone,
+    this.clientPhone,
     this.clientAlternatePhone,
-    required this.deliveryAddressLabel,
+    this.deliveryAddressLabel,
     required this.deliveryCity,
-    required this.deliveryDetails,
-    required this.deliveryLatitude,
-    required this.deliveryLongitude,
+    this.deliveryDetails,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
     final List<DeliveryItem> items = const [],
     required this.deliveryFeeFcfa,
     required this.subtotalFcfa,
@@ -650,24 +653,27 @@ class _$CourierDeliveryImpl implements _CourierDelivery {
   }
 
   // ---- remise -----------------------------------------------------------
+  // Ce que le serveur laisse voir au livreur (`0120`) : l'adresse dès que
+  // la course lui est proposée, le numéro une fois qu'il l'a acceptée, plus
+  // rien une fois livrée. Un champ nul est un champ retiré.
   @override
   final String clientName;
   @override
-  final String clientPhone;
+  final String? clientPhone;
   @override
   final String? clientAlternatePhone;
   @override
-  final String deliveryAddressLabel;
+  final String? deliveryAddressLabel;
   @override
   final String deliveryCity;
 
   /// Indications libres saisies par le client (étage, repère, portail…).
   @override
-  final String deliveryDetails;
+  final String? deliveryDetails;
   @override
-  final double deliveryLatitude;
+  final double? deliveryLatitude;
   @override
-  final double deliveryLongitude;
+  final double? deliveryLongitude;
   // ---- marchandise et argent --------------------------------------------
   final List<DeliveryItem> _items;
   // ---- marchandise et argent --------------------------------------------
@@ -800,13 +806,13 @@ abstract class _CourierDelivery implements CourierDelivery {
     final double? supplierLongitude,
     final List<String> supplierPhones,
     required final String clientName,
-    required final String clientPhone,
+    final String? clientPhone,
     final String? clientAlternatePhone,
-    required final String deliveryAddressLabel,
+    final String? deliveryAddressLabel,
     required final String deliveryCity,
-    required final String deliveryDetails,
-    required final double deliveryLatitude,
-    required final double deliveryLongitude,
+    final String? deliveryDetails,
+    final double? deliveryLatitude,
+    final double? deliveryLongitude,
     final List<DeliveryItem> items,
     required final int deliveryFeeFcfa,
     required final int subtotalFcfa,
@@ -838,24 +844,27 @@ abstract class _CourierDelivery implements CourierDelivery {
   double? get supplierLongitude;
   @override
   List<String> get supplierPhones; // ---- remise -----------------------------------------------------------
+  // Ce que le serveur laisse voir au livreur (`0120`) : l'adresse dès que
+  // la course lui est proposée, le numéro une fois qu'il l'a acceptée, plus
+  // rien une fois livrée. Un champ nul est un champ retiré.
   @override
   String get clientName;
   @override
-  String get clientPhone;
+  String? get clientPhone;
   @override
   String? get clientAlternatePhone;
   @override
-  String get deliveryAddressLabel;
+  String? get deliveryAddressLabel;
   @override
   String get deliveryCity;
 
   /// Indications libres saisies par le client (étage, repère, portail…).
   @override
-  String get deliveryDetails;
+  String? get deliveryDetails;
   @override
-  double get deliveryLatitude;
+  double? get deliveryLatitude;
   @override
-  double get deliveryLongitude; // ---- marchandise et argent --------------------------------------------
+  double? get deliveryLongitude; // ---- marchandise et argent --------------------------------------------
   @override
   List<DeliveryItem> get items;
   @override

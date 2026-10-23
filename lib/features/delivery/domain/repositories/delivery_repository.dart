@@ -34,8 +34,8 @@ abstract class DeliveryRepository {
     required DeliveryCodeKind kind,
   });
 
-  /// Course d'un groupe fournisseur, vue depuis la commande.
-  Future<({String id, DeliveryStatus status})?> fetchByGroup(
+  /// Course d'un groupe fournisseur, vue depuis la commande, tenue à jour.
+  Stream<({String id, DeliveryStatus status})?> watchByGroup(
     String supplierGroupId,
   );
 

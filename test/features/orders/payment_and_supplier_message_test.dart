@@ -121,7 +121,7 @@ void main() {
 
     expect(success, isTrue);
     final order = container.read(checkoutControllerProvider).valueOrNull;
-    expect(order!.alternatePhone, '+22376543210');
+    expect(order!.clientContact?.alternatePhone, '+22376543210');
   });
 
   test(

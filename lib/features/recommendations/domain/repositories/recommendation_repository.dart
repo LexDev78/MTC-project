@@ -1,4 +1,5 @@
 import '../../../catalog/domain/entities/product_category.dart';
+import '../entities/recent_search.dart';
 import '../entities/suggestion_reason.dart';
 
 abstract interface class RecommendationRepository {
@@ -19,4 +20,17 @@ abstract interface class RecommendationRepository {
   Future<void> logCategoryOpen(ProductCategory category);
   Future<void> logSearch(String query);
   Future<void> logCartAdd(String productId);
+
+  /// Les recherches du compte connecté, la plus récente d'abord. Lues dans
+  /// le même journal que les signaux ci-dessus : c'est ce que l'app retient
+  /// de lui, et qu'il peut effacer.
+  ///
+  /// Contrairement aux signaux, une lecture ou un effacement qui échoue
+  /// remonte son erreur : l'écran doit pouvoir le dire.
+  Future<List<RecentSearch>> fetchRecentSearches({int limit});
+
+  /// Efface [query] (toutes ses occurrences, casse et accents confondus),
+  /// ou toutes les recherches quand [query] est nul. Rend le nombre
+  /// d'entrées effacées du journal.
+  Future<int> forgetSearches({String? query});
 }

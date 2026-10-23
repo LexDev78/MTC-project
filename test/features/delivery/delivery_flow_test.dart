@@ -93,11 +93,13 @@ void main() {
       final mine = await asCourier1.watchForCourier(courier1Id).first;
       expect(mine, hasLength(1));
       expect(mine.single.status, DeliveryStatus.offered);
-      // La feuille de route est complète dès la proposition : sans le
-      // fournisseur ni le client, le livreur ne peut pas décider s'il prend.
+      // Dès la proposition, le livreur voit d'où et vers où : sans ça, il ne
+      // peut pas décider s'il prend. Le numéro du client, lui, attend qu'il
+      // ait accepté (`0120`).
       expect(mine.single.supplierName, isNotEmpty);
-      expect(mine.single.clientPhone, isNotEmpty);
+      expect(mine.single.deliveryLatitude, isNotNull);
       expect(mine.single.deliveryLatitude, isNot(0));
+      expect(mine.single.clientPhone, isNull);
 
       // livreur2 est `pending` : il ne reçoit rien, et ne voit rien.
       final courier2Client = await _signIn('livreur2');
@@ -126,6 +128,8 @@ void main() {
 
     final after = await asCourier1.watchForCourier(courier1Id).first;
     expect(after.single.status, DeliveryStatus.accepted);
+    // Acceptée : le numéro du client arrive.
+    expect(after.single.clientPhone, isNotEmpty);
 
     // Même livreur, deuxième acceptation : la course n'est plus proposée,
     // donc le serveur refuse. C'est la garde qui empêche aussi un livreur de

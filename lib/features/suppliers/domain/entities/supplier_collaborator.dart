@@ -14,6 +14,7 @@ class SupplierCollaborator {
     required this.mustChangePassword,
     required this.createdAt,
     this.phoneNumber,
+    this.deactivatedAt,
   });
 
   final String userId;
@@ -32,6 +33,15 @@ class SupplierCollaborator {
 
   final DateTime createdAt;
 
+  /// Quand le patron lui a retiré l'accès (`0110`) ; `null` s'il l'a.
+  ///
+  /// Un collaborateur retiré reste dans la liste : le patron peut rétablir
+  /// son accès d'un geste, au lieu de recréer un compte et de lui dicter un
+  /// nouveau mot de passe.
+  final DateTime? deactivatedAt;
+
+  bool get isActive => deactivatedAt == null;
+
   factory SupplierCollaborator.fromRow(Map<String, dynamic> row) {
     return SupplierCollaborator(
       userId: row['user_id'] as String,
@@ -44,6 +54,9 @@ class SupplierCollaborator {
       },
       mustChangePassword: row['must_change_password'] as bool? ?? false,
       createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
+      deactivatedAt: row['deactivated_at'] == null
+          ? null
+          : DateTime.parse(row['deactivated_at'] as String).toLocal(),
     );
   }
 }

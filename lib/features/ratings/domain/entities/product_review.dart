@@ -20,6 +20,9 @@ class ProductReview with _$ProductReview {
     required String id,
     required int stars,
     required String comment,
+
+    /// Le titre de l'avis (`0119`), facultatif : une ligne qui résume.
+    String? title,
     required DateTime createdAt,
     required String authorName,
 

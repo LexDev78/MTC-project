@@ -6,6 +6,7 @@ import '../../data/datasources/supabase_review_datasource.dart';
 import '../../data/repositories/supabase_review_repository.dart';
 import '../../domain/entities/product_review.dart';
 import '../../domain/entities/review.dart';
+import '../../domain/entities/review_sort.dart';
 import '../../domain/repositories/review_repository.dart';
 
 final reviewDatasourceProvider = Provider<SupabaseReviewDatasource>((ref) {
@@ -25,23 +26,50 @@ final supplierReviewsProvider = StreamProvider.family<List<Review>, String>((
 
 typedef ReviewKey = ({String orderId, String groupId});
 
-final canReviewProvider = FutureProvider.family<bool, ReviewKey>((ref, key) {
+/// `autoDispose`, et relu après chaque avis envoyé (`ReviewController`) :
+/// c'est lui qui fait passer la commande de « Laisser un avis » à « Avis
+/// publié ». Gardé en cache, il laissait le bouton en place après l'envoi —
+/// comme si l'avis n'avait pas été enregistré.
+final canReviewProvider = FutureProvider.autoDispose.family<bool, ReviewKey>((
+  ref,
+  key,
+) {
   return ref
       .watch(reviewRepositoryProvider)
       .canReview(orderId: key.orderId, supplierGroupId: key.groupId);
 });
 
-/// Avis des acheteurs d'un produit, pour sa fiche.
+/// Le nombre d'avis par page de l'écran « Avis ».
+const reviewsPageSize = 20;
+
+typedef ReviewPageKey = ({String productId, ReviewSort sort, int page});
+
+/// Une page d'avis d'un produit, dans l'ordre choisi.
 ///
 /// Requête ponctuelle, pas de flux : un avis arrive après une livraison,
 /// donc des jours après la visite d'une fiche. Ce qui bouge en direct, ce
-/// sont les commentaires qu'on y ajoute — et c'est le contrôleur qui
-/// invalide alors cette lecture.
-final productReviewsProvider =
-    FutureProvider.family<List<ProductReview>, String>((ref, productId) {
+/// sont les commentaires qu'on y ajoute — et ce sont les contrôleurs qui
+/// invalident alors ces lectures.
+///
+/// Une page de moins de [reviewsPageSize] avis est la dernière.
+final productReviewsPageProvider = FutureProvider.autoDispose
+    .family<List<ProductReview>, ReviewPageKey>((ref, key) {
       return ref
           .watch(reviewRepositoryProvider)
-          .fetchProductReviews(productId: productId);
+          .fetchProductReviews(
+            productId: key.productId,
+            sort: key.sort,
+            limit: reviewsPageSize,
+            offset: key.page * reviewsPageSize,
+          );
+    });
+
+/// La répartition des avis par note, pour le résumé en barres du kit.
+final productRatingDistributionProvider =
+    FutureProvider.autoDispose.family<Map<int, int>, String>((ref, productId) {
+      return ref
+          .watch(reviewRepositoryProvider)
+          .fetchProductRatingDistribution(productId);
     });
 
 final productReviewSummaryProvider =

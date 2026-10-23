@@ -679,6 +679,295 @@ abstract class _OrderSupplierGroup implements OrderSupplierGroup {
       throw _privateConstructorUsedError;
 }
 
+OrderContact _$OrderContactFromJson(Map<String, dynamic> json) {
+  return _OrderContact.fromJson(json);
+}
+
+/// @nodoc
+mixin _$OrderContact {
+  /// Le numéro à appeler pour la livraison : celui donné au paiement,
+  /// sinon celui du compte.
+  String? get phone => throw _privateConstructorUsedError;
+  String? get alternatePhone => throw _privateConstructorUsedError;
+
+  /// Le nom de l'adresse (« Maison »), ou celui du point relais.
+  String? get addressLabel => throw _privateConstructorUsedError;
+  String? get addressDetails => throw _privateConstructorUsedError;
+  double? get latitude => throw _privateConstructorUsedError;
+  double? get longitude => throw _privateConstructorUsedError;
+
+  /// Serializes this OrderContact to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of OrderContact
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $OrderContactCopyWith<OrderContact> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $OrderContactCopyWith<$Res> {
+  factory $OrderContactCopyWith(
+    OrderContact value,
+    $Res Function(OrderContact) then,
+  ) = _$OrderContactCopyWithImpl<$Res, OrderContact>;
+  @useResult
+  $Res call({
+    String? phone,
+    String? alternatePhone,
+    String? addressLabel,
+    String? addressDetails,
+    double? latitude,
+    double? longitude,
+  });
+}
+
+/// @nodoc
+class _$OrderContactCopyWithImpl<$Res, $Val extends OrderContact>
+    implements $OrderContactCopyWith<$Res> {
+  _$OrderContactCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of OrderContact
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? phone = freezed,
+    Object? alternatePhone = freezed,
+    Object? addressLabel = freezed,
+    Object? addressDetails = freezed,
+    Object? latitude = freezed,
+    Object? longitude = freezed,
+  }) {
+    return _then(
+      _value.copyWith(
+            phone: freezed == phone
+                ? _value.phone
+                : phone // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            alternatePhone: freezed == alternatePhone
+                ? _value.alternatePhone
+                : alternatePhone // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            addressLabel: freezed == addressLabel
+                ? _value.addressLabel
+                : addressLabel // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            addressDetails: freezed == addressDetails
+                ? _value.addressDetails
+                : addressDetails // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            latitude: freezed == latitude
+                ? _value.latitude
+                : latitude // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            longitude: freezed == longitude
+                ? _value.longitude
+                : longitude // ignore: cast_nullable_to_non_nullable
+                      as double?,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$OrderContactImplCopyWith<$Res>
+    implements $OrderContactCopyWith<$Res> {
+  factory _$$OrderContactImplCopyWith(
+    _$OrderContactImpl value,
+    $Res Function(_$OrderContactImpl) then,
+  ) = __$$OrderContactImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String? phone,
+    String? alternatePhone,
+    String? addressLabel,
+    String? addressDetails,
+    double? latitude,
+    double? longitude,
+  });
+}
+
+/// @nodoc
+class __$$OrderContactImplCopyWithImpl<$Res>
+    extends _$OrderContactCopyWithImpl<$Res, _$OrderContactImpl>
+    implements _$$OrderContactImplCopyWith<$Res> {
+  __$$OrderContactImplCopyWithImpl(
+    _$OrderContactImpl _value,
+    $Res Function(_$OrderContactImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of OrderContact
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? phone = freezed,
+    Object? alternatePhone = freezed,
+    Object? addressLabel = freezed,
+    Object? addressDetails = freezed,
+    Object? latitude = freezed,
+    Object? longitude = freezed,
+  }) {
+    return _then(
+      _$OrderContactImpl(
+        phone: freezed == phone
+            ? _value.phone
+            : phone // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        alternatePhone: freezed == alternatePhone
+            ? _value.alternatePhone
+            : alternatePhone // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        addressLabel: freezed == addressLabel
+            ? _value.addressLabel
+            : addressLabel // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        addressDetails: freezed == addressDetails
+            ? _value.addressDetails
+            : addressDetails // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        latitude: freezed == latitude
+            ? _value.latitude
+            : latitude // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        longitude: freezed == longitude
+            ? _value.longitude
+            : longitude // ignore: cast_nullable_to_non_nullable
+                  as double?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$OrderContactImpl extends _OrderContact {
+  const _$OrderContactImpl({
+    this.phone,
+    this.alternatePhone,
+    this.addressLabel,
+    this.addressDetails,
+    this.latitude,
+    this.longitude,
+  }) : super._();
+
+  factory _$OrderContactImpl.fromJson(Map<String, dynamic> json) =>
+      _$$OrderContactImplFromJson(json);
+
+  /// Le numéro à appeler pour la livraison : celui donné au paiement,
+  /// sinon celui du compte.
+  @override
+  final String? phone;
+  @override
+  final String? alternatePhone;
+
+  /// Le nom de l'adresse (« Maison »), ou celui du point relais.
+  @override
+  final String? addressLabel;
+  @override
+  final String? addressDetails;
+  @override
+  final double? latitude;
+  @override
+  final double? longitude;
+
+  @override
+  String toString() {
+    return 'OrderContact(phone: $phone, alternatePhone: $alternatePhone, addressLabel: $addressLabel, addressDetails: $addressDetails, latitude: $latitude, longitude: $longitude)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$OrderContactImpl &&
+            (identical(other.phone, phone) || other.phone == phone) &&
+            (identical(other.alternatePhone, alternatePhone) ||
+                other.alternatePhone == alternatePhone) &&
+            (identical(other.addressLabel, addressLabel) ||
+                other.addressLabel == addressLabel) &&
+            (identical(other.addressDetails, addressDetails) ||
+                other.addressDetails == addressDetails) &&
+            (identical(other.latitude, latitude) ||
+                other.latitude == latitude) &&
+            (identical(other.longitude, longitude) ||
+                other.longitude == longitude));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    phone,
+    alternatePhone,
+    addressLabel,
+    addressDetails,
+    latitude,
+    longitude,
+  );
+
+  /// Create a copy of OrderContact
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$OrderContactImplCopyWith<_$OrderContactImpl> get copyWith =>
+      __$$OrderContactImplCopyWithImpl<_$OrderContactImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$OrderContactImplToJson(this);
+  }
+}
+
+abstract class _OrderContact extends OrderContact {
+  const factory _OrderContact({
+    final String? phone,
+    final String? alternatePhone,
+    final String? addressLabel,
+    final String? addressDetails,
+    final double? latitude,
+    final double? longitude,
+  }) = _$OrderContactImpl;
+  const _OrderContact._() : super._();
+
+  factory _OrderContact.fromJson(Map<String, dynamic> json) =
+      _$OrderContactImpl.fromJson;
+
+  /// Le numéro à appeler pour la livraison : celui donné au paiement,
+  /// sinon celui du compte.
+  @override
+  String? get phone;
+  @override
+  String? get alternatePhone;
+
+  /// Le nom de l'adresse (« Maison »), ou celui du point relais.
+  @override
+  String? get addressLabel;
+  @override
+  String? get addressDetails;
+  @override
+  double? get latitude;
+  @override
+  double? get longitude;
+
+  /// Create a copy of OrderContact
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$OrderContactImplCopyWith<_$OrderContactImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
 Order _$OrderFromJson(Map<String, dynamic> json) {
   return _Order.fromJson(json);
 }
@@ -690,33 +979,27 @@ mixin _$Order {
 
   /// Denormalized at `placeOrder` time from the client's account, the
   /// same way every other order/cart line snapshots the data it needs —
-  /// so a supplier fulfilling the order can identify/reach the client
-  /// without a live join back to their (client-only-readable) profile.
+  /// so a supplier fulfilling the order can identify the client without a
+  /// live join back to their (client-only-readable) profile.
   String get clientDisplayNameSnapshot => throw _privateConstructorUsedError;
-  String get clientPhoneSnapshot => throw _privateConstructorUsedError;
   List<OrderSupplierGroup> get supplierGroups =>
       throw _privateConstructorUsedError;
   OrderStatus get status => throw _privateConstructorUsedError;
   DateTime get placedAt => throw _privateConstructorUsedError;
   int get totalFcfa => throw _privateConstructorUsedError;
-  String get deliveryAddressLabel => throw _privateConstructorUsedError;
-  String get deliveryCity => throw _privateConstructorUsedError;
-  String get deliveryDetails => throw _privateConstructorUsedError;
-  double get deliveryLatitude => throw _privateConstructorUsedError;
-  double get deliveryLongitude => throw _privateConstructorUsedError;
 
-  /// Where the client receives the order — home address (the fields
-  /// above are the client's saved address) or a pickup point (the fields
-  /// above are that point's own name/city/address instead). Defaulted so
+  /// La ville seule : elle ne désigne personne, et reste donc visible de
+  /// tous ceux qui voient la commande.
+  String get deliveryCity => throw _privateConstructorUsedError;
+
+  /// Numéros et adresse — `null` quand l'appelant n'a plus droit à rien
+  /// (une boutique dont la part est livrée, par exemple).
+  OrderContact? get clientContact => throw _privateConstructorUsedError;
+
+  /// Where the client receives the order — home address or a pickup point
+  /// (whose own name/address then fill [clientContact]). Defaulted so
   /// existing seed orders (all home addresses) don't need updating.
   FulfillmentMethod get fulfillmentMethod => throw _privateConstructorUsedError;
-
-  /// Only set for [FulfillmentMethod.homeDelivery].
-  String? get courierPhone => throw _privateConstructorUsedError;
-
-  /// Optional second contact number, in case the courier can't reach the
-  /// client on [courierPhone].
-  String? get alternatePhone => throw _privateConstructorUsedError;
   DateTime? get deliveryDate => throw _privateConstructorUsedError;
   String? get deliveryTimeSlotLabel => throw _privateConstructorUsedError;
   bool get isPriority => throw _privateConstructorUsedError;
@@ -753,19 +1036,13 @@ abstract class $OrderCopyWith<$Res> {
     String id,
     String clientId,
     String clientDisplayNameSnapshot,
-    String clientPhoneSnapshot,
     List<OrderSupplierGroup> supplierGroups,
     OrderStatus status,
     DateTime placedAt,
     int totalFcfa,
-    String deliveryAddressLabel,
     String deliveryCity,
-    String deliveryDetails,
-    double deliveryLatitude,
-    double deliveryLongitude,
+    OrderContact? clientContact,
     FulfillmentMethod fulfillmentMethod,
-    String? courierPhone,
-    String? alternatePhone,
     DateTime? deliveryDate,
     String? deliveryTimeSlotLabel,
     bool isPriority,
@@ -778,6 +1055,8 @@ abstract class $OrderCopyWith<$Res> {
     PaymentStatus paymentStatus,
     MobileMoneyProvider? mobileMoneyProvider,
   });
+
+  $OrderContactCopyWith<$Res>? get clientContact;
 }
 
 /// @nodoc
@@ -798,19 +1077,13 @@ class _$OrderCopyWithImpl<$Res, $Val extends Order>
     Object? id = null,
     Object? clientId = null,
     Object? clientDisplayNameSnapshot = null,
-    Object? clientPhoneSnapshot = null,
     Object? supplierGroups = null,
     Object? status = null,
     Object? placedAt = null,
     Object? totalFcfa = null,
-    Object? deliveryAddressLabel = null,
     Object? deliveryCity = null,
-    Object? deliveryDetails = null,
-    Object? deliveryLatitude = null,
-    Object? deliveryLongitude = null,
+    Object? clientContact = freezed,
     Object? fulfillmentMethod = null,
-    Object? courierPhone = freezed,
-    Object? alternatePhone = freezed,
     Object? deliveryDate = freezed,
     Object? deliveryTimeSlotLabel = freezed,
     Object? isPriority = null,
@@ -837,10 +1110,6 @@ class _$OrderCopyWithImpl<$Res, $Val extends Order>
                 ? _value.clientDisplayNameSnapshot
                 : clientDisplayNameSnapshot // ignore: cast_nullable_to_non_nullable
                       as String,
-            clientPhoneSnapshot: null == clientPhoneSnapshot
-                ? _value.clientPhoneSnapshot
-                : clientPhoneSnapshot // ignore: cast_nullable_to_non_nullable
-                      as String,
             supplierGroups: null == supplierGroups
                 ? _value.supplierGroups
                 : supplierGroups // ignore: cast_nullable_to_non_nullable
@@ -857,38 +1126,18 @@ class _$OrderCopyWithImpl<$Res, $Val extends Order>
                 ? _value.totalFcfa
                 : totalFcfa // ignore: cast_nullable_to_non_nullable
                       as int,
-            deliveryAddressLabel: null == deliveryAddressLabel
-                ? _value.deliveryAddressLabel
-                : deliveryAddressLabel // ignore: cast_nullable_to_non_nullable
-                      as String,
             deliveryCity: null == deliveryCity
                 ? _value.deliveryCity
                 : deliveryCity // ignore: cast_nullable_to_non_nullable
                       as String,
-            deliveryDetails: null == deliveryDetails
-                ? _value.deliveryDetails
-                : deliveryDetails // ignore: cast_nullable_to_non_nullable
-                      as String,
-            deliveryLatitude: null == deliveryLatitude
-                ? _value.deliveryLatitude
-                : deliveryLatitude // ignore: cast_nullable_to_non_nullable
-                      as double,
-            deliveryLongitude: null == deliveryLongitude
-                ? _value.deliveryLongitude
-                : deliveryLongitude // ignore: cast_nullable_to_non_nullable
-                      as double,
+            clientContact: freezed == clientContact
+                ? _value.clientContact
+                : clientContact // ignore: cast_nullable_to_non_nullable
+                      as OrderContact?,
             fulfillmentMethod: null == fulfillmentMethod
                 ? _value.fulfillmentMethod
                 : fulfillmentMethod // ignore: cast_nullable_to_non_nullable
                       as FulfillmentMethod,
-            courierPhone: freezed == courierPhone
-                ? _value.courierPhone
-                : courierPhone // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            alternatePhone: freezed == alternatePhone
-                ? _value.alternatePhone
-                : alternatePhone // ignore: cast_nullable_to_non_nullable
-                      as String?,
             deliveryDate: freezed == deliveryDate
                 ? _value.deliveryDate
                 : deliveryDate // ignore: cast_nullable_to_non_nullable
@@ -938,6 +1187,20 @@ class _$OrderCopyWithImpl<$Res, $Val extends Order>
           as $Val,
     );
   }
+
+  /// Create a copy of Order
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $OrderContactCopyWith<$Res>? get clientContact {
+    if (_value.clientContact == null) {
+      return null;
+    }
+
+    return $OrderContactCopyWith<$Res>(_value.clientContact!, (value) {
+      return _then(_value.copyWith(clientContact: value) as $Val);
+    });
+  }
 }
 
 /// @nodoc
@@ -952,19 +1215,13 @@ abstract class _$$OrderImplCopyWith<$Res> implements $OrderCopyWith<$Res> {
     String id,
     String clientId,
     String clientDisplayNameSnapshot,
-    String clientPhoneSnapshot,
     List<OrderSupplierGroup> supplierGroups,
     OrderStatus status,
     DateTime placedAt,
     int totalFcfa,
-    String deliveryAddressLabel,
     String deliveryCity,
-    String deliveryDetails,
-    double deliveryLatitude,
-    double deliveryLongitude,
+    OrderContact? clientContact,
     FulfillmentMethod fulfillmentMethod,
-    String? courierPhone,
-    String? alternatePhone,
     DateTime? deliveryDate,
     String? deliveryTimeSlotLabel,
     bool isPriority,
@@ -977,6 +1234,9 @@ abstract class _$$OrderImplCopyWith<$Res> implements $OrderCopyWith<$Res> {
     PaymentStatus paymentStatus,
     MobileMoneyProvider? mobileMoneyProvider,
   });
+
+  @override
+  $OrderContactCopyWith<$Res>? get clientContact;
 }
 
 /// @nodoc
@@ -996,19 +1256,13 @@ class __$$OrderImplCopyWithImpl<$Res>
     Object? id = null,
     Object? clientId = null,
     Object? clientDisplayNameSnapshot = null,
-    Object? clientPhoneSnapshot = null,
     Object? supplierGroups = null,
     Object? status = null,
     Object? placedAt = null,
     Object? totalFcfa = null,
-    Object? deliveryAddressLabel = null,
     Object? deliveryCity = null,
-    Object? deliveryDetails = null,
-    Object? deliveryLatitude = null,
-    Object? deliveryLongitude = null,
+    Object? clientContact = freezed,
     Object? fulfillmentMethod = null,
-    Object? courierPhone = freezed,
-    Object? alternatePhone = freezed,
     Object? deliveryDate = freezed,
     Object? deliveryTimeSlotLabel = freezed,
     Object? isPriority = null,
@@ -1035,10 +1289,6 @@ class __$$OrderImplCopyWithImpl<$Res>
             ? _value.clientDisplayNameSnapshot
             : clientDisplayNameSnapshot // ignore: cast_nullable_to_non_nullable
                   as String,
-        clientPhoneSnapshot: null == clientPhoneSnapshot
-            ? _value.clientPhoneSnapshot
-            : clientPhoneSnapshot // ignore: cast_nullable_to_non_nullable
-                  as String,
         supplierGroups: null == supplierGroups
             ? _value._supplierGroups
             : supplierGroups // ignore: cast_nullable_to_non_nullable
@@ -1055,38 +1305,18 @@ class __$$OrderImplCopyWithImpl<$Res>
             ? _value.totalFcfa
             : totalFcfa // ignore: cast_nullable_to_non_nullable
                   as int,
-        deliveryAddressLabel: null == deliveryAddressLabel
-            ? _value.deliveryAddressLabel
-            : deliveryAddressLabel // ignore: cast_nullable_to_non_nullable
-                  as String,
         deliveryCity: null == deliveryCity
             ? _value.deliveryCity
             : deliveryCity // ignore: cast_nullable_to_non_nullable
                   as String,
-        deliveryDetails: null == deliveryDetails
-            ? _value.deliveryDetails
-            : deliveryDetails // ignore: cast_nullable_to_non_nullable
-                  as String,
-        deliveryLatitude: null == deliveryLatitude
-            ? _value.deliveryLatitude
-            : deliveryLatitude // ignore: cast_nullable_to_non_nullable
-                  as double,
-        deliveryLongitude: null == deliveryLongitude
-            ? _value.deliveryLongitude
-            : deliveryLongitude // ignore: cast_nullable_to_non_nullable
-                  as double,
+        clientContact: freezed == clientContact
+            ? _value.clientContact
+            : clientContact // ignore: cast_nullable_to_non_nullable
+                  as OrderContact?,
         fulfillmentMethod: null == fulfillmentMethod
             ? _value.fulfillmentMethod
             : fulfillmentMethod // ignore: cast_nullable_to_non_nullable
                   as FulfillmentMethod,
-        courierPhone: freezed == courierPhone
-            ? _value.courierPhone
-            : courierPhone // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        alternatePhone: freezed == alternatePhone
-            ? _value.alternatePhone
-            : alternatePhone // ignore: cast_nullable_to_non_nullable
-                  as String?,
         deliveryDate: freezed == deliveryDate
             ? _value.deliveryDate
             : deliveryDate // ignore: cast_nullable_to_non_nullable
@@ -1144,19 +1374,13 @@ class _$OrderImpl implements _Order {
     required this.id,
     required this.clientId,
     required this.clientDisplayNameSnapshot,
-    required this.clientPhoneSnapshot,
     required final List<OrderSupplierGroup> supplierGroups,
     required this.status,
     required this.placedAt,
     required this.totalFcfa,
-    required this.deliveryAddressLabel,
     required this.deliveryCity,
-    required this.deliveryDetails,
-    required this.deliveryLatitude,
-    required this.deliveryLongitude,
+    this.clientContact,
     this.fulfillmentMethod = FulfillmentMethod.homeDelivery,
-    this.courierPhone,
-    this.alternatePhone,
     this.deliveryDate,
     this.deliveryTimeSlotLabel,
     this.isPriority = false,
@@ -1180,12 +1404,10 @@ class _$OrderImpl implements _Order {
 
   /// Denormalized at `placeOrder` time from the client's account, the
   /// same way every other order/cart line snapshots the data it needs —
-  /// so a supplier fulfilling the order can identify/reach the client
-  /// without a live join back to their (client-only-readable) profile.
+  /// so a supplier fulfilling the order can identify the client without a
+  /// live join back to their (client-only-readable) profile.
   @override
   final String clientDisplayNameSnapshot;
-  @override
-  final String clientPhoneSnapshot;
   final List<OrderSupplierGroup> _supplierGroups;
   @override
   List<OrderSupplierGroup> get supplierGroups {
@@ -1200,33 +1422,23 @@ class _$OrderImpl implements _Order {
   final DateTime placedAt;
   @override
   final int totalFcfa;
-  @override
-  final String deliveryAddressLabel;
+
+  /// La ville seule : elle ne désigne personne, et reste donc visible de
+  /// tous ceux qui voient la commande.
   @override
   final String deliveryCity;
-  @override
-  final String deliveryDetails;
-  @override
-  final double deliveryLatitude;
-  @override
-  final double deliveryLongitude;
 
-  /// Where the client receives the order — home address (the fields
-  /// above are the client's saved address) or a pickup point (the fields
-  /// above are that point's own name/city/address instead). Defaulted so
+  /// Numéros et adresse — `null` quand l'appelant n'a plus droit à rien
+  /// (une boutique dont la part est livrée, par exemple).
+  @override
+  final OrderContact? clientContact;
+
+  /// Where the client receives the order — home address or a pickup point
+  /// (whose own name/address then fill [clientContact]). Defaulted so
   /// existing seed orders (all home addresses) don't need updating.
   @override
   @JsonKey()
   final FulfillmentMethod fulfillmentMethod;
-
-  /// Only set for [FulfillmentMethod.homeDelivery].
-  @override
-  final String? courierPhone;
-
-  /// Optional second contact number, in case the courier can't reach the
-  /// client on [courierPhone].
-  @override
-  final String? alternatePhone;
   @override
   final DateTime? deliveryDate;
   @override
@@ -1260,7 +1472,7 @@ class _$OrderImpl implements _Order {
 
   @override
   String toString() {
-    return 'Order(id: $id, clientId: $clientId, clientDisplayNameSnapshot: $clientDisplayNameSnapshot, clientPhoneSnapshot: $clientPhoneSnapshot, supplierGroups: $supplierGroups, status: $status, placedAt: $placedAt, totalFcfa: $totalFcfa, deliveryAddressLabel: $deliveryAddressLabel, deliveryCity: $deliveryCity, deliveryDetails: $deliveryDetails, deliveryLatitude: $deliveryLatitude, deliveryLongitude: $deliveryLongitude, fulfillmentMethod: $fulfillmentMethod, courierPhone: $courierPhone, alternatePhone: $alternatePhone, deliveryDate: $deliveryDate, deliveryTimeSlotLabel: $deliveryTimeSlotLabel, isPriority: $isPriority, priorityFeeFcfa: $priorityFeeFcfa, supplierMessageType: $supplierMessageType, supplierMessageText: $supplierMessageText, supplierMessageVoicePath: $supplierMessageVoicePath, supplierMessageVoiceDurationSeconds: $supplierMessageVoiceDurationSeconds, paymentMethod: $paymentMethod, paymentStatus: $paymentStatus, mobileMoneyProvider: $mobileMoneyProvider)';
+    return 'Order(id: $id, clientId: $clientId, clientDisplayNameSnapshot: $clientDisplayNameSnapshot, supplierGroups: $supplierGroups, status: $status, placedAt: $placedAt, totalFcfa: $totalFcfa, deliveryCity: $deliveryCity, clientContact: $clientContact, fulfillmentMethod: $fulfillmentMethod, deliveryDate: $deliveryDate, deliveryTimeSlotLabel: $deliveryTimeSlotLabel, isPriority: $isPriority, priorityFeeFcfa: $priorityFeeFcfa, supplierMessageType: $supplierMessageType, supplierMessageText: $supplierMessageText, supplierMessageVoicePath: $supplierMessageVoicePath, supplierMessageVoiceDurationSeconds: $supplierMessageVoiceDurationSeconds, paymentMethod: $paymentMethod, paymentStatus: $paymentStatus, mobileMoneyProvider: $mobileMoneyProvider)';
   }
 
   @override
@@ -1276,8 +1488,6 @@ class _$OrderImpl implements _Order {
                   clientDisplayNameSnapshot,
                 ) ||
                 other.clientDisplayNameSnapshot == clientDisplayNameSnapshot) &&
-            (identical(other.clientPhoneSnapshot, clientPhoneSnapshot) ||
-                other.clientPhoneSnapshot == clientPhoneSnapshot) &&
             const DeepCollectionEquality().equals(
               other._supplierGroups,
               _supplierGroups,
@@ -1287,22 +1497,12 @@ class _$OrderImpl implements _Order {
                 other.placedAt == placedAt) &&
             (identical(other.totalFcfa, totalFcfa) ||
                 other.totalFcfa == totalFcfa) &&
-            (identical(other.deliveryAddressLabel, deliveryAddressLabel) ||
-                other.deliveryAddressLabel == deliveryAddressLabel) &&
             (identical(other.deliveryCity, deliveryCity) ||
                 other.deliveryCity == deliveryCity) &&
-            (identical(other.deliveryDetails, deliveryDetails) ||
-                other.deliveryDetails == deliveryDetails) &&
-            (identical(other.deliveryLatitude, deliveryLatitude) ||
-                other.deliveryLatitude == deliveryLatitude) &&
-            (identical(other.deliveryLongitude, deliveryLongitude) ||
-                other.deliveryLongitude == deliveryLongitude) &&
+            (identical(other.clientContact, clientContact) ||
+                other.clientContact == clientContact) &&
             (identical(other.fulfillmentMethod, fulfillmentMethod) ||
                 other.fulfillmentMethod == fulfillmentMethod) &&
-            (identical(other.courierPhone, courierPhone) ||
-                other.courierPhone == courierPhone) &&
-            (identical(other.alternatePhone, alternatePhone) ||
-                other.alternatePhone == alternatePhone) &&
             (identical(other.deliveryDate, deliveryDate) ||
                 other.deliveryDate == deliveryDate) &&
             (identical(other.deliveryTimeSlotLabel, deliveryTimeSlotLabel) ||
@@ -1341,19 +1541,13 @@ class _$OrderImpl implements _Order {
     id,
     clientId,
     clientDisplayNameSnapshot,
-    clientPhoneSnapshot,
     const DeepCollectionEquality().hash(_supplierGroups),
     status,
     placedAt,
     totalFcfa,
-    deliveryAddressLabel,
     deliveryCity,
-    deliveryDetails,
-    deliveryLatitude,
-    deliveryLongitude,
+    clientContact,
     fulfillmentMethod,
-    courierPhone,
-    alternatePhone,
     deliveryDate,
     deliveryTimeSlotLabel,
     isPriority,
@@ -1386,19 +1580,13 @@ abstract class _Order implements Order {
     required final String id,
     required final String clientId,
     required final String clientDisplayNameSnapshot,
-    required final String clientPhoneSnapshot,
     required final List<OrderSupplierGroup> supplierGroups,
     required final OrderStatus status,
     required final DateTime placedAt,
     required final int totalFcfa,
-    required final String deliveryAddressLabel,
     required final String deliveryCity,
-    required final String deliveryDetails,
-    required final double deliveryLatitude,
-    required final double deliveryLongitude,
+    final OrderContact? clientContact,
     final FulfillmentMethod fulfillmentMethod,
-    final String? courierPhone,
-    final String? alternatePhone,
     final DateTime? deliveryDate,
     final String? deliveryTimeSlotLabel,
     final bool isPriority,
@@ -1421,12 +1609,10 @@ abstract class _Order implements Order {
 
   /// Denormalized at `placeOrder` time from the client's account, the
   /// same way every other order/cart line snapshots the data it needs —
-  /// so a supplier fulfilling the order can identify/reach the client
-  /// without a live join back to their (client-only-readable) profile.
+  /// so a supplier fulfilling the order can identify the client without a
+  /// live join back to their (client-only-readable) profile.
   @override
   String get clientDisplayNameSnapshot;
-  @override
-  String get clientPhoneSnapshot;
   @override
   List<OrderSupplierGroup> get supplierGroups;
   @override
@@ -1435,32 +1621,22 @@ abstract class _Order implements Order {
   DateTime get placedAt;
   @override
   int get totalFcfa;
-  @override
-  String get deliveryAddressLabel;
+
+  /// La ville seule : elle ne désigne personne, et reste donc visible de
+  /// tous ceux qui voient la commande.
   @override
   String get deliveryCity;
-  @override
-  String get deliveryDetails;
-  @override
-  double get deliveryLatitude;
-  @override
-  double get deliveryLongitude;
 
-  /// Where the client receives the order — home address (the fields
-  /// above are the client's saved address) or a pickup point (the fields
-  /// above are that point's own name/city/address instead). Defaulted so
+  /// Numéros et adresse — `null` quand l'appelant n'a plus droit à rien
+  /// (une boutique dont la part est livrée, par exemple).
+  @override
+  OrderContact? get clientContact;
+
+  /// Where the client receives the order — home address or a pickup point
+  /// (whose own name/address then fill [clientContact]). Defaulted so
   /// existing seed orders (all home addresses) don't need updating.
   @override
   FulfillmentMethod get fulfillmentMethod;
-
-  /// Only set for [FulfillmentMethod.homeDelivery].
-  @override
-  String? get courierPhone;
-
-  /// Optional second contact number, in case the courier can't reach the
-  /// client on [courierPhone].
-  @override
-  String? get alternatePhone;
   @override
   DateTime? get deliveryDate;
   @override

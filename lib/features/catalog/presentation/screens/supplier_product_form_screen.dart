@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_category.dart';
@@ -305,7 +306,7 @@ class _SupplierProductFormScreenState
     } else {
       final error = ref.read(supplierProductControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+        SnackBar(content: Text(messagePourUtilisateur(error))),
       );
     }
   }

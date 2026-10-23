@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 import 'package:mtc_app/core/utils/currency_formatter.dart';
-import 'package:mtc_app/core/widgets/core_widgets.dart';
 
 import '../providers/applied_promo_code_provider.dart';
 
-/// La saisie d'un code promo, au paiement.
+/// La saisie d'un code promo (« Your Coupon code » du kit) : un champ au
+/// ticket, « Appliquer » au bout.
 ///
 /// Un refus n'est pas une erreur : un code faux, expiré, déjà utilisé ou
 /// sans effet sur ce panier est une réponse normale, et le motif vient du
@@ -15,14 +15,20 @@ import '../providers/applied_promo_code_provider.dart';
 /// n'améliore pas les remises déjà en cours » évite de chercher une panne
 /// là où il n'y en a pas.
 class PromoCodeField extends ConsumerStatefulWidget {
-  const PromoCodeField({super.key});
+  const PromoCodeField({super.key, this.onBeforeApply});
+
+  /// Juste avant la vérification : le panier y écarte un achat immédiat
+  /// resté en attente, pour que le code porte bien sur le panier.
+  final VoidCallback? onBeforeApply;
 
   @override
   ConsumerState<PromoCodeField> createState() => _PromoCodeFieldState();
 }
 
 class _PromoCodeFieldState extends ConsumerState<PromoCodeField> {
-  final _controller = TextEditingController();
+  late final _controller = TextEditingController(
+    text: ref.read(typedPromoCodeProvider),
+  );
   bool _checking = false;
 
   @override
@@ -36,6 +42,7 @@ class _PromoCodeFieldState extends ConsumerState<PromoCodeField> {
   /// sur son indicateur de chargement, et le client n'aurait plus aucun
   /// moyen de réessayer — l'écran paraîtrait bloqué.
   Future<void> _apply() async {
+    widget.onBeforeApply?.call();
     setState(() => _checking = true);
     ref.read(typedPromoCodeProvider.notifier).state = _controller.text;
     try {
@@ -47,80 +54,105 @@ class _PromoCodeFieldState extends ConsumerState<PromoCodeField> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     final applied = ref.watch(appliedPromoCodeProvider);
 
     // Un code accepté laisse place à son résultat : le champ n'a plus de
     // raison d'être, et le garder inviterait à en empiler un second.
     if (applied != null && applied.valid) {
-      return Card(
-        color: scheme.primaryContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              Icon(Icons.local_activity_rounded, color: scheme.onPrimaryContainer),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Code ${applied.code} appliqué',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: scheme.onPrimaryContainer,
-                      ),
+      return Container(
+        padding: const EdgeInsets.fromLTRB(
+          ShopSizes.padding,
+          ShopSizes.padding / 2,
+          ShopSizes.padding / 2,
+          ShopSizes.padding / 2,
+        ),
+        decoration: BoxDecoration(
+          color: ShopColors.success.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(ShopSizes.radius),
+        ),
+        child: Row(
+          children: [
+            const ShopIcon(ShopIcons.coupon, color: ShopColors.success),
+            const SizedBox(width: ShopSizes.padding * 0.75),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Code ${applied.code} appliqué',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  Text(
+                    '-${CurrencyFormatter.formatFcfa(applied.discountFcfa)}',
+                    style: const TextStyle(
+                      color: ShopColors.success,
+                      fontWeight: FontWeight.w500,
                     ),
-                    Text(
-                      '-${CurrencyFormatter.formatFcfa(applied.discountFcfa)}',
-                      style: TextStyle(color: scheme.onPrimaryContainer),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () {
-                  _controller.clear();
-                  ref.read(appliedPromoCodeProvider.notifier).clear();
-                },
-                child: const Text('Retirer'),
-              ),
-            ],
-          ),
+            ),
+            TextButton(
+              onPressed: () {
+                _controller.clear();
+                ref.read(appliedPromoCodeProvider.notifier).clear();
+              },
+              child: const Text('Retirer'),
+            ),
+          ],
         ),
       );
     }
 
-    // Le bouton sous le champ, pleine largeur, et non à côté : le thème
-    // donne à tout `OutlinedButton` une largeur minimale infinie
-    // (`Size.fromHeight(56)`), donc un bouton posé en voisin d'un `Expanded`
-    // réclame une largeur infinie et la disposition échoue. Vu en parcours
-    // visuel — l'écran de paiement jetait une assertion de rendu.
+    final refus = applied != null && !applied.valid ? applied.reason : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        MtcTextField(controller: _controller, label: 'Code promo'),
-        if (applied != null && !applied.valid && applied.reason != null)
+        TextFormField(
+          controller: _controller,
+          textCapitalization: TextCapitalization.characters,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) => _checking ? null : _apply(),
+          decoration: InputDecoration(
+            hintText: 'Saisissez un code promo',
+            prefixIcon: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: ShopIcon(
+                ShopIcons.coupon,
+                color: theme.iconTheme.color?.withValues(alpha: 0.3),
+              ),
+            ),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: ShopSizes.padding / 4),
+              child: _checking
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : TextButton(
+                      onPressed: _apply,
+                      child: const Text('Appliquer'),
+                    ),
+            ),
+          ),
+        ),
+        if (refus != null)
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            padding: const EdgeInsets.only(
+              top: ShopSizes.padding / 2,
+              left: ShopSizes.padding / 4,
+            ),
             child: Text(
-              applied.reason!,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: scheme.error,
+              refus,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: ShopColors.error,
               ),
             ),
           ),
-        const SizedBox(height: AppSpacing.sm),
-        OutlinedButton(
-          onPressed: _checking ? null : _apply,
-          child: _checking
-              ? const SizedBox(
-                  height: 16,
-                  width: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Appliquer le code'),
-        ),
       ],
     );
   }

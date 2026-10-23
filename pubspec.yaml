@@ -48,6 +48,7 @@ dependencies:
   mobile_scanner: ^7.4.2
   geolocator: ^14.0.2
   http: ^1.6.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +71,30 @@ flutter:
     - assets/images/products/electronique/
     - assets/images/products/alimentation/
     - assets/images/products/materiaux/
+    # Côté client : icônes et illustrations du kit FlutterShop
+    # (`E-commerce-Complete-Flutter-UI`), voir `lib/core/shop/`.
+    - assets/shop/icons/
+    - assets/shop/illustrations/
+    # La photo de l'écran de connexion du kit, en clair et en sombre.
+    - assets/shop/images/
+    - assets/fonts/plus_jakarta/OFL.txt
+    - assets/fonts/archivo/OFL.txt
+
+  # Polices du côté client, sous licence SIL OFL 1.1 (licences jointes et
+  # inscrites au registre des licences de l'app, `bootstrap.dart`).
+  # Archivo, en largeur étendue, remplace la Grandis Extended du kit : cette
+  # dernière est une police commerciale (« All rights reserved »).
+  fonts:
+    - family: Plus Jakarta
+      fonts:
+        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Regular.otf
+        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Medium.otf
+          weight: 500
+        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Bold.otf
+          weight: 700
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/archivo/Archivo-Variable.ttf
 
 # Icônes de lancement, générées depuis `assets/branding/` par
 # `dart run flutter_launcher_icons`.

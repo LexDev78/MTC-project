@@ -83,10 +83,12 @@ typedef DeliveryCodeRef = ({String deliveryId, DeliveryCodeKind kind});
 
 /// Le code à présenter, ou `null` s'il est déjà consommé — ou si l'appelant
 /// n'avait pas à le voir, ce que la base ne distingue pas volontairement.
-final deliveryCodeProvider = FutureProvider.family<String?, DeliveryCodeRef>((
-  ref,
-  params,
-) {
+///
+/// `autoDispose` : un code de retrait ou de remise n'a pas à rester en
+/// mémoire une fois l'écran quitté — ni à être resservi, périmé, à l'écran
+/// suivant ou au compte suivant sur le même appareil.
+final deliveryCodeProvider = FutureProvider.autoDispose
+    .family<String?, DeliveryCodeRef>((ref, params) {
   return ref
       .watch(deliveryRepositoryProvider)
       .fetchCode(deliveryId: params.deliveryId, kind: params.kind);
@@ -94,10 +96,17 @@ final deliveryCodeProvider = FutureProvider.family<String?, DeliveryCodeRef>((
 
 /// La course d'un groupe fournisseur, pour les écrans qui partent de la
 /// commande (client et fournisseur) et non de la course.
-final deliveryForGroupProvider =
-    FutureProvider.family<({String id, DeliveryStatus status})?, String>((
+///
+/// Un flux, et `autoDispose`. C'était une lecture unique, gardée pour toute
+/// la vie de l'app : constaté le 17/10/2026, la commande ouverte avant le
+/// retrait gardait le statut d'alors, et le client ne voyait jamais son QR
+/// de remise — pas même en se reconnectant, puisque la valeur lue sous le
+/// compte précédent survivait à la déconnexion. Désormais le QR apparaît
+/// au moment où le livreur scanne le retrait, et disparaît à la remise.
+final deliveryForGroupProvider = StreamProvider.autoDispose
+    .family<({String id, DeliveryStatus status})?, String>((
       ref,
       supplierGroupId,
     ) {
-      return ref.watch(deliveryRepositoryProvider).fetchByGroup(supplierGroupId);
+      return ref.watch(deliveryRepositoryProvider).watchByGroup(supplierGroupId);
     });

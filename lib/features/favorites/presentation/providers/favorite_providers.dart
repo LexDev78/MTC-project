@@ -36,18 +36,17 @@ final isFavoriteProvider = Provider.family<bool, String>((ref, productId) {
   return ids.contains(productId);
 });
 
-/// Full [Product] objects for every favorited ID, for the favorites screen.
+/// Les produits mis de côté, pour la grille des favoris.
+///
+/// En une requête (`fetchByIds`) plutôt qu'une par favori : sur un réseau
+/// lent, dix favoris faisaient dix allers-retours. Un produit devenu
+/// invisible (retiré, boutique suspendue) tombe de lui-même, au lieu de
+/// faire échouer toute la liste comme le faisait sa lecture une à une.
+///
+/// Ces produits n'embarquent pas leurs variantes (voir `fetchByIds`) : un
+/// ajout au panier depuis les favoris relit le produit complet d'abord.
 final favoriteProductsProvider = FutureProvider<List<Product>>((ref) async {
   final ids = await ref.watch(favoriteProductIdsProvider.future);
-  final repository = ref.watch(productRepositoryProvider);
-  return Future.wait(ids.map(repository.getById));
+  if (ids.isEmpty) return const [];
+  return ref.watch(productRepositoryProvider).fetchByIds(ids.toList());
 });
-
-/// The quantity picked for a favorited product, used both by its row's own
-/// "Acheter"/"Ajouter au panier" buttons and by the favorites screen's bulk
-/// selection actions, so a bulk add honors each item's chosen quantity
-/// instead of defaulting to 1. Isolated per product and auto-disposed once
-/// its row leaves the screen.
-final favoriteQuantityProvider = StateProvider.autoDispose.family<int, String>(
-  (ref, productId) => 1,
-);

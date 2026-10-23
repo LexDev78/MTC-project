@@ -145,6 +145,18 @@ class ChatController extends AsyncNotifier<void> {
         );
   }
 
+  /// Le client ferme ou rouvre la conversation. Fermée, la boutique ne peut
+  /// plus lui écrire ; le flux des conversations en apporte l'état à l'écran,
+  /// des deux côtés. Lève l'erreur, que l'écran affiche.
+  Future<void> setConversationClosed({
+    required String conversationId,
+    required bool closed,
+  }) {
+    return ref
+        .read(chatRepositoryProvider)
+        .setConversationClosed(conversationId: conversationId, closed: closed);
+  }
+
   /// Marks the conversation read on behalf of the current user's own side
   /// — a client reading clears `unreadCountClient`, a supplier reading
   /// clears `unreadCountSupplier`; the caller never has to know which. Also

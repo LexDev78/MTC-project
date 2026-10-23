@@ -21,12 +21,15 @@ class SupabaseDeliveryDatasource {
   /// PostgREST (le tri), le second un mot-clé SQL. Avec eux, l'imbrication
   /// revient **vide** au lieu d'échouer — la requête passe, les champs
   /// manquent, et l'erreur n'apparaît qu'au moment de lire le résultat.
+  ///
+  /// Les numéros et l'adresse du client viennent de `client_contact`
+  /// (`0120`) : l'adresse dès que la course est proposée, le numéro une fois
+  /// acceptée, plus rien une fois livrée.
   static const _nestedSelect = '''
     *,
     order_data:orders (
-      id, client_display_name_snapshot, client_phone_snapshot, alternate_phone,
-      delivery_address_label, delivery_city, delivery_details,
-      delivery_latitude, delivery_longitude, payment_method
+      id, client_display_name_snapshot, delivery_city, payment_method,
+      client_contact
     ),
     group_data:order_supplier_groups (
       id, supplier_name, delivery_fee_fcfa, subtotal_fcfa,
@@ -113,12 +116,20 @@ class SupabaseDeliveryDatasource {
 
   /// Course rattachée à un groupe fournisseur, pour les écrans client et
   /// fournisseur qui partent de la commande et non de la course.
-  Future<Map<String, dynamic>?> fetchByGroup(String supplierGroupId) {
-    return _client
-        .from('deliveries')
-        .select('id, status')
-        .eq('supplier_group_id', supplierGroupId)
-        .maybeSingle();
+  /// La course d'un groupe fournisseur, tenue à jour.
+  ///
+  /// Une seule égalité suffit ici (`supplier_group_id`), donc le flux porte
+  /// directement la ligne, sans relecture. La policy de `deliveries` ne
+  /// laisse passer que la course des participants : client, fournisseur,
+  /// livreur.
+  Stream<Map<String, dynamic>?> watchByGroup(String supplierGroupId) {
+    return withRealtimeRetry(
+      () => _client
+          .from('deliveries')
+          .stream(primaryKey: ['id'])
+          .eq('supplier_group_id', supplierGroupId)
+          .map((rows) => rows.isEmpty ? null : rows.first),
+    );
   }
 
   /// Une seule écriture pour deux usages : la fiche du livreur (attribution

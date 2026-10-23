@@ -13,6 +13,9 @@ class Review with _$Review {
     required String supplierId,
     required int stars,
     required String comment,
+
+    /// Le titre de l'avis (`0119`), facultatif : une ligne qui résume.
+    String? title,
     required DateTime createdAt,
 
     /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans

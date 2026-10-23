@@ -20,7 +20,15 @@ class SupplierProfile with _$SupplierProfile {
     required String city,
     required double ratingAverage,
     required int ratingCount,
+    /// Le compteur de travail de la boutique, tenu par son application :
+    /// brouillons et pauses compris. Pas pour les clients — voir
+    /// [listedProductCount].
     required int productCount,
+
+    /// Ce que le client voit vraiment : les produits actifs d'une boutique
+    /// vérifiée, comptés par la base (`listed_product_count`, `0123`).
+    /// N'arrive que des lectures qui le demandent.
+    @Default(0) int listedProductCount,
     VerificationStatus? verificationStatus,
     // Null for `SupplierType.principal` (MTC itself has no legal form to
     // register) — only ever set for `SupplierType.tiers`.

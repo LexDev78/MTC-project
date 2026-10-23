@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/user_role.dart';
 import '../controllers/auth_controller.dart';
@@ -82,7 +83,7 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
     if (!success && mounted) {
       final error = ref.read(authControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+        SnackBar(content: Text(messagePourUtilisateur(error))),
       );
     }
   }

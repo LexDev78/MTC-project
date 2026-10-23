@@ -42,4 +42,12 @@ abstract interface class ChatRepository {
     required String conversationId,
     required ChatParticipant readBy,
   });
+
+  /// Le client ferme ([closed] vrai) ou rouvre une conversation : fermée, la
+  /// boutique ne peut plus lui écrire. Rend la date de fermeture, `null`
+  /// une fois rouverte.
+  Future<DateTime?> setConversationClosed({
+    required String conversationId,
+    required bool closed,
+  });
 }

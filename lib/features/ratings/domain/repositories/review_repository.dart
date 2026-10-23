@@ -1,5 +1,6 @@
 import '../entities/product_review.dart';
 import '../entities/review.dart';
+import '../entities/review_sort.dart';
 
 abstract interface class ReviewRepository {
   Stream<List<Review>> watchForSupplier(String supplierId);
@@ -15,16 +16,25 @@ abstract interface class ReviewRepository {
     required String comment,
     List<String> imagePaths,
     String? videoPath,
+
+    /// Facultatif (`0119`) : une ligne qui résume l'avis, 100 caractères au
+    /// plus. Vide ou blanc, il n'y en a pas.
+    String? title,
   });
 
-  /// Avis des acheteurs d'un produit, pour sa fiche publique.
+  /// Avis des acheteurs d'un produit, pour sa fiche publique, une page à la
+  /// fois et dans l'ordre [sort].
   Future<List<ProductReview>> fetchProductReviews({
     required String productId,
     int limit,
     int offset,
+    ReviewSort sort,
   });
 
   Future<ProductReviewSummary> fetchProductReviewSummary(String productId);
+
+  /// Le nombre d'avis par note (1 à 5) ; une note sans avis est absente.
+  Future<Map<int, int>> fetchProductRatingDistribution(String productId);
 
   /// Commente un avis. L'auteur est déterminé côté serveur, pas ici.
   Future<void> addComment({

@@ -82,8 +82,10 @@ void main() {
       final order = container.read(checkoutControllerProvider).valueOrNull;
       expect(order, isNotNull);
       expect(order!.fulfillmentMethod, FulfillmentMethod.pickupPoint);
-      expect(order.deliveryAddressLabel, point.name);
-      expect(order.courierPhone, isNull);
+      expect(order.clientContact?.addressLabel, point.name);
+      // Pas de numéro pour un livreur au point relais : celui du compte
+      // reste le moyen de joindre le client.
+      expect(order.clientContact?.phone, isNotEmpty);
     },
   );
 
@@ -131,7 +133,7 @@ void main() {
       expect(order!.fulfillmentMethod, FulfillmentMethod.homeDelivery);
       expect(order.isPriority, isTrue);
       expect(order.priorityFeeFcfa, priorityOrderFeeFcfa);
-      expect(order.courierPhone, isNotEmpty);
+      expect(order.clientContact?.phone, isNotEmpty);
     },
   );
 }

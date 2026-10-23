@@ -14,6 +14,10 @@ abstract interface class SupplierRepository {
 
   Stream<List<SupplierProfile>> watchTopRated({int limit = 5});
 
+  /// Les boutiques que le client peut visiter (« Boutiques du Mali ») :
+  /// identité vérifiée, ou MTC Officiel.
+  Future<List<SupplierProfile>> fetchListed();
+
   /// Creates the public storefront profile for a newly-registered
   /// "fournisseur tiers" account. Called right after `AuthRepository`
   /// creates the `AppUser`, from `AuthController` — `data/` repositories
@@ -115,6 +119,9 @@ abstract interface class SupplierRepository {
   /// commandes traitées et des messages envoyés, dont l'auteur doit rester
   /// lisible.
   Future<void> removeCollaborator(String userId);
+
+  /// Rétablit l'accès d'un collaborateur retiré.
+  Future<void> reactivateCollaborator(String userId);
 
   Future<void> setOpen({required String supplierId, required bool isOpen});
 }

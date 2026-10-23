@@ -28,4 +28,10 @@ abstract interface class AddressRepository {
     required String userId,
     required String addressId,
   });
+
+  /// Désigne l'adresse par défaut — celle que le paiement propose —, ou
+  /// retire le choix avec `null` (`set_my_default_address`, `0117`). Lève
+  /// une `ValidationException` au message lisible si l'adresse n'est pas
+  /// celle de l'appelant.
+  Future<void> setDefaultAddress(String? addressId);
 }

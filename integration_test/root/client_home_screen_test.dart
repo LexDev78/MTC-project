@@ -8,8 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
-import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 
 import '../../test/support/supabase_test_harness.dart';
 
@@ -47,96 +46,50 @@ void main() {
     await resetAndSeed();
   });
 
-  testWidgets('"Fournisseur principal" is the first tab', (tester) async {
+  // L'accueil suit désormais `HomeScreen` du kit FlutterShop : offres et
+  // catégories en tête, puis des sélections en carrousels de cartes du kit.
+  // Les anciens onglets « Fournisseur principal » / « Fournisseurs tiers »,
+  // le bandeau promo et la grille plate ont disparu avec lui.
+  testWidgets('l\'accueil du kit : catégories, sélections, cartes produit', (
+    tester,
+  ) async {
     await _loginAsClient1(tester);
 
-    final tabBar = tester.widget<TabBar>(find.byType(TabBar));
-    final labels = tabBar.tabs
-        .cast<Tab>()
-        .map((tab) => tab.text)
-        .toList();
-
-    expect(labels, ['Fournisseur principal', 'Fournisseurs tiers']);
+    expect(find.text('Catégories'), findsOneWidget);
+    expect(find.text('Produits populaires'), findsOneWidget);
+    expect(find.byType(ShopProductCard), findsWidgets);
   });
 
-  // Ce test affirmait auparavant que l'onglet principal montrait *aussi*
-  // les produits tiers. La restructuration de l'accueil a tranché
-  // l'inverse : chaque onglet est strictement cloisonné à son type de
-  // fournisseur (voir le commentaire de `ClientHomeScreen`, et les deux
-  // `CatalogTabScreen(supplierType: ...)` qu'il instancie). Ce qui compte
-  // vraiment — que l'attribution du fournisseur reste visible sur la carte
-  // produit — est donc vérifié là où ces produits s'affichent réellement :
-  // l'onglet « Fournisseurs tiers ».
-  testWidgets(
-    'each tab is scoped to its own supplier type, and cards keep their '
-    'supplier attribution',
-    (tester) async {
-      await _loginAsClient1(tester);
-
-      // Les cartes rendues sont inspectées plutôt que cherchées par le nom
-      // d'un fournisseur précis : la grille est paresseuse, donc chercher
-      // « Bogolan Bamako » ne testerait en réalité que sa position dans le
-      // défilement — un produit hors écran n'est pas construit du tout.
-      final principalCards = tester
-          .widgetList<ProductCard>(find.byType(ProductCard))
-          .toList();
-      expect(principalCards, isNotEmpty);
-      expect(
-        principalCards.every(
-          (card) => card.product.supplierType == SupplierType.principal,
-        ),
-        isTrue,
-        reason: "l'onglet principal ne doit lister que la vitrine MTC",
-      );
-
-      await tester.tap(find.text('Fournisseurs tiers'));
-      await tester.pumpAndSettle();
-
-      final tiersCards = tester
-          .widgetList<ProductCard>(find.byType(ProductCard))
-          .toList();
-      expect(tiersCards, isNotEmpty);
-      expect(
-        tiersCards.every(
-          (card) => card.product.supplierType == SupplierType.tiers,
-        ),
-        isTrue,
-        reason: "l'onglet tiers ne doit lister que des fournisseurs tiers",
-      );
-
-      // L'attribution reste affichée sur la carte — vérifiée sur le
-      // fournisseur réellement présent à l'écran, quel qu'il soit.
-      expect(find.text(tiersCards.first.product.supplierName), findsWidgets);
-    },
-  );
-
-  testWidgets('the promo banner scrolls away with the page', (tester) async {
+  // Ce qui comptait dans l'ancien cloisonnement par onglet — qu'une
+  // sélection « fournisseurs tiers » ne mélange pas la vitrine MTC — est
+  // vérifié sur la section qui le porte maintenant.
+  testWidgets('« Fournisseurs tiers » ne liste que des boutiques tierces', (
+    tester,
+  ) async {
     await _loginAsClient1(tester);
 
-    expect(find.byType(NestedScrollView), findsOneWidget);
-    expect(find.text('Le meilleur du Mali,\nlivré chez vous'), findsOneWidget);
-
-    // Drag the product list up to scroll the whole page.
-    await tester.fling(
-      find.byType(NestedScrollView),
-      const Offset(0, -800),
-      2000,
+    final section = find.widgetWithText(
+      ProductCarouselSection,
+      'Fournisseurs tiers',
+    );
+    await tester.scrollUntilVisible(
+      section,
+      300,
+      // Le défilement vertical de la page, pas un carrousel horizontal.
+      scrollable: find
+          .byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+          )
+          .first,
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Le meilleur du Mali,\nlivré chez vous'), findsNothing);
-  });
-
-  // Le test d'auto-défilement des rangées par catégorie après 10 s
-  // d'inactivité a été retiré avec la fonctionnalité qu'il couvrait : les
-  // onglets d'accueil rendent désormais une grille plate
-  // (`CatalogTabScreen` → `ProductGrid`), plus de rangées groupées par
-  // catégorie ni de `_AutoScrollingProductRow`. Le regroupement par
-  // catégorie vit maintenant dans l'onglet « Catalogue »
-  // (`CatalogueScreen`/`CategoryProductsScreen`), qui n'auto-défile pas.
-  testWidgets('the home tabs render a flat product grid', (tester) async {
-    await _loginAsClient1(tester);
-
-    expect(find.byType(ProductCard), findsWidgets);
+    final cartes = tester.widget<ProductCarouselSection>(section).products;
+    expect(cartes, isNotEmpty);
+    expect(
+      cartes!.every((carte) => carte.brand != 'MTC Officiel'),
+      isTrue,
+      reason: 'la vitrine MTC (fournisseur principal) n\'est pas tierce',
+    );
   });
 }

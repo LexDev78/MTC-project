@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
+import 'app/session_scope.dart';
 import 'core/di/providers.dart';
 import 'core/push/notification_tap_router.dart';
 import 'core/push/push_background_handler.dart';
@@ -57,22 +58,30 @@ Future<void> bootstrap() async {
     debugPrint('Firebase.initializeApp failed (push disabled for this run): $e');
   }
 
-  // An explicit `ProviderContainer` (rather than a bare `ProviderScope`)
-  // so `registerNotificationTapHandling` below has something to read from
+  // Explicit `ProviderContainer`s (rather than a bare `ProviderScope`) so
+  // `registerNotificationTapHandling` below has something to read from
   // outside the widget tree — a push tap (cold start or from background)
-  // has no `BuildContext` to get a `WidgetRef` from.
-  final container = ProviderContainer(
+  // has no `BuildContext` to get a `WidgetRef` from. One per account:
+  // `SessionScope` replaces it when an account ends, so the next account on
+  // this device inherits nothing from the previous one.
+  ProviderContainer createContainer() => ProviderContainer(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
       supabaseClientProvider.overrideWithValue(Supabase.instance.client),
     ],
   );
+  var container = createContainer();
 
   runApp(
-    UncontrolledProviderScope(container: container, child: const MtcApp()),
+    SessionScope(
+      initialContainer: container,
+      createContainer: createContainer,
+      onContainerChanged: (next) => container = next,
+      child: const MtcApp(),
+    ),
   );
 
   if (Firebase.apps.isNotEmpty) {
-    registerNotificationTapHandling(container);
+    registerNotificationTapHandling(() => container);
   }
 }

@@ -1,5 +1,10 @@
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 
+/// Les bornes de la livraison MTC à domicile, celles qu'annonce aussi la
+/// fiche produit avant que l'adresse ne soit connue.
+const homeDeliveryMinFeeFcfa = 1000;
+const homeDeliveryMaxFeeFcfa = 4000;
+
 /// MTC's home-delivery fee — not a flat rate, since a courier's actual cost
 /// scales with how far they drive, how heavy the load is, and how much
 /// care/space it needs. Blends the three into a single per-supplier-group
@@ -17,8 +22,6 @@ int computeHomeDeliveryFeeFcfa({
   const fcfaPerKg = 25.0;
   const maxDistanceContribution = 1500.0;
   const maxWeightContribution = 1500.0;
-  const minFeeFcfa = 1000;
-  const maxFeeFcfa = 4000;
 
   final distanceContribution = (distanceKm * fcfaPerKm).clamp(
     0,
@@ -35,8 +38,9 @@ int computeHomeDeliveryFeeFcfa({
       ? 0
       : categories.map(_categorySurchargeFcfa).reduce((a, b) => a > b ? a : b);
 
-  final raw = base + distanceContribution + weightContribution + categorySurcharge;
-  return raw.round().clamp(minFeeFcfa, maxFeeFcfa);
+  final raw =
+      base + distanceContribution + weightContribution + categorySurcharge;
+  return raw.round().clamp(homeDeliveryMinFeeFcfa, homeDeliveryMaxFeeFcfa);
 }
 
 int _categorySurchargeFcfa(ProductCategory category) => switch (category) {

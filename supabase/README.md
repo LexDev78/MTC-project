@@ -89,9 +89,21 @@ fonctions servies est figée au démarrage de la pile :
 supabase stop && supabase start
 ```
 
-**À savoir** : ce conteneur s'arrête sur une rafale de jetons mal formés
-(`JWT format error: Invalid Token or Protected Header formatting`). Les tests
-de sécurité en forgent exprès — c'est leur rôle —, donc une suite de tests
-peut le laisser mort derrière elle. Si une fonction edge « ne marche plus »
-après une campagne de tests, regarder ce conteneur **avant** de suspecter le
-code.
+**Ce qu'on ne sait pas encore** : pourquoi il s'arrête. Ses dernières lignes
+de journal sont souvent des `JWT format error: Invalid Token or Protected
+Header formatting`, et une première version de ce document en concluait
+qu'une rafale de jetons mal formés l'abattait. Les horodatages le démentent :
+lors d'un arrêt mesuré, le dernier message JWT date de 12 h 07 et l'arrêt de
+12 h 28, vingt et une minutes plus tard, sans aucune ligne au moment de la
+sortie (code 255, pas d'OOM). Corrélation, pas cause.
+
+Pour mesurer plutôt que deviner, au prochain arrêt :
+
+```bash
+docker inspect supabase_edge_runtime_MTC_project \
+  --format '{{.State.FinishedAt}} code={{.State.ExitCode}} OOM={{.State.OOMKilled}}'
+df -h /System/Volumes/Data   # un disque plein a été constaté dans la même période
+```
+
+En pratique : si une fonction edge « ne marche plus », regarder ce conteneur
+**avant** de suspecter le code.

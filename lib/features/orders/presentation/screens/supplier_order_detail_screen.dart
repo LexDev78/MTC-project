@@ -15,6 +15,7 @@ import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart'
     show ChatProductAttachment;
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/order.dart';
 import '../../domain/entities/order_status.dart';
@@ -42,7 +43,10 @@ class SupplierOrderDetailScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Détail de la commande')),
       body: AsyncValueWidget(
         value: ref.watch(
-          supplierOrderDetailProvider((orderId: orderId, supplierId: supplierId)),
+          supplierOrderDetailProvider((
+            orderId: orderId,
+            supplierId: supplierId,
+          )),
         ),
         data: (view) => _OrderDetailBody(view: view),
       ),
@@ -69,9 +73,9 @@ class _OrderDetailBody extends ConsumerWidget {
         );
     if (!success && context.mounted) {
       final error = ref.read(supplierOrderControllerProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
     }
   }
 
@@ -112,9 +116,9 @@ class _OrderDetailBody extends ConsumerWidget {
         );
     if (!success && context.mounted) {
       final error = ref.read(supplierOrderControllerProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
     }
   }
 
@@ -128,9 +132,9 @@ class _OrderDetailBody extends ConsumerWidget {
     if (!context.mounted) return;
     if (conversationId == null) {
       final error = ref.read(supplierOrderControllerProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
       return;
     }
     unawaited(
@@ -155,9 +159,9 @@ class _OrderDetailBody extends ConsumerWidget {
     if (!context.mounted) return;
     if (result.conversationId == null) {
       final error = ref.read(supplierOrderControllerProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
       return;
     }
     final product = result.product;
@@ -172,6 +176,24 @@ class _OrderDetailBody extends ConsumerWidget {
             : ChatProductAttachment(product: product, variant: result.variant),
       ),
     );
+  }
+
+  /// Sous le nom du client : son numéro quand cette boutique livre
+  /// elle-même, sinon la raison de son absence — un numéro qui manque sans
+  /// explication passe pour un bug.
+  static String _ligneContact(SupplierOrderView view) {
+    final contact = view.contact;
+    final numero = contact?.phone;
+    if (numero != null) {
+      final autre = contact?.alternatePhone;
+      return autre == null ? numero : '$numero · autre numéro : $autre';
+    }
+    if (contact == null) {
+      return 'Commande terminée : son numéro et son adresse ne sont plus '
+          'affichés. Vous pouvez lui écrire ici.';
+    }
+    return 'Son numéro n\'est visible que du livreur MTC. Vous pouvez lui '
+        'écrire ici.';
   }
 
   @override
@@ -252,24 +274,32 @@ class _OrderDetailBody extends ConsumerWidget {
           child: ListTile(
             leading: const Icon(Icons.person_outline_rounded),
             title: Text(view.clientDisplayNameSnapshot),
-            subtitle: Text(view.clientPhoneSnapshot),
+            subtitle: Text(_ligneContact(view)),
             trailing: IconButton(
               icon: const Icon(Icons.chat_bubble_outline_rounded),
-              tooltip: 'Contacter le client',
+              tooltip: 'Écrire au client',
               onPressed: state.isLoading
                   ? null
                   : () => _contactClient(context, ref),
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.location_on_outlined),
-            title: Text(view.deliveryAddressLabel),
-            subtitle: Text('${view.deliveryDetails}, ${view.deliveryCity}'),
+        if (view.contact case final contact? when contact.hasAddress) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: Text(contact.addressLabel!),
+              subtitle: Text(
+                [
+                  if (contact.addressDetails case final d? when d.isNotEmpty)
+                    d,
+                  view.deliveryCity,
+                ].join(', '),
+              ),
+            ),
           ),
-        ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Text('Articles', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
@@ -300,17 +330,25 @@ class _OrderDetailBody extends ConsumerWidget {
                     ),
                   ),
                 const Divider(),
+                // Le libellé cède la place au montant : en grands caractères,
+                // « Sous-total » et « 15 000 FCFA » ne tiennent plus côte à
+                // côte, et c'est le montant qu'il faut lire en entier.
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Livraison'),
+                    const Expanded(child: Text('Livraison')),
                     CurrencyText(group.deliveryFeeFcfa),
                   ],
                 ),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Sous-total', style: Theme.of(context).textTheme.titleSmall),
+                    Expanded(
+                      child: Text(
+                        'Sous-total',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
                     CurrencyText(
                       group.subtotalFcfa,
                       style: Theme.of(context).textTheme.titleSmall,
@@ -397,7 +435,9 @@ class _RateCourierButton extends ConsumerWidget {
     if (delivery == null || delivery.status != DeliveryStatus.delivered) {
       return const SizedBox.shrink();
     }
-    final existing = ref.watch(myDeliveryRatingProvider(delivery.id)).valueOrNull;
+    final existing = ref
+        .watch(myDeliveryRatingProvider(delivery.id))
+        .valueOrNull;
 
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.sm),

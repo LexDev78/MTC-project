@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/courier_delivery.dart';
 import '../controllers/courier_controller.dart';
@@ -41,6 +42,23 @@ class _DeliveryScanScreenState extends ConsumerState<DeliveryScanScreen> {
   /// consommé — et le livreur verrait une erreur juste après son succès.
   bool _handling = false;
 
+  /// Le dernier code refusé, et quand.
+  ///
+  /// Le verrou ci-dessus est levé après un refus — exprès, voir plus bas —
+  /// alors que le QR refusé, lui, reste dans le cadre. Il repartait donc au
+  /// serveur à l'image suivante : constaté le 17/10/2026 dans Chrome, 32
+  /// refus identiques en 3 s, autant d'alertes empilées pendant plus de deux
+  /// minutes. Le même code n'est plus renvoyé qu'après [_pauseApresRefus] ;
+  /// un code différent passe tout de suite.
+  String? _dernierRefuse;
+  DateTime? _refuseA;
+  static const _pauseApresRefus = Duration(seconds: 3);
+
+  bool _vientDEtreRefuse(String code) =>
+      code == _dernierRefuse &&
+      _refuseA != null &&
+      DateTime.now().difference(_refuseA!) < _pauseApresRefus;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -51,8 +69,11 @@ class _DeliveryScanScreenState extends ConsumerState<DeliveryScanScreen> {
     if (_handling) return;
     final code = capture.barcodes
         .map((b) => b.rawValue)
-        .firstWhere((value) => value != null && value.isNotEmpty, orElse: () => null);
-    if (code == null) return;
+        .firstWhere(
+          (value) => value != null && value.isNotEmpty,
+          orElse: () => null,
+        );
+    if (code == null || _vientDEtreRefuse(code)) return;
 
     setState(() => _handling = true);
     final status = await ref
@@ -62,9 +83,13 @@ class _DeliveryScanScreenState extends ConsumerState<DeliveryScanScreen> {
     if (!mounted) return;
     if (status == null) {
       final error = ref.read(courierControllerProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_message(error))),
-      );
+      _dernierRefuse = code;
+      _refuseA = DateTime.now();
+      // Une alerte à la fois : la nouvelle remplace la précédente au lieu
+      // d'attendre son tour.
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(_message(error))));
       // Réarmé après coup : un code refusé peut l'être pour une raison que
       // le livreur corrige sur place (mauvais QR présenté, mauvaise étape).
       setState(() => _handling = false);
@@ -74,14 +99,14 @@ class _DeliveryScanScreenState extends ConsumerState<DeliveryScanScreen> {
     Navigator.of(context).pop(status);
   }
 
-  /// Le motif vient du serveur. On ne garde que son message, sans le code
-  /// d'erreur ni le détail SQL qui ne disent rien au livreur.
-  String _message(Object? error) {
-    if (error == null) return 'Code refusé.';
-    final text = error.toString();
-    final match = RegExp(r'message: ([^,]+)').firstMatch(text);
-    return match?.group(1) ?? 'Code refusé.';
-  }
+  /// Le motif vient du serveur, rédigé pour le livreur.
+  ///
+  /// La version précédente l'extrayait de `toString()` avec une expression
+  /// qui s'arrêtait à la **première virgule** : « Code inconnu, expiré, ou
+  /// déjà utilisé » devenait « Code inconnu ». `messagePourUtilisateur` lit
+  /// le message lui-même, entier.
+  String _message(Object? error) =>
+      messagePourUtilisateur(error, repli: 'Code refusé.');
 
   @override
   Widget build(BuildContext context) {

@@ -112,9 +112,8 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.text('Déconnexion'));
-    // Not pumpAndSettle: like WelcomeScreen, LoginScreen carries a
-    // continuously-ticking decorative animation (the watching cat) that
-    // never reports itself settled — advance by fixed durations instead.
+    // Fixed durations: the route transition back to the login screen is
+    // all there is to wait for.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 

@@ -33,8 +33,14 @@ class SupabaseSupplierDatasource {
     );
   }
 
+  /// Avec `listed_product_count` (`0123`), le nombre de produits que la
+  /// vitrine annonce au client — une fonction, que `*` n'inclut pas.
   Future<Map<String, dynamic>> getById(String id) {
-    return _client.from('suppliers').select().eq('id', id).single();
+    return _client
+        .from('suppliers')
+        .select('*, listed_product_count')
+        .eq('id', id)
+        .single();
   }
 
   Stream<List<Map<String, dynamic>>> watchTopRated({required int limit}) {
@@ -46,6 +52,21 @@ class SupabaseSupplierDatasource {
           .order('rating_average', ascending: false)
           .limit(limit),
     );
+  }
+
+  /// Les boutiques qu'un client peut visiter : celles dont l'identité est
+  /// vérifiée — leurs produits sont les seuls qu'il voit
+  /// (`products_select_public`) —, et MTC Officiel. Une boutique en attente
+  /// ou refusée n'aurait qu'une vitrine vide à montrer.
+  ///
+  /// Nommer `principal` plutôt que « sans statut » : un statut nul sur une
+  /// boutique tierce la ferait passer pour vérifiée.
+  Future<List<Map<String, dynamic>>> fetchListed() {
+    return _client
+        .from('suppliers')
+        .select('*, listed_product_count')
+        .or('verification_status.eq.verified,supplier_type.eq.principal')
+        .order('business_name');
   }
 
   Future<Map<String, dynamic>> add(Map<String, dynamic> row) async {
@@ -169,9 +190,19 @@ class SupabaseSupplierDatasource {
     );
   }
 
+  /// Retire l'accès (`0110`) : la ligne reste, désactivée.
   Future<void> removeCollaborator(String userId) async {
     await _client.rpc(
       'remove_supplier_collaborator',
+      params: {'p_user_id': userId},
+    );
+  }
+
+  /// Rétablit l'accès d'un collaborateur retiré, avec ses permissions
+  /// d'avant.
+  Future<void> reactivateCollaborator(String userId) async {
+    await _client.rpc(
+      'reactivate_supplier_collaborator',
       params: {'p_user_id': userId},
     );
   }

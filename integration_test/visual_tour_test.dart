@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:mtc_app/features/catalog/presentation/screens/product_detail_screen.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 
 import '../test/support/supabase_test_harness.dart';
 import 'support/parcours_visuel.dart';
@@ -60,13 +60,25 @@ void main() {
         await tester.enterText(champs.at(1), 'password123');
         await tester.tap(find.text('Se connecter'));
         await avancer(tester, pas: 12);
-        await attendre(tester, find.byType(ProductCard));
+        await attendre(tester, find.byType(ShopProductCard));
       });
 
-      await etapeVisuelle(tester, 'client-04-onglet-tiers', () async {
-        await tester.tap(find.text('Fournisseurs tiers'));
-        await avancer(tester, pas: 8);
-        await attendre(tester, find.byType(ProductCard));
+      // L'accueil du kit n'a plus d'onglets par type de fournisseur : les
+      // fournisseurs tiers ont leur rangée, plus bas.
+      await etapeVisuelle(tester, 'client-04-fournisseurs-tiers', () async {
+        // Loin dans la page : une liste ne construit pas ce qui est sous le
+        // pli, il faut y descendre avant de la cadrer.
+        final rangee = find.text('Fournisseurs tiers');
+        await tester.scrollUntilVisible(
+          rangee.last,
+          300,
+          scrollable: find
+              .byWidgetPredicate(
+                (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+              )
+              .first,
+        );
+        await cadrer(tester, rangee.last);
       });
 
       // Viser la carte produit, pas `Image.first` : la première image de
@@ -74,7 +86,7 @@ void main() {
       // part — le premier jet de ce parcours capturait donc l'accueil une
       // troisième fois en croyant montrer la fiche produit.
       await etapeVisuelle(tester, 'client-05-fiche-produit', () async {
-        await tester.tap(find.byType(ProductCard).first);
+        await tester.tap(find.byType(ShopProductCard).first);
         await avancer(tester, pas: 10);
         await attendre(tester, find.byType(ProductDetailScreen));
         // Sans cette vérification, une navigation qui n'a pas eu lieu
@@ -91,7 +103,7 @@ void main() {
         }
       });
 
-      for (final onglet in ['Catalogue', 'Favoris', 'Panier', 'Profil']) {
+      for (final onglet in ['Découvrir', 'Favoris', 'Panier', 'Profil']) {
         await etapeVisuelle(
           tester,
           'client-${onglet.toLowerCase()}',

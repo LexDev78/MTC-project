@@ -7,6 +7,7 @@ import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 /// Remplacer le mot de passe dicté par son patron, avant toute autre chose.
 ///
@@ -67,7 +68,9 @@ class _ForcedPasswordChangeScreenState
       // relecture, le routeur renverrait aussitôt sur cet écran.
       ref.invalidate(currentUserProvider);
     } on AuthException catch (e) {
-      if (mounted) setState(() => _erreur = e.message);
+      // Le serveur d'authentification répond en anglais (« New password
+      // should be different from the old password. ») : traduit.
+      if (mounted) setState(() => _erreur = messagePourUtilisateur(e));
     } catch (_) {
       if (mounted) {
         setState(() => _erreur = 'Impossible de changer le mot de passe.');

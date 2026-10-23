@@ -53,17 +53,15 @@ Future<void> remplir(WidgetTester tester, String libelle, String valeur) async {
 
 /// Revient à l'écran de connexion, d'où qu'on parte.
 ///
-/// Le client passe par « Paramètres », le fournisseur a « Déconnexion »
-/// directement dans son profil : on tente les deux plutôt que de coder le
-/// rôle en dur, parce que ce parcours change d'acteur six fois.
+/// Client comme fournisseur ont « Déconnexion » directement dans leur
+/// profil (en bas du menu, pour le client, comme dans le kit) : on remonte
+/// jusqu'à l'onglet « Profil » sans coder le rôle en dur, parce que ce
+/// parcours change d'acteur six fois.
 Future<void> seDeconnecter(WidgetTester tester) async {
   for (var i = 0; i < 4; i++) {
     if (find.text('Se connecter').evaluate().isNotEmpty) return;
     if (find.byTooltip('Profil').evaluate().isNotEmpty) {
       await toucher(tester, find.byTooltip('Profil'), pas: 6);
-    }
-    if (find.text('Paramètres').evaluate().isNotEmpty) {
-      await toucher(tester, find.text('Paramètres'), pas: 8);
     }
     if (find.text('Déconnexion').evaluate().isNotEmpty) {
       await toucher(tester, find.text('Déconnexion'), pas: 14);

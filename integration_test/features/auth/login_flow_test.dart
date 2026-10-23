@@ -51,14 +51,15 @@ void main() {
     await resetAndSeed();
   });
 
-  testWidgets('client1 logs in and lands on the two-tab client home', (
+  // L'accueil client suit le kit FlutterShop : plus d'onglets par type de
+  // fournisseur, mais les catégories en tête de page.
+  testWidgets('client1 logs in and lands on the kit client home', (
     tester,
   ) async {
     await _pumpApp(tester);
     await _login(tester, 'client1');
 
-    expect(find.text('Fournisseurs tiers'), findsOneWidget);
-    expect(find.text('Fournisseur principal'), findsOneWidget);
+    expect(find.text('Catégories'), findsOneWidget);
     // Bottom nav present -> we're inside the client shell.
     expect(find.byTooltip('Profil'), findsOneWidget);
   });

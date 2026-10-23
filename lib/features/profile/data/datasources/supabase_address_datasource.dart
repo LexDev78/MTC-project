@@ -51,5 +51,17 @@ class SupabaseAddressDatasource {
         .from('addresses')
         .update({'latitude': latitude, 'longitude': longitude})
         .eq('id', addressId);
+    // Sans relecture, l'avertissement « point jamais placé » restait affiché
+    // sur l'adresse qu'on venait de corriger.
+    _notify();
+  }
+
+  /// Désigne l'adresse par défaut du compte en session (`0117`), ou retire
+  /// le choix avec `null`. Le serveur vérifie qu'elle est à lui.
+  Future<void> setDefault(String? addressId) async {
+    await _client.rpc(
+      'set_my_default_address',
+      params: {'p_address_id': addressId},
+    );
   }
 }

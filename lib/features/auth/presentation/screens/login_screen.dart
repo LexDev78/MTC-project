@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:mtc_app/app/theme/app_colors.dart';
 import 'package:mtc_app/app/router/app_routes.dart';
-import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/error/user_message.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 import 'package:mtc_app/core/utils/validators.dart';
-import 'package:mtc_app/core/widgets/core_widgets.dart';
 
 import '../controllers/auth_controller.dart';
 import '../providers/auth_providers.dart';
-import '../widgets/watching_cat_avatar.dart';
 
+/// L'écran de connexion, repris de celui du kit FlutterShop
+/// (`E-commerce-Complete-Flutter-UI/lib/screens/auth/views/login_screen.dart`) :
+/// la photo du kit en tête, « Bon retour ! », les deux champs à icône,
+/// « Mot de passe oublié ? », puis le bouton et l'inscription.
+///
+/// Tous les rôles passent par lui — on ne sait pas encore qui se connecte.
+/// Il prend le thème du kit par `ShopScope` (`app_router.dart`), comme la
+/// récupération du mot de passe qu'il ouvre.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -19,68 +26,16 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen>
-    with SingleTickerProviderStateMixin {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _usernameFocus = FocusNode();
-  final _passwordFocus = FocusNode();
   bool _obscurePassword = true;
-  bool _isPasswordFocused = false;
-  bool _isUsernameFocused = false;
-  bool _loginFailed = false;
-  double _gazeOffset = 0;
-
-  late final AnimationController _entrance = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 500),
-  )..forward();
-  late final Animation<double> _fade = CurvedAnimation(
-    parent: _entrance,
-    curve: Curves.easeOut,
-  );
-  late final Animation<Offset> _slide = Tween<Offset>(
-    begin: const Offset(0, 0.06),
-    end: Offset.zero,
-  ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic));
-
-  @override
-  void initState() {
-    super.initState();
-    _passwordFocus.addListener(() {
-      setState(() {
-        _isPasswordFocused = _passwordFocus.hasFocus;
-        if (_isPasswordFocused) _loginFailed = false;
-      });
-    });
-    _usernameFocus.addListener(() {
-      setState(() {
-        _isUsernameFocused = _usernameFocus.hasFocus;
-        if (_isUsernameFocused) _loginFailed = false;
-      });
-    });
-    _usernameController.addListener(() {
-      // The cat's gaze "follows" the length of the typed text, roughly
-      // like a cursor sweeping left to right.
-      final progress = (_usernameController.text.length / 24).clamp(0.0, 1.0);
-      setState(() {
-        _gazeOffset = (progress * 2) - 1;
-        _loginFailed = false;
-      });
-    });
-    _passwordController.addListener(() {
-      if (_loginFailed) setState(() => _loginFailed = false);
-    });
-  }
 
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
-    _usernameFocus.dispose();
-    _passwordFocus.dispose();
-    _entrance.dispose();
     super.dispose();
   }
 
@@ -99,10 +54,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     if (!success && mounted) {
       ref.read(justLoggedInProvider.notifier).state = false;
       final error = ref.read(authControllerProvider).error;
-      setState(() => _loginFailed = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
     }
   }
 
@@ -113,109 +67,129 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
-    final scheme = Theme.of(context).colorScheme;
+    final enCours = ref.watch(authControllerProvider).isLoading;
+    final theme = Theme.of(context);
+    final hauteur = MediaQuery.sizeOf(context).height;
+    final sombre = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? AppColors.loginCanvasDark
-          : AppColors.loginCanvasLight,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: _slide,
-              child: Form(
-                key: _formKey,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // La barre d'état sur la toile, une fois la photo défilée : icônes
+      // claires en sombre, foncées en clair.
+      value: sombre ? _iconesClaires : _iconesFoncees,
+      child: Scaffold(
+        // Pas de `SafeArea`, comme dans le kit : la photo passe sous la
+        // barre d'état.
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              const _PhotoDeConnexion(),
+              Padding(
+                padding: const EdgeInsets.all(ShopSizes.padding),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: AppSpacing.lg),
-                    Center(
-                      child: WatchingCatAvatar(
-                        // Eyes stay shut both while the password field has
-                        // focus and whenever the password is left visible
-                        // on screen (the cat won't peek at it either way).
-                        isPasswordFocused: _isPasswordFocused || !_obscurePassword,
-                        gazeOffset: _gazeOffset,
-                        isTyping: _isUsernameFocused,
-                        hasError: _loginFailed,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
+                    Text('Bon retour !', style: theme.textTheme.headlineSmall),
+                    const SizedBox(height: ShopSizes.padding / 2),
                     const Text(
-                      'MTC',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
+                      'Connectez-vous avec l\'identifiant et le mot de passe '
+                      'choisis à votre inscription.',
+                    ),
+                    const SizedBox(height: ShopSizes.padding),
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _usernameController,
+                            validator: Validators.usernameOrPhone,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              hintText: "Nom d'utilisateur ou téléphone",
+                              prefixIcon: ShopFieldIcon(ShopIcons.profile),
+                            ),
+                          ),
+                          const SizedBox(height: ShopSizes.padding),
+                          TextFormField(
+                            controller: _passwordController,
+                            validator: Validators.password,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            decoration: InputDecoration(
+                              hintText: 'Mot de passe',
+                              prefixIcon: const ShopFieldIcon(ShopIcons.lock),
+                              // Absent du kit, mais sur un clavier de
+                              // téléphone, un mot de passe qu'on ne peut pas
+                              // relire se tape trois fois.
+                              suffixIcon: IconButton(
+                                tooltip: _obscurePassword
+                                    ? 'Afficher le mot de passe'
+                                    : 'Masquer le mot de passe',
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                                icon: ShopIcon(
+                                  ShopIcons.show,
+                                  size: 20,
+                                  color: _obscurePassword
+                                      ? theme.iconTheme.color?.withValues(
+                                          alpha: 0.3,
+                                        )
+                                      : ShopColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    Text(
-                      'Mali Trade Connect',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Connectez-vous pour continuer',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    MtcTextField(
-                      label: "Nom d'utilisateur ou téléphone",
-                      controller: _usernameController,
-                      focusNode: _usernameFocus,
-                      prefixIcon: Icons.person_outline_rounded,
-                      validator: Validators.usernameOrPhone,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    MtcTextField(
-                      label: 'Mot de passe',
-                      controller: _passwordController,
-                      focusNode: _passwordFocus,
-                      prefixIcon: Icons.lock_outline_rounded,
-                      obscureText: _obscurePassword,
-                      validator: Validators.password,
-                      textInputAction: TextInputAction.done,
                     ),
                     Align(
-                      alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
+                        // L'identifiant déjà tapé suit : on n'a pas à le
+                        // redire.
+                        onPressed: () => context.push(
+                          AppRoutes.forgotPassword,
+                          extra: _usernameController.text.trim(),
                         ),
-                        child: Text(_obscurePassword ? 'Afficher' : 'Masquer'),
+                        child: const Text('Mot de passe oublié ?'),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    MtcPrimaryButton(
-                      label: 'Se connecter',
-                      isLoading: authState.isLoading,
-                      onPressed: _submit,
+                    SizedBox(
+                      height: hauteur > 700 ? hauteur * 0.1 : ShopSizes.padding,
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    ElevatedButton(
+                      onPressed: enCours ? null : _submit,
+                      child: enCours
+                          ? const SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Se connecter'),
+                    ),
+                    // Un `Wrap` plutôt que la `Row` du kit : sur un petit
+                    // écran ou en grands caractères, le lien passe à la
+                    // ligne au lieu de déborder.
                     Center(
-                      child: TextButton(
-                        onPressed: () => context.push(AppRoutes.signUpRole),
-                        child: const Text('Créer un compte'),
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          const Text('Pas encore de compte ?'),
+                          TextButton(
+                            onPressed: () => context.push(AppRoutes.signUpRole),
+                            child: const Text('Créer un compte'),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: ShopSizes.padding),
                     _DemoAccounts(onSelect: _fillDemo),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -223,80 +197,100 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 }
 
-class _DemoAccounts extends StatelessWidget {
+/// Les icônes de la barre d'état, sans toucher au reste (barre de
+/// navigation d'Android comprise) : `SystemUiOverlayStyle.dark` la
+/// peindrait en noir.
+const _iconesFoncees = SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent,
+  statusBarIconBrightness: Brightness.dark,
+  statusBarBrightness: Brightness.light,
+);
+const _iconesClaires = SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent,
+  statusBarIconBrightness: Brightness.light,
+  statusBarBrightness: Brightness.dark,
+);
+
+/// La photo du kit et sa vague. Chaque version a la vague de la toile de
+/// son thème (blanc en clair, `ShopColors.black` en sombre) : jamais l'une
+/// pour l'autre, la vague resterait visible.
+class _PhotoDeConnexion extends StatelessWidget {
+  const _PhotoDeConnexion();
+
+  @override
+  Widget build(BuildContext context) {
+    final sombre = Theme.of(context).brightness == Brightness.dark;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // Le fond rose de la photo, dans les deux modes : icônes foncées.
+      value: _iconesFoncees,
+      // Le format du fichier (750 × 598), tenu avant son décodage : le
+      // formulaire ne saute pas quand la photo arrive.
+      child: AspectRatio(
+        aspectRatio: 750 / 598,
+        child: Image.asset(
+          'assets/shop/images/login_${sombre ? 'dark' : 'light'}.png',
+          fit: BoxFit.cover,
+          excludeFromSemantics: true,
+        ),
+      ),
+    );
+  }
+}
+
+/// Les comptes de la base de démonstration : un toucher remplit les deux
+/// champs.
+class _DemoAccounts extends StatefulWidget {
   const _DemoAccounts({required this.onSelect});
 
   final void Function(String usernameOrPhone) onSelect;
 
   @override
-  Widget build(BuildContext context) {
-    return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      title: const Text('Comptes de démonstration'),
-      childrenPadding: const EdgeInsets.only(bottom: AppSpacing.md),
-      children: [
-        _DemoAccountTile(
-          label: 'Client — Awa Traoré',
-          username: 'client1',
-          onSelect: onSelect,
-        ),
-        _DemoAccountTile(
-          label: 'Client — Moussa Diarra',
-          username: 'client2',
-          onSelect: onSelect,
-        ),
-        _DemoAccountTile(
-          label: 'Fournisseur tiers (vérifié)',
-          username: 'fournisseur1',
-          onSelect: onSelect,
-        ),
-        _DemoAccountTile(
-          label: 'Fournisseur tiers (en attente)',
-          username: 'fournisseur2',
-          onSelect: onSelect,
-        ),
-        _DemoAccountTile(
-          label: 'MTC — Agent',
-          username: 'agent1',
-          onSelect: onSelect,
-        ),
-        _DemoAccountTile(
-          label: 'MTC — Admin',
-          username: 'admin1',
-          onSelect: onSelect,
-        ),
-        const Padding(
-          padding: EdgeInsets.only(top: 4),
-          child: Text(
-            'Mot de passe : password123',
-            style: TextStyle(fontSize: 12),
-          ),
-        ),
-      ],
-    );
-  }
+  State<_DemoAccounts> createState() => _DemoAccountsState();
 }
 
-class _DemoAccountTile extends StatelessWidget {
-  const _DemoAccountTile({
-    required this.label,
-    required this.username,
-    required this.onSelect,
-  });
+class _DemoAccountsState extends State<_DemoAccounts> {
+  static const _comptes = [
+    ('Client — Awa Traoré', 'client1'),
+    ('Client — Moussa Diarra', 'client2'),
+    ('Fournisseur tiers (vérifié)', 'fournisseur1'),
+    ('Fournisseur tiers (en attente)', 'fournisseur2'),
+    ('MTC — Agent', 'agent1'),
+    ('MTC — Admin', 'admin1'),
+  ];
 
-  final String label;
-  final String username;
-  final void Function(String usernameOrPhone) onSelect;
+  bool _ouvert = false;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      subtitle: Text(username),
-      trailing: const Icon(Icons.chevron_right_rounded, size: 18),
-      onTap: () => onSelect(username),
+    final theme = Theme.of(context);
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      shape: const Border(),
+      collapsedShape: const Border(),
+      title: const Text('Comptes de démonstration'),
+      // Le chevron du kit, qui pivote comme celui de Material.
+      trailing: AnimatedRotation(
+        turns: _ouvert ? 0.5 : 0,
+        duration: ShopSizes.duration,
+        child: ShopIcon(
+          ShopIcons.miniDown,
+          color: theme.iconTheme.color?.withValues(alpha: 0.4),
+        ),
+      ),
+      onExpansionChanged: (ouvert) => setState(() => _ouvert = ouvert),
+      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+      childrenPadding: const EdgeInsets.only(bottom: ShopSizes.padding),
+      children: [
+        for (final (libelle, identifiant) in _comptes)
+          ChevronListTile(
+            title: libelle,
+            trailingText: identifiant,
+            contentPadding: EdgeInsets.zero,
+            onTap: () => widget.onSelect(identifiant),
+          ),
+        const SizedBox(height: ShopSizes.padding / 2),
+        Text('Mot de passe : password123', style: theme.textTheme.bodySmall),
+      ],
     );
   }
 }

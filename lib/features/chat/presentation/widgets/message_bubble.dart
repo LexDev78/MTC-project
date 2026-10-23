@@ -11,7 +11,7 @@ import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/core/widgets/resolved_image.dart';
 import 'package:mtc_app/core/widgets/voice_note_player.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
+import 'package:mtc_app/features/catalog/presentation/widgets/product_image.dart'
     show ProductImage;
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 

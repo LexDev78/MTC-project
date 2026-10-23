@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:mtc_app/features/catalog/presentation/screens/product_detail_screen.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 
 import '../test/support/supabase_test_harness.dart';
 import 'support/parcours_visuel.dart';
@@ -228,34 +228,31 @@ void main() {
 
       // ---- côté client : choisir dans la grille -------------------------
       // `logout()` renvoie sur l'écran de connexion, pas sur l'accueil :
-      // c'est « Connectez-vous pour continuer » qui signe le retour à
-      // l'état déconnecté, pas le bouton « Commencer » (qui n'existe que
-      // sur l'accueil du tout premier démarrage).
+      // c'est « Bon retour ! » qui signe le retour à l'état déconnecté, pas
+      // le bouton « Commencer » (qui n'existe que sur l'accueil du tout
+      // premier démarrage).
       await etapeVisuelle(tester, 'variantes-11-deconnexion', () async {
         await ouvrirOnglet(tester, 'Profil');
         await toucher(tester, find.text('Déconnexion'), pas: 12);
-        await attendre(tester, find.text('Connectez-vous pour continuer'));
-        expect(find.text('Connectez-vous pour continuer'), findsOneWidget);
+        await attendre(tester, find.text('Bon retour !'));
+        expect(find.text('Bon retour !'), findsOneWidget);
       });
 
       await etapeVisuelle(tester, 'variantes-12-recherche', () async {
         await seConnecter(tester, 'client1');
-        await attendre(tester, find.text('Rechercher un produit...'));
-        await toucher(tester, find.text('Rechercher un produit...'));
-        await tester.enterText(find.byType(TextField).first, 'Boubou');
-        // La recherche est débouncée à 300 ms, puis part en requête : les
-        // 10 pas (2 s de temps réel) couvrent les deux.
-        await avancer(tester, pas: 10);
-        await attendre(tester, find.byType(ProductCard));
-        expect(find.byType(ProductCard), findsWidgets);
+        await chercher(tester, 'Boubou');
+        await attendre(tester, find.byType(ShopProductCard));
+        expect(find.byType(ShopProductCard), findsWidgets);
       });
 
       await etapeVisuelle(tester, 'variantes-13-fiche-variantes', () async {
-        await toucher(tester, find.byType(ProductCard).first, pas: 12);
+        await toucher(tester, find.byType(ShopProductCard).first, pas: 12);
         await attendre(tester, find.byType(ProductDetailScreen));
         expect(find.byType(ProductDetailScreen), findsOneWidget);
-        // La variante par défaut est la première composée (Rouge M) : le
-        // sélecteur arrive donc déjà sur « Rouge » et « M ».
+        // Le sélecteur est dans la feuille d'achat du kit, derrière
+        // « Acheter ». La variante par défaut est la première composée
+        // (Rouge M) : il arrive donc déjà sur « Rouge » et « M ».
+        await toucher(tester, find.text('Acheter'), pas: 8);
         await attendre(tester, find.text('Bleu'));
         await cadrer(tester, find.text('Taille'));
       });

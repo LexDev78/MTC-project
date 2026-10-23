@@ -5,116 +5,123 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
-import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
 
 import '../../domain/entities/product_category.dart';
-import '../widgets/product_card.dart' show ProductCategoryIcon, ProductCategoryImage;
+import '../../domain/product_list_filters.dart';
+import '../providers/catalog_providers.dart';
+import '../widgets/shop_product_data.dart';
 
-/// Bottom-nav "Catalogue" tab — browse-by-nature entry point, distinct from
-/// "Accueil" (the varied/promoted product feed): every [ProductCategory] is
-/// shown as a tappable photo tile rather than a dropdown, landing on
-/// `CategoryProductsScreen` for that one category (both supplier types
-/// combined, with its own sort/price filter).
-class CatalogueScreen extends StatelessWidget {
+/// L'onglet « Découvrir », d'après le `DiscoverScreen` du kit : la
+/// recherche, puis les catégories en lignes qui se déplient.
+///
+/// MTC n'a pas de sous-catégories : chaque catégorie se déplie sur des
+/// entrées qui existent vraiment — tout voir, les nouveautés, les mieux
+/// notés, les petits prix — qui ouvrent la catégorie déjà triée.
+class CatalogueScreen extends ConsumerWidget {
   const CatalogueScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Catalogue'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search_rounded),
-            onPressed: () => context.push(AppRoutes.clientSearch),
-          ),
-        ],
-      ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: AppSpacing.md,
-          crossAxisSpacing: AppSpacing.md,
-          childAspectRatio: 1.1,
-        ),
-        itemCount: ProductCategory.values.length,
-        itemBuilder: (context, index) =>
-            _CategoryTile(category: ProductCategory.values[index]),
-      ),
-    );
-  }
-}
-
-class _CategoryTile extends ConsumerWidget {
-  const _CategoryTile({required this.category});
-
-  final ProductCategory category;
-
-  @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    final imageAsset = category.imageAsset;
+    void ouvrir(ProductCategory categorie, ProductSortOption tri) {
+      unawaited(
+        ref.read(recommendationRepositoryProvider).logCategoryOpen(categorie),
+      );
+      // Une entrée de la découverte est une vue de la catégorie : elle part
+      // de zéro, sans les filtres d'une visite précédente.
+      ref.read(categoryFiltersProvider(categorie).notifier).state =
+          ProductListFilters(sort: tri);
+      context.push(AppRoutes.catalogueCategory(categorie.name));
+    }
 
-    return Material(
-      clipBehavior: Clip.antiAlias,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      color: scheme.primaryContainer,
-      child: InkWell(
-        onTap: () {
-          unawaited(
-            ref.read(recommendationRepositoryProvider).logCategoryOpen(category),
-          );
-          context.push(AppRoutes.catalogueCategory(category.name));
-        },
-        child: Stack(
-          fit: StackFit.expand,
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (imageAsset != null)
-              Image.asset(imageAsset, fit: BoxFit.cover)
-            else
-              Container(
-                color: scheme.primaryContainer,
-                child: Icon(category.icon, size: 48, color: scheme.primary),
-              ),
-            // Bottom gradient so the label stays legible over any photo.
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black54],
-                  stops: [0.5, 1],
-                ),
+            Padding(
+              padding: const EdgeInsets.all(ShopSizes.padding),
+              child: ShopSearchField(
+                hintText: 'Rechercher un article…',
+                onTap: () => context.push(AppRoutes.clientSearch),
+                // Comme dans le kit, le filtre est toujours là ; les
+                // filtres eux-mêmes vivent dans la recherche.
+                onFilterTap: () => context.push(AppRoutes.clientSearch),
               ),
             ),
-            Positioned(
-              left: AppSpacing.sm,
-              right: AppSpacing.sm,
-              bottom: AppSpacing.sm,
-              child: Row(
+            const SectionTitle(
+              'Catégories',
+              padding: EdgeInsets.symmetric(
+                horizontal: ShopSizes.padding,
+                vertical: ShopSizes.padding / 2,
+              ),
+            ),
+            Expanded(
+              child: ListView(
                 children: [
-                  Icon(category.icon, size: 18, color: Colors.white),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      category.label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                  ChevronListTile(
+                    icon: ShopIcons.sale,
+                    title: 'Promotions',
+                    showDivider: false,
+                    onTap: () => context.push(AppRoutes.clientOnSale),
                   ),
+                  ChevronListTile(
+                    icon: ShopIcons.stores,
+                    title: 'Boutiques du Mali',
+                    showDivider: false,
+                    onTap: () => context.push(AppRoutes.clientShops),
+                  ),
+                  for (final categorie in ProductCategory.values)
+                    _CategorieDepliable(
+                      categorie: categorie,
+                      onOpen: (tri) => ouvrir(categorie, tri),
+                    ),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Une catégorie qui se déplie (`ExpansionCategory` du kit).
+class _CategorieDepliable extends StatelessWidget {
+  const _CategorieDepliable({required this.categorie, required this.onOpen});
+
+  final ProductCategory categorie;
+  final void Function(ProductSortOption tri) onOpen;
+
+  static const _entrees = [
+    ('Tous les articles', ProductSortOption.relevance),
+    ('Nouveautés', ProductSortOption.newest),
+    ('Les mieux notés', ProductSortOption.ratingDesc),
+    ('Petits prix', ProductSortOption.priceAsc),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ExpansionTile(
+      iconColor: theme.colorScheme.onSurface,
+      collapsedIconColor: theme.textTheme.bodyMedium?.color,
+      shape: const Border(),
+      collapsedShape: const Border(),
+      leading: ShopIcon(categorie.shopIcon),
+      title: Text(categorie.label, style: const TextStyle(fontSize: 14)),
+      textColor: theme.colorScheme.onSurface,
+      childrenPadding: const EdgeInsets.only(left: ShopSizes.padding * 3.5),
+      children: [
+        for (var i = 0; i < _entrees.length; i++) ...[
+          ListTile(
+            onTap: () => onOpen(_entrees[i].$2),
+            title: Text(_entrees[i].$1, style: const TextStyle(fontSize: 14)),
+          ),
+          if (i < _entrees.length - 1) const Divider(height: 1),
+        ],
+      ],
     );
   }
 }

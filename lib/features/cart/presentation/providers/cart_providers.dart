@@ -117,20 +117,6 @@ final cartItemCountProvider = Provider<int>((ref) {
   return items.fold(0, (sum, item) => sum + item.quantity);
 });
 
-/// The client's cart entry for [productId], if any — `null` means it's not
-/// in the cart. Drives both the "already added" styling and the remove
-/// action on the catalog's quick-add cart button (see `ProductCard`).
-final cartItemForProductProvider = Provider.family<CartItem?, String>((
-  ref,
-  productId,
-) {
-  final items = ref.watch(cartItemsProvider).valueOrNull ?? const <CartItem>[];
-  for (final item in items) {
-    if (item.productId == productId) return item;
-  }
-  return null;
-});
-
 /// L'article qu'on achète sans passer par le panier (« Acheter maintenant »).
 ///
 /// Posé ici et non dans les providers de paiement : c'est la même notion que

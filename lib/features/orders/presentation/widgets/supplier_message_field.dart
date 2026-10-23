@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 import 'package:mtc_app/core/widgets/voice_note_player.dart';
 
 import '../../domain/entities/fulfillment.dart';
@@ -44,13 +45,13 @@ class SupplierMessageField extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Row(
           children: [
-            Icon(Icons.chat_bubble_outline_rounded, color: scheme.onSurfaceVariant),
-            const SizedBox(width: AppSpacing.sm),
+            ShopIcon(ShopIcons.message, color: scheme.onSurface),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: switch (type) {
                 SupplierMessageType.none => Text(
-                  'Message pour le fournisseur',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  'Message pour la boutique',
+                  style: TextStyle(fontSize: 16, color: scheme.onSurface),
                 ),
                 SupplierMessageType.text => Text(
                   text,
@@ -58,23 +59,27 @@ class SupplierMessageField extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                SupplierMessageType.voice => voicePath == null
-                    ? const SizedBox.shrink()
-                    : VoiceNotePlayer(
-                        path: voicePath,
-                        durationSeconds: voiceDuration,
-                        compact: true,
-                      ),
+                SupplierMessageType.voice =>
+                  voicePath == null
+                      ? const SizedBox.shrink()
+                      : VoiceNotePlayer(
+                          path: voicePath,
+                          durationSeconds: voiceDuration,
+                          compact: true,
+                        ),
               },
             ),
             if (type != SupplierMessageType.none)
               IconButton(
-                icon: const Icon(Icons.close_rounded, size: 18),
+                icon: const ShopIcon(ShopIcons.close, size: 18),
                 tooltip: 'Supprimer',
                 onPressed: clear,
               )
             else
-              const Icon(Icons.chevron_right_rounded),
+              ShopIcon(
+                ShopIcons.miniRight,
+                color: scheme.onSurface.withValues(alpha: 0.4),
+              ),
           ],
         ),
       ),
@@ -86,7 +91,9 @@ class SupplierMessageField extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppSpacing.radiusLg),
+        ),
       ),
       builder: (sheetContext) => Padding(
         padding: EdgeInsets.only(
@@ -139,7 +146,9 @@ class _SupplierMessageComposerSheetState
 
   void _showAccessDeniedSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _startRecording() async {
@@ -153,7 +162,10 @@ class _SupplierMessageComposerSheetState
     final dir = await getTemporaryDirectory();
     final path =
         '${dir.path}/supplier_msg_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    await _recorder.start(
+      const RecordConfig(encoder: AudioEncoder.aacLc),
+      path: path,
+    );
     if (!mounted) return;
     setState(() {
       _isRecording = true;
@@ -203,7 +215,7 @@ class _SupplierMessageComposerSheetState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Message pour le fournisseur',
+            'Message pour la boutique',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -220,7 +232,7 @@ class _SupplierMessageComposerSheetState
                     textInputAction: TextInputAction.done,
                     onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
-                      hintText: 'Écrivez un message...',
+                      hintText: 'Écrivez un message…',
                     ),
                   ),
                 ),
@@ -229,11 +241,14 @@ class _SupplierMessageComposerSheetState
                   onPressed: _controller.text.trim().isEmpty
                       ? _startRecording
                       : _submitText,
-                  icon: Icon(
-                    _controller.text.trim().isEmpty
-                        ? Icons.mic_none_rounded
-                        : Icons.send_rounded,
-                  ),
+                  tooltip: _controller.text.trim().isEmpty
+                      ? 'Enregistrer un message vocal'
+                      : 'Envoyer',
+                  // Le kit n'a pas de micro : celui de Material, faute de
+                  // mieux, plutôt qu'une icône qui dirait autre chose.
+                  icon: _controller.text.trim().isEmpty
+                      ? const Icon(Icons.mic_none_rounded)
+                      : const ShopIcon(ShopIcons.send, color: Colors.white),
                 ),
               ],
             ),
@@ -246,7 +261,7 @@ class _SupplierMessageComposerSheetState
     return Row(
       children: [
         IconButton(
-          icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
+          icon: ShopIcon(ShopIcons.delete, color: scheme.error),
           tooltip: 'Annuler',
           onPressed: () => _stopRecording(send: false),
         ),
@@ -263,7 +278,7 @@ class _SupplierMessageComposerSheetState
           ),
         ),
         IconButton.filled(
-          icon: const Icon(Icons.send_rounded),
+          icon: const ShopIcon(ShopIcons.send, color: Colors.white),
           tooltip: 'Envoyer',
           onPressed: () => _stopRecording(send: true),
         ),

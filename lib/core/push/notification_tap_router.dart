@@ -14,12 +14,16 @@ import 'package:mtc_app/features/suppliers/presentation/providers/operating_supp
 /// list uses (`resolveNotificationRoute`) — cold start
 /// (`getInitialMessage()`) and backgrounded-then-tapped
 /// (`onMessageOpenedApp`). Called once from `bootstrap.dart`, right after
-/// `runApp`, with the app's [ProviderContainer]: there's no
-/// `BuildContext`/`WidgetRef` this early, or ever for a tap that arrives
-/// while the app is backgrounded.
-void registerNotificationTapHandling(ProviderContainer container) {
+/// `runApp`, with a way to reach the app's current [ProviderContainer]:
+/// there's no `BuildContext`/`WidgetRef` this early, or ever for a tap that
+/// arrives while the app is backgrounded. *Current*, because `SessionScope`
+/// replaces the container whenever an account ends.
+void registerNotificationTapHandling(
+  ProviderContainer Function() currentContainer,
+) {
   Future<void> handle(RemoteMessage? message) async {
     if (message == null) return;
+    final container = currentContainer();
     final type = notificationTypeFromDbValue(message.data['type'] as String?);
     if (type == null) return;
 
@@ -29,6 +33,9 @@ void registerNotificationTapHandling(ProviderContainer container) {
     // otherwise misroute a supplier's tap as a client's, or vice versa.
     final user = await container.read(currentUserProvider.future);
     if (user == null) return;
+    // The account changed while the session was loading: this tap was
+    // addressed to the previous one, and must not navigate the next.
+    if (!identical(container, currentContainer())) return;
 
     // The send path (`supabase/functions/_shared/fcm.ts`) sends `''` for a
     // missing reference — FCM's `data` payload only carries strings — so an

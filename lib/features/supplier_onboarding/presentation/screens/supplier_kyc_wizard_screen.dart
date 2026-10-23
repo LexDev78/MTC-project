@@ -8,6 +8,7 @@ import 'package:mtc_app/core/utils/validators.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/supplier_kyc.dart';
 import '../controllers/supplier_kyc_controller.dart';
@@ -260,7 +261,7 @@ class _CompanyKycFormState extends ConsumerState<_CompanyKycForm> {
     if (!success && mounted) {
       final error = ref.read(supplierKycControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+        SnackBar(content: Text(messagePourUtilisateur(error))),
       );
     }
   }
@@ -438,7 +439,7 @@ class _IndividualKycForm extends ConsumerWidget {
     if (!success && context.mounted) {
       final error = ref.read(supplierKycControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+        SnackBar(content: Text(messagePourUtilisateur(error))),
       );
     }
   }

@@ -24,6 +24,9 @@ mixin _$ProductReview {
   String get id => throw _privateConstructorUsedError;
   int get stars => throw _privateConstructorUsedError;
   String get comment => throw _privateConstructorUsedError;
+
+  /// Le titre de l'avis (`0119`), facultatif : une ligne qui résume.
+  String? get title => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   String get authorName => throw _privateConstructorUsedError;
 
@@ -56,6 +59,7 @@ abstract class $ProductReviewCopyWith<$Res> {
     String id,
     int stars,
     String comment,
+    String? title,
     DateTime createdAt,
     String authorName,
     List<String> imagePaths,
@@ -84,6 +88,7 @@ class _$ProductReviewCopyWithImpl<$Res, $Val extends ProductReview>
     Object? id = null,
     Object? stars = null,
     Object? comment = null,
+    Object? title = freezed,
     Object? createdAt = null,
     Object? authorName = null,
     Object? imagePaths = null,
@@ -106,6 +111,10 @@ class _$ProductReviewCopyWithImpl<$Res, $Val extends ProductReview>
                 ? _value.comment
                 : comment // ignore: cast_nullable_to_non_nullable
                       as String,
+            title: freezed == title
+                ? _value.title
+                : title // ignore: cast_nullable_to_non_nullable
+                      as String?,
             createdAt: null == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -153,6 +162,7 @@ abstract class _$$ProductReviewImplCopyWith<$Res>
     String id,
     int stars,
     String comment,
+    String? title,
     DateTime createdAt,
     String authorName,
     List<String> imagePaths,
@@ -180,6 +190,7 @@ class __$$ProductReviewImplCopyWithImpl<$Res>
     Object? id = null,
     Object? stars = null,
     Object? comment = null,
+    Object? title = freezed,
     Object? createdAt = null,
     Object? authorName = null,
     Object? imagePaths = null,
@@ -202,6 +213,10 @@ class __$$ProductReviewImplCopyWithImpl<$Res>
             ? _value.comment
             : comment // ignore: cast_nullable_to_non_nullable
                   as String,
+        title: freezed == title
+            ? _value.title
+            : title // ignore: cast_nullable_to_non_nullable
+                  as String?,
         createdAt: null == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -242,6 +257,7 @@ class _$ProductReviewImpl implements _ProductReview {
     required this.id,
     required this.stars,
     required this.comment,
+    this.title,
     required this.createdAt,
     required this.authorName,
     final List<String> imagePaths = const [],
@@ -261,6 +277,10 @@ class _$ProductReviewImpl implements _ProductReview {
   final int stars;
   @override
   final String comment;
+
+  /// Le titre de l'avis (`0119`), facultatif : une ligne qui résume.
+  @override
+  final String? title;
   @override
   final DateTime createdAt;
   @override
@@ -297,7 +317,7 @@ class _$ProductReviewImpl implements _ProductReview {
 
   @override
   String toString() {
-    return 'ProductReview(id: $id, stars: $stars, comment: $comment, createdAt: $createdAt, authorName: $authorName, imagePaths: $imagePaths, videoPath: $videoPath, supplierReply: $supplierReply, supplierRepliedAt: $supplierRepliedAt, comments: $comments)';
+    return 'ProductReview(id: $id, stars: $stars, comment: $comment, title: $title, createdAt: $createdAt, authorName: $authorName, imagePaths: $imagePaths, videoPath: $videoPath, supplierReply: $supplierReply, supplierRepliedAt: $supplierRepliedAt, comments: $comments)';
   }
 
   @override
@@ -308,6 +328,7 @@ class _$ProductReviewImpl implements _ProductReview {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.stars, stars) || other.stars == stars) &&
             (identical(other.comment, comment) || other.comment == comment) &&
+            (identical(other.title, title) || other.title == title) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.authorName, authorName) ||
@@ -332,6 +353,7 @@ class _$ProductReviewImpl implements _ProductReview {
     id,
     stars,
     comment,
+    title,
     createdAt,
     authorName,
     const DeepCollectionEquality().hash(_imagePaths),
@@ -360,6 +382,7 @@ abstract class _ProductReview implements ProductReview {
     required final String id,
     required final int stars,
     required final String comment,
+    final String? title,
     required final DateTime createdAt,
     required final String authorName,
     final List<String> imagePaths,
@@ -378,6 +401,10 @@ abstract class _ProductReview implements ProductReview {
   int get stars;
   @override
   String get comment;
+
+  /// Le titre de l'avis (`0119`), facultatif : une ligne qui résume.
+  @override
+  String? get title;
   @override
   DateTime get createdAt;
   @override

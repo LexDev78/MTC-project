@@ -11,6 +11,7 @@ _$ProductReviewImpl _$$ProductReviewImplFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String,
       stars: (json['stars'] as num).toInt(),
       comment: json['comment'] as String,
+      title: json['title'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       authorName: json['author_name'] as String,
       imagePaths:
@@ -35,6 +36,7 @@ Map<String, dynamic> _$$ProductReviewImplToJson(_$ProductReviewImpl instance) =>
       'id': instance.id,
       'stars': instance.stars,
       'comment': instance.comment,
+      'title': instance.title,
       'created_at': instance.createdAt.toIso8601String(),
       'author_name': instance.authorName,
       'image_paths': instance.imagePaths,

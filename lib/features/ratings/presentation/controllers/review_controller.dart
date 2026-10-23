@@ -18,6 +18,7 @@ class ReviewController extends AsyncNotifier<void> {
     required String comment,
     List<String> imagePaths = const [],
     String? videoPath,
+    String? title,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
@@ -30,6 +31,7 @@ class ReviewController extends AsyncNotifier<void> {
             comment: comment,
             imagePaths: imagePaths,
             videoPath: videoPath,
+            title: title,
           ),
     );
     if (state.hasError) return false;
@@ -38,10 +40,14 @@ class ReviewController extends AsyncNotifier<void> {
     // notification sont écrites par `submit_review` (`0063`). L'app ne les
     // produit plus — elle doit en revanche oublier ce qu'elle a en cache,
     // puisque ces lignes ont changé sans passer par elle.
+    ref.invalidate(
+      canReviewProvider((orderId: orderId, groupId: supplierGroupId)),
+    );
     ref.invalidate(supplierDetailProvider(supplierId));
     ref.invalidate(productDetailProvider);
-    ref.invalidate(productReviewsProvider);
+    ref.invalidate(productReviewsPageProvider);
     ref.invalidate(productReviewSummaryProvider);
+    ref.invalidate(productRatingDistributionProvider);
     return true;
   }
 

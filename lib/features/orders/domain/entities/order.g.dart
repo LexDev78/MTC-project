@@ -78,30 +78,46 @@ const _$CancelledByEnumMap = {
   CancelledBy.mtc: 'mtc',
 };
 
+_$OrderContactImpl _$$OrderContactImplFromJson(Map<String, dynamic> json) =>
+    _$OrderContactImpl(
+      phone: json['phone'] as String?,
+      alternatePhone: json['alternate_phone'] as String?,
+      addressLabel: json['address_label'] as String?,
+      addressDetails: json['address_details'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+    );
+
+Map<String, dynamic> _$$OrderContactImplToJson(_$OrderContactImpl instance) =>
+    <String, dynamic>{
+      'phone': instance.phone,
+      'alternate_phone': instance.alternatePhone,
+      'address_label': instance.addressLabel,
+      'address_details': instance.addressDetails,
+      'latitude': instance.latitude,
+      'longitude': instance.longitude,
+    };
+
 _$OrderImpl _$$OrderImplFromJson(Map<String, dynamic> json) => _$OrderImpl(
   id: json['id'] as String,
   clientId: json['client_id'] as String,
   clientDisplayNameSnapshot: json['client_display_name_snapshot'] as String,
-  clientPhoneSnapshot: json['client_phone_snapshot'] as String,
   supplierGroups: (json['supplier_groups'] as List<dynamic>)
       .map((e) => OrderSupplierGroup.fromJson(e as Map<String, dynamic>))
       .toList(),
   status: $enumDecode(_$OrderStatusEnumMap, json['status']),
   placedAt: DateTime.parse(json['placed_at'] as String),
   totalFcfa: (json['total_fcfa'] as num).toInt(),
-  deliveryAddressLabel: json['delivery_address_label'] as String,
   deliveryCity: json['delivery_city'] as String,
-  deliveryDetails: json['delivery_details'] as String,
-  deliveryLatitude: (json['delivery_latitude'] as num).toDouble(),
-  deliveryLongitude: (json['delivery_longitude'] as num).toDouble(),
+  clientContact: json['client_contact'] == null
+      ? null
+      : OrderContact.fromJson(json['client_contact'] as Map<String, dynamic>),
   fulfillmentMethod:
       $enumDecodeNullable(
         _$FulfillmentMethodEnumMap,
         json['fulfillment_method'],
       ) ??
       FulfillmentMethod.homeDelivery,
-  courierPhone: json['courier_phone'] as String?,
-  alternatePhone: json['alternate_phone'] as String?,
   deliveryDate: json['delivery_date'] == null
       ? null
       : DateTime.parse(json['delivery_date'] as String),
@@ -136,19 +152,13 @@ Map<String, dynamic> _$$OrderImplToJson(
   'id': instance.id,
   'client_id': instance.clientId,
   'client_display_name_snapshot': instance.clientDisplayNameSnapshot,
-  'client_phone_snapshot': instance.clientPhoneSnapshot,
   'supplier_groups': instance.supplierGroups,
   'status': _$OrderStatusEnumMap[instance.status]!,
   'placed_at': instance.placedAt.toIso8601String(),
   'total_fcfa': instance.totalFcfa,
-  'delivery_address_label': instance.deliveryAddressLabel,
   'delivery_city': instance.deliveryCity,
-  'delivery_details': instance.deliveryDetails,
-  'delivery_latitude': instance.deliveryLatitude,
-  'delivery_longitude': instance.deliveryLongitude,
+  'client_contact': instance.clientContact,
   'fulfillment_method': _$FulfillmentMethodEnumMap[instance.fulfillmentMethod]!,
-  'courier_phone': instance.courierPhone,
-  'alternate_phone': instance.alternatePhone,
   'delivery_date': instance.deliveryDate?.toIso8601String(),
   'delivery_time_slot_label': instance.deliveryTimeSlotLabel,
   'is_priority': instance.isPriority,

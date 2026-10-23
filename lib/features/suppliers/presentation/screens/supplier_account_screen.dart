@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/storage/image_upload.dart';
@@ -13,6 +14,7 @@ import 'package:mtc_app/features/auth/presentation/controllers/auth_controller.d
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 import 'package:mtc_app/features/tracking/presentation/widgets/position_to_confirm_banner.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/supplier_profile.dart';
 import '../controllers/supplier_account_controller.dart';
@@ -50,7 +52,7 @@ Future<void> _confirmAndDeleteAccount(BuildContext context, WidgetRef ref) async
   if (!success && context.mounted) {
     final error = ref.read(authControllerProvider).error;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+      SnackBar(content: Text(messagePourUtilisateur(error))),
     );
   }
 }
@@ -179,6 +181,23 @@ class SupplierAccountScreen extends ConsumerWidget {
 
               const SizedBox(height: AppSpacing.xl),
               const _SectionTitle('Paramètres avancés'),
+              // Le compte de la personne, pas celui de la boutique : un
+              // collaborateur y a donc accès comme le patron — c'est son
+              // propre mot de passe, sa propre adresse.
+              _NavigationTile(
+                icon: Icons.mail_outline_rounded,
+                label: 'Adresse e-mail',
+                subtitle:
+                    ref.watch(contactEmailProvider).valueOrNull ??
+                    'Ajouter une adresse e-mail',
+                onTap: () => context.push(AppRoutes.accountEmail),
+              ),
+              _NavigationTile(
+                icon: Icons.lock_outline_rounded,
+                label: 'Mot de passe',
+                subtitle: 'Changer votre mot de passe',
+                onTap: () => context.push(AppRoutes.accountPassword),
+              ),
               _NavigationTile(
                 icon: Icons.logout_rounded,
                 label: 'Déconnexion',

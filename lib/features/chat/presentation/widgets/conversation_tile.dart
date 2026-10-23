@@ -57,11 +57,21 @@ class ConversationTile extends ConsumerWidget {
       ),
       title: Text(title),
       subtitle: Text(
-        conversation.lastMessagePreview.isEmpty
+        conversation.isClosed
+            ? (isClient
+                  ? 'Vous avez fermé cette conversation'
+                  : 'Le client a fermé la conversation')
+            : conversation.lastMessagePreview.isEmpty
             ? 'Nouvelle conversation'
             : conversation.lastMessagePreview,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: conversation.isClosed
+            ? TextStyle(
+                fontStyle: FontStyle.italic,
+                color: scheme.onSurfaceVariant,
+              )
+            : null,
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,

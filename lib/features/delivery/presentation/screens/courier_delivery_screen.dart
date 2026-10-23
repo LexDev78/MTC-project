@@ -60,7 +60,19 @@ class _Body extends ConsumerWidget {
       children: [
         Row(
           children: [
-            Chip(label: Text(delivery.status.label)),
+            // « En cours de livraison » et le montant ne tiennent pas
+            // toujours côte à côte (petit écran, grands caractères) : le
+            // statut se tronque, le montant reste entier.
+            Flexible(
+              child: Chip(
+                label: Text(
+                  delivery.status.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
             const Spacer(),
             Text(
               CurrencyFormatter.formatFcfa(delivery.deliveryFeeFcfa),
@@ -132,20 +144,35 @@ class _Body extends ConsumerWidget {
           title: '2. Remise',
           children: [
             _Line(label: 'Client', value: delivery.clientName),
-            _Line(label: 'Téléphone', value: delivery.clientPhone),
-            if (delivery.clientAlternatePhone != null &&
-                delivery.clientAlternatePhone!.isNotEmpty)
-              _Line(label: 'Autre numéro', value: delivery.clientAlternatePhone!),
-            _Line(label: 'Adresse', value: delivery.deliveryAddressLabel),
+            if (delivery.clientPhone case final tel?)
+              _Line(label: 'Téléphone', value: tel),
+            if (delivery.clientAlternatePhone case final tel?
+                when tel.isNotEmpty)
+              _Line(label: 'Autre numéro', value: tel),
+            if (delivery.deliveryAddressLabel case final adresse?)
+              _Line(label: 'Adresse', value: adresse),
             _Line(label: 'Ville', value: delivery.deliveryCity),
-            if (delivery.deliveryDetails.isNotEmpty)
-              _Line(label: 'Indications', value: delivery.deliveryDetails),
-            _Line(
-              label: 'Coordonnées',
-              value:
-                  '${delivery.deliveryLatitude.toStringAsFixed(5)}, '
-                  '${delivery.deliveryLongitude.toStringAsFixed(5)}',
-            ),
+            if (delivery.deliveryDetails case final indications?
+                when indications.isNotEmpty)
+              _Line(label: 'Indications', value: indications),
+            if ((delivery.deliveryLatitude, delivery.deliveryLongitude)
+                case (final lat?, final lng?))
+              _Line(
+                label: 'Coordonnées',
+                value: '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+              ),
+            // Ce qui manque est retiré par le serveur (`0120`) : le dire,
+            // sinon une ligne absente passe pour une panne.
+            if (_retrait(delivery) case final note?)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: Text(
+                  note,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
           ],
         ),
 
@@ -171,6 +198,16 @@ class _Body extends ConsumerWidget {
     );
   }
 }
+
+/// Pourquoi une coordonnée du client manque, quand elle manque.
+String? _retrait(CourierDelivery delivery) => switch (delivery.status) {
+  DeliveryStatus.offered when delivery.clientPhone == null =>
+    'Le numéro du client s\'affichera quand vous aurez accepté la course.',
+  DeliveryStatus.delivered || DeliveryStatus.cancelled =>
+    'Course terminée : le numéro et l\'adresse du client ne sont plus '
+        'affichés.',
+  _ => null,
+};
 
 /// Ouvre la caméra pour l'étape attendue.
 ///

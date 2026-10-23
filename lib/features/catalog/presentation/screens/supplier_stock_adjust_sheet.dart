@@ -6,6 +6,7 @@ import 'package:collection/collection.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_variant.dart';
@@ -75,7 +76,7 @@ class _SupplierStockAdjustSheetState
     } else {
       final error = ref.read(supplierProductControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Une erreur est survenue')),
+        SnackBar(content: Text(messagePourUtilisateur(error))),
       );
     }
   }

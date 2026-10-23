@@ -1,4 +1,5 @@
 import '../entities/app_notification.dart';
+import '../entities/notification_preferences.dart';
 
 /// Lecture et marquage des notifications. **Pas d'écriture** : depuis
 /// `0064` et `0069`, chaque notification est produite par l'événement qui la
@@ -20,4 +21,15 @@ abstract interface class NotificationRepository {
     required String userId,
     required String referenceId,
   });
+
+  /// Les réglages de notification de [userId] (`0118`) — tout permis s'il
+  /// n'a jamais rien réglé.
+  Future<NotificationPreferences> fetchPreferences(String userId);
+
+  /// Enregistre les réglages de [userId]. Le serveur les applique à la
+  /// source : une notification coupée n'est plus écrite.
+  Future<void> savePreferences(
+    String userId,
+    NotificationPreferences preferences,
+  );
 }

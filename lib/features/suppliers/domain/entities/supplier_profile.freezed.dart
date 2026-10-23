@@ -27,7 +27,16 @@ mixin _$SupplierProfile {
   String get city => throw _privateConstructorUsedError;
   double get ratingAverage => throw _privateConstructorUsedError;
   int get ratingCount => throw _privateConstructorUsedError;
+
+  /// Le compteur de travail de la boutique, tenu par son application :
+  /// brouillons et pauses compris. Pas pour les clients — voir
+  /// [listedProductCount].
   int get productCount => throw _privateConstructorUsedError;
+
+  /// Ce que le client voit vraiment : les produits actifs d'une boutique
+  /// vérifiée, comptés par la base (`listed_product_count`, `0123`).
+  /// N'arrive que des lectures qui le demandent.
+  int get listedProductCount => throw _privateConstructorUsedError;
   VerificationStatus? get verificationStatus =>
       throw _privateConstructorUsedError; // Null for `SupplierType.principal` (MTC itself has no legal form to
   // register) — only ever set for `SupplierType.tiers`.
@@ -80,6 +89,7 @@ abstract class $SupplierProfileCopyWith<$Res> {
     double ratingAverage,
     int ratingCount,
     int productCount,
+    int listedProductCount,
     VerificationStatus? verificationStatus,
     SupplierLegalType? legalType,
     String? description,
@@ -117,6 +127,7 @@ class _$SupplierProfileCopyWithImpl<$Res, $Val extends SupplierProfile>
     Object? ratingAverage = null,
     Object? ratingCount = null,
     Object? productCount = null,
+    Object? listedProductCount = null,
     Object? verificationStatus = freezed,
     Object? legalType = freezed,
     Object? description = freezed,
@@ -159,6 +170,10 @@ class _$SupplierProfileCopyWithImpl<$Res, $Val extends SupplierProfile>
             productCount: null == productCount
                 ? _value.productCount
                 : productCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+            listedProductCount: null == listedProductCount
+                ? _value.listedProductCount
+                : listedProductCount // ignore: cast_nullable_to_non_nullable
                       as int,
             verificationStatus: freezed == verificationStatus
                 ? _value.verificationStatus
@@ -231,6 +246,7 @@ abstract class _$$SupplierProfileImplCopyWith<$Res>
     double ratingAverage,
     int ratingCount,
     int productCount,
+    int listedProductCount,
     VerificationStatus? verificationStatus,
     SupplierLegalType? legalType,
     String? description,
@@ -267,6 +283,7 @@ class __$$SupplierProfileImplCopyWithImpl<$Res>
     Object? ratingAverage = null,
     Object? ratingCount = null,
     Object? productCount = null,
+    Object? listedProductCount = null,
     Object? verificationStatus = freezed,
     Object? legalType = freezed,
     Object? description = freezed,
@@ -309,6 +326,10 @@ class __$$SupplierProfileImplCopyWithImpl<$Res>
         productCount: null == productCount
             ? _value.productCount
             : productCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+        listedProductCount: null == listedProductCount
+            ? _value.listedProductCount
+            : listedProductCount // ignore: cast_nullable_to_non_nullable
                   as int,
         verificationStatus: freezed == verificationStatus
             ? _value.verificationStatus
@@ -374,6 +395,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     required this.ratingAverage,
     required this.ratingCount,
     required this.productCount,
+    this.listedProductCount = 0,
     this.verificationStatus,
     this.legalType,
     this.description,
@@ -404,8 +426,19 @@ class _$SupplierProfileImpl implements _SupplierProfile {
   final double ratingAverage;
   @override
   final int ratingCount;
+
+  /// Le compteur de travail de la boutique, tenu par son application :
+  /// brouillons et pauses compris. Pas pour les clients — voir
+  /// [listedProductCount].
   @override
   final int productCount;
+
+  /// Ce que le client voit vraiment : les produits actifs d'une boutique
+  /// vérifiée, comptés par la base (`listed_product_count`, `0123`).
+  /// N'arrive que des lectures qui le demandent.
+  @override
+  @JsonKey()
+  final int listedProductCount;
   @override
   final VerificationStatus? verificationStatus;
   // Null for `SupplierType.principal` (MTC itself has no legal form to
@@ -463,7 +496,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
 
   @override
   String toString() {
-    return 'SupplierProfile(id: $id, businessName: $businessName, supplierType: $supplierType, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, productCount: $productCount, verificationStatus: $verificationStatus, legalType: $legalType, description: $description, bannerUrl: $bannerUrl, fullAddress: $fullAddress, positionConfirmedAt: $positionConfirmedAt, addressLatitude: $addressLatitude, addressLongitude: $addressLongitude, publicPhoneNumbers: $publicPhoneNumbers, deliveryZones: $deliveryZones, openingHoursLabel: $openingHoursLabel, isOpen: $isOpen)';
+    return 'SupplierProfile(id: $id, businessName: $businessName, supplierType: $supplierType, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, productCount: $productCount, listedProductCount: $listedProductCount, verificationStatus: $verificationStatus, legalType: $legalType, description: $description, bannerUrl: $bannerUrl, fullAddress: $fullAddress, positionConfirmedAt: $positionConfirmedAt, addressLatitude: $addressLatitude, addressLongitude: $addressLongitude, publicPhoneNumbers: $publicPhoneNumbers, deliveryZones: $deliveryZones, openingHoursLabel: $openingHoursLabel, isOpen: $isOpen)';
   }
 
   @override
@@ -483,6 +516,8 @@ class _$SupplierProfileImpl implements _SupplierProfile {
                 other.ratingCount == ratingCount) &&
             (identical(other.productCount, productCount) ||
                 other.productCount == productCount) &&
+            (identical(other.listedProductCount, listedProductCount) ||
+                other.listedProductCount == listedProductCount) &&
             (identical(other.verificationStatus, verificationStatus) ||
                 other.verificationStatus == verificationStatus) &&
             (identical(other.legalType, legalType) ||
@@ -523,6 +558,7 @@ class _$SupplierProfileImpl implements _SupplierProfile {
     ratingAverage,
     ratingCount,
     productCount,
+    listedProductCount,
     verificationStatus,
     legalType,
     description,
@@ -563,6 +599,7 @@ abstract class _SupplierProfile implements SupplierProfile {
     required final double ratingAverage,
     required final int ratingCount,
     required final int productCount,
+    final int listedProductCount,
     final VerificationStatus? verificationStatus,
     final SupplierLegalType? legalType,
     final String? description,
@@ -592,8 +629,18 @@ abstract class _SupplierProfile implements SupplierProfile {
   double get ratingAverage;
   @override
   int get ratingCount;
+
+  /// Le compteur de travail de la boutique, tenu par son application :
+  /// brouillons et pauses compris. Pas pour les clients — voir
+  /// [listedProductCount].
   @override
   int get productCount;
+
+  /// Ce que le client voit vraiment : les produits actifs d'une boutique
+  /// vérifiée, comptés par la base (`listed_product_count`, `0123`).
+  /// N'arrive que des lectures qui le demandent.
+  @override
+  int get listedProductCount;
   @override
   VerificationStatus? get verificationStatus; // Null for `SupplierType.principal` (MTC itself has no legal form to
   // register) — only ever set for `SupplierType.tiers`.

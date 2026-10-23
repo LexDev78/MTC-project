@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:mtc_app/core/shop/shop_scope.dart';
+import 'package:mtc_app/features/catalog/presentation/screens/on_sale_screen.dart';
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/auth/presentation/screens/loading_screen.dart';
+import 'package:mtc_app/features/auth/presentation/screens/forgot_password_code_screen.dart';
+import 'package:mtc_app/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_delivery_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_review_queue_screen.dart';
+import 'package:mtc_app/features/delivery/presentation/screens/courier_account_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_dossier_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_history_screen.dart';
 import 'package:mtc_app/features/delivery/presentation/screens/courier_home_screen.dart';
@@ -20,6 +26,7 @@ import 'package:mtc_app/features/catalog/presentation/screens/catalogue_screen.d
 import 'package:mtc_app/features/catalog/presentation/screens/category_products_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/characteristic_type_review_queue_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/product_detail_screen.dart';
+import 'package:mtc_app/features/catalog/presentation/screens/search_history_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/search_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_form_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/supplier_product_list_screen.dart';
@@ -34,16 +41,25 @@ import 'package:mtc_app/features/supplier_finance/presentation/screens/payout_re
 import 'package:mtc_app/features/chat/presentation/screens/conversation_list_screen.dart';
 import 'package:mtc_app/features/chat/presentation/screens/supplier_conversation_list_screen.dart';
 import 'package:mtc_app/features/favorites/presentation/screens/favorites_screen.dart';
+import 'package:mtc_app/features/notifications/presentation/screens/client_notifications_screen.dart';
+import 'package:mtc_app/features/notifications/presentation/screens/notification_settings_screen.dart';
 import 'package:mtc_app/features/notifications/presentation/screens/notification_center_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/checkout_screen.dart';
+import 'package:mtc_app/features/orders/presentation/screens/order_success_screen.dart';
+import 'package:mtc_app/features/orders/presentation/screens/payment_method_screen.dart';
+import 'package:mtc_app/features/orders/presentation/screens/order_cancel_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/order_detail_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/order_list_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/supplier_order_detail_screen.dart';
 import 'package:mtc_app/features/orders/presentation/screens/supplier_order_list_screen.dart';
+import 'package:mtc_app/features/orders/presentation/widgets/order_cards.dart';
 import 'package:mtc_app/features/profile/presentation/screens/client_profile_screen.dart';
 import 'package:mtc_app/features/profile/presentation/screens/manage_addresses_screen.dart';
+import 'package:mtc_app/features/profile/presentation/screens/profile_edit_screen.dart';
+import 'package:mtc_app/features/profile/presentation/screens/profile_info_screen.dart';
 import 'package:mtc_app/features/profile/presentation/screens/settings_screen.dart';
 import 'package:mtc_app/features/ratings/presentation/screens/submit_review_screen.dart';
+import 'package:mtc_app/features/ratings/presentation/screens/product_reviews_screen.dart';
 import 'package:mtc_app/features/supplier_finance/presentation/screens/supplier_finance_screen.dart';
 import 'package:mtc_app/features/supplier_onboarding/domain/entities/supplier_kyc.dart';
 import 'package:mtc_app/features/supplier_onboarding/presentation/screens/kyc_review_detail_screen.dart';
@@ -51,9 +67,15 @@ import 'package:mtc_app/features/supplier_onboarding/presentation/screens/kyc_re
 import 'package:mtc_app/features/supplier_onboarding/presentation/screens/supplier_kyc_wizard_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_account_screen.dart';
 import 'package:mtc_app/features/catalog/presentation/screens/supplier_promotions_screen.dart';
+import 'package:mtc_app/features/auth/domain/repositories/auth_repository.dart'
+    show ContactEmailCodeRequest;
+import 'package:mtc_app/features/auth/presentation/screens/contact_email_code_screen.dart';
+import 'package:mtc_app/features/auth/presentation/screens/contact_email_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/forced_password_change_screen.dart';
+import 'package:mtc_app/features/auth/presentation/screens/password_change_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_collaborators_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_location_screen.dart';
+import 'package:mtc_app/features/suppliers/presentation/screens/shops_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_profile_screen.dart';
 import 'package:mtc_app/features/tracking/presentation/screens/live_tracking_screen.dart';
 import 'package:mtc_app/root/presentation/client_home_screen.dart';
@@ -92,6 +114,14 @@ CustomTransitionPage<void> _fluidPage(GoRouterState state, Widget child) {
     },
   );
 }
+
+/// Les pages du côté client : le thème du kit FlutterShop (`ShopScope`),
+/// le reste de l'app gardant le thème MTC.
+CustomTransitionPage<void> _clientPage(GoRouterState state, Widget child) =>
+    _fluidPage(state, ShopScope(child: child));
+
+CustomTransitionPage<void> _clientZoomPage(GoRouterState state, Widget child) =>
+    _zoomPage(state, ShopScope(child: child));
 
 /// Zoom-in variant of [_fluidPage] used for the product detail route: the
 /// page scales up from slightly smaller than full size while fading in, so
@@ -145,16 +175,41 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        pageBuilder: (context, state) => _fluidPage(state, const SplashScreen()),
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const SplashScreen()),
       ),
       GoRoute(
         path: AppRoutes.welcome,
         pageBuilder: (context, state) =>
             _fluidPage(state, const WelcomeScreen()),
       ),
+      // La connexion et la récupération du mot de passe suivent le kit
+      // FlutterShop, comme le côté client. Ce sont les écrans de tous les
+      // rôles, avant qu'on sache lequel se connecte.
       GoRoute(
         path: AppRoutes.login,
-        pageBuilder: (context, state) => _fluidPage(state, const LoginScreen()),
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const ShopScope(child: LoginScreen())),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          ShopScope(
+            child: ForgotPasswordScreen(identifier: state.extra as String?),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPasswordCode,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          ShopScope(
+            child: ForgotPasswordCodeScreen(
+              args: state.extra as ForgotPasswordCodeArgs?,
+            ),
+          ),
+        ),
       ),
       GoRoute(
         path: AppRoutes.loading,
@@ -191,6 +246,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             _fluidPage(state, const CourierDossierScreen()),
       ),
       GoRoute(
+        path: AppRoutes.courierProfile,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const CourierAccountScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.signUpRole,
         pageBuilder: (context, state) =>
             _fluidPage(state, const RoleSelectionScreen()),
@@ -209,25 +269,47 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.clientProductDetail,
-        pageBuilder: (context, state) => _zoomPage(
+        pageBuilder: (context, state) => _clientZoomPage(
           state,
           ProductDetailScreen(productId: state.pathParameters['productId']!),
         ),
-      ),
-      GoRoute(
-        path: AppRoutes.clientSearch,
-        pageBuilder: (context, state) => _fluidPage(state, const SearchScreen()),
         routes: [
           GoRoute(
-            path: 'photo',
-            pageBuilder: (context, state) =>
-                _fluidPage(state, const VisualSearchScreen()),
+            path: 'reviews',
+            pageBuilder: (context, state) => _clientPage(
+              state,
+              ProductReviewsScreen(
+                productId: state.pathParameters['productId']!,
+              ),
+            ),
           ),
         ],
       ),
       GoRoute(
+        path: AppRoutes.clientSearch,
+        pageBuilder: (context, state) =>
+            _clientPage(state, const SearchScreen()),
+        routes: [
+          GoRoute(
+            path: 'photo',
+            pageBuilder: (context, state) =>
+                _clientPage(state, const VisualSearchScreen()),
+          ),
+          GoRoute(
+            path: 'history',
+            pageBuilder: (context, state) =>
+                _clientPage(state, const SearchHistoryScreen()),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.clientOnSale,
+        pageBuilder: (context, state) =>
+            _clientPage(state, const OnSaleScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.clientCatalogueCategory,
-        pageBuilder: (context, state) => _fluidPage(
+        pageBuilder: (context, state) => _clientPage(
           state,
           CategoryProductsScreen(
             category: ProductCategory.values.byName(
@@ -242,16 +324,40 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.clientOrders,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const OrderListScreen()),
+            _clientPage(state, const OrderListScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.clientOrdersByCategory,
+        // Un nom de rubrique inconnu (lien ancien ou forgé) ramène à
+        // l'historique plutôt que de planter sur `byName`.
+        redirect: (context, state) =>
+            OrderHistoryCategory.values.asNameMap().containsKey(
+              state.pathParameters['category'],
+            )
+            ? null
+            : AppRoutes.clientOrders,
+        pageBuilder: (context, state) => _clientPage(
+          state,
+          OrdersByCategoryScreen(
+            category: OrderHistoryCategory.values.byName(
+              state.pathParameters['category']!,
+            ),
+          ),
+        ),
       ),
       GoRoute(
         path: AppRoutes.clientChat,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const ConversationListScreen()),
+            _clientPage(state, const ConversationListScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.clientShops,
+        pageBuilder: (context, state) =>
+            _clientPage(state, const ShopsScreen()),
       ),
       GoRoute(
         path: AppRoutes.clientSupplierProfile,
-        pageBuilder: (context, state) => _fluidPage(
+        pageBuilder: (context, state) => _clientPage(
           state,
           SupplierProfileScreen(
             supplierId: state.pathParameters['supplierId']!,
@@ -261,47 +367,89 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.clientProfileEdit,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const ManageAddressesScreen()),
+            _clientPage(state, const ManageAddressesScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.clientProfileInfo,
+        pageBuilder: (context, state) =>
+            _clientPage(state, const ProfileInfoScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.clientProfileInfoEdit,
+        pageBuilder: (context, state) =>
+            _clientPage(state, const ProfileEditScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.clientNotificationSettings,
+        pageBuilder: (context, state) =>
+            _clientPage(state, const NotificationSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.clientSettings,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const SettingsScreen()),
+            _clientPage(state, const SettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.clientNotifications,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const NotificationCenterScreen()),
+            _clientPage(state, const ClientNotificationsScreen()),
       ),
       GoRoute(
         path: AppRoutes.clientCheckout,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const CheckoutScreen()),
+            _clientPage(state, const CheckoutScreen()),
+        routes: [
+          GoRoute(
+            path: 'payment',
+            pageBuilder: (context, state) =>
+                _clientPage(state, const PaymentMethodScreen()),
+          ),
+        ],
       ),
       GoRoute(
         path: AppRoutes.clientOrderDetail,
-        pageBuilder: (context, state) => _fluidPage(
+        pageBuilder: (context, state) => _clientPage(
           state,
           OrderDetailScreen(orderId: state.pathParameters['orderId']!),
         ),
       ),
       GoRoute(
+        path: AppRoutes.clientOrderSuccess,
+        pageBuilder: (context, state) => _clientPage(
+          state,
+          OrderSuccessScreen(orderId: state.pathParameters['orderId']!),
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.clientOrderTrack,
-        pageBuilder: (context, state) => _fluidPage(
+        pageBuilder: (context, state) => _clientPage(
           state,
           LiveTrackingScreen(orderId: state.pathParameters['orderId']!),
         ),
       ),
       GoRoute(
         path: AppRoutes.clientOrderReview,
-        pageBuilder: (context, state) => _fluidPage(
+        pageBuilder: (context, state) => _clientPage(
           state,
-          SubmitReviewScreen(orderId: state.pathParameters['orderId']!),
+          SubmitReviewScreen(
+            orderId: state.pathParameters['orderId']!,
+            groupId: state.uri.queryParameters['group'],
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clientOrderCancel,
+        pageBuilder: (context, state) => _clientPage(
+          state,
+          OrderCancelScreen(
+            orderId: state.pathParameters['orderId']!,
+            groupId: state.pathParameters['groupId']!,
+          ),
         ),
       ),
       GoRoute(
         path: AppRoutes.clientChatThread,
-        pageBuilder: (context, state) => _fluidPage(
+        pageBuilder: (context, state) => _clientPage(
           state,
           ChatThreadScreen(
             conversationId: state.pathParameters['conversationId']!,
@@ -428,6 +576,29 @@ final routerProvider = Provider<GoRouter>((ref) {
             _fluidPage(state, const ForcedPasswordChangeScreen()),
       ),
       GoRoute(
+        path: AppRoutes.accountPassword,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          const _ThemeDuRole(child: PasswordChangeScreen()),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.accountEmail,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const _ThemeDuRole(child: ContactEmailScreen())),
+      ),
+      GoRoute(
+        path: AppRoutes.accountEmailCode,
+        pageBuilder: (context, state) => _fluidPage(
+          state,
+          _ThemeDuRole(
+            child: ContactEmailCodeScreen(
+              request: state.extra as ContactEmailCodeRequest?,
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.supplierTiersCollaborators,
         pageBuilder: (context, state) =>
             _fluidPage(state, const SupplierCollaboratorsScreen()),
@@ -455,18 +626,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.supplierTiersOrderDetailPath,
         pageBuilder: (context, state) => _fluidPage(
           state,
-          SupplierOrderDetailScreen(
-            orderId: state.pathParameters['orderId']!,
-          ),
+          SupplierOrderDetailScreen(orderId: state.pathParameters['orderId']!),
         ),
       ),
       GoRoute(
         path: AppRoutes.supplierPrincipalOrderDetailPath,
         pageBuilder: (context, state) => _fluidPage(
           state,
-          SupplierOrderDetailScreen(
-            orderId: state.pathParameters['orderId']!,
-          ),
+          SupplierOrderDetailScreen(orderId: state.pathParameters['orderId']!),
         ),
       ),
       // Chat thread — reuses `ChatThreadScreen` as-is (already agnostic of
@@ -619,14 +786,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
-            ClientShell(navigationShell: navigationShell),
+            ShopScope(child: ClientShell(navigationShell: navigationShell)),
         branches: [
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: AppRoutes.clientHome,
                 pageBuilder: (context, state) =>
-                    _fluidPage(state, const ClientHomeScreen()),
+                    _clientPage(state, const ClientHomeScreen()),
               ),
             ],
           ),
@@ -635,16 +802,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.clientCatalogue,
                 pageBuilder: (context, state) =>
-                    _fluidPage(state, const CatalogueScreen()),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoutes.clientCart,
-                pageBuilder: (context, state) =>
-                    _fluidPage(state, const CartScreen()),
+                    _clientPage(state, const CatalogueScreen()),
               ),
             ],
           ),
@@ -653,7 +811,16 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.clientFavorites,
                 pageBuilder: (context, state) =>
-                    _fluidPage(state, const FavoritesScreen()),
+                    _clientPage(state, const FavoritesScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.clientCart,
+                pageBuilder: (context, state) =>
+                    _clientPage(state, const CartScreen()),
               ),
             ],
           ),
@@ -662,7 +829,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.clientProfile,
                 pageBuilder: (context, state) =>
-                    _fluidPage(state, const ClientProfileScreen()),
+                    _clientPage(state, const ClientProfileScreen()),
               ),
             ],
           ),
@@ -674,4 +841,18 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   void notify() => notifyListeners();
+}
+
+/// Les écrans de compte partagés par tous les rôles (`/compte/…`) : au
+/// thème du kit quand c'est un client qui les ouvre, au thème MTC sinon.
+class _ThemeDuRole extends ConsumerWidget {
+  const _ThemeDuRole({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estClient = ref.watch(currentUserProvider).valueOrNull is ClientUser;
+    return estClient ? ShopScope(child: child) : child;
+  }
 }

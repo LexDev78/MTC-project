@@ -64,3 +64,37 @@ bool matchesAnySearch(Iterable<String?> haystacks, String needle) {
   }
   return false;
 }
+
+/// Où [needle] apparaît dans [haystack], accents et casse mis de côté :
+/// `(début, fin)` en positions de [haystack], pour en mettre la partie
+/// trouvée en valeur. `null` s'il n'y apparaît pas, ou si [needle] est vide.
+///
+/// Les positions sont celles du texte d'origine, pas du texte replié : « œ »
+/// se replie en deux lettres, et un décalage ferait souligner à côté.
+(int, int)? searchMatchRange(String haystack, String needle) {
+  final cherche = normalizeForSearch(needle);
+  if (cherche.isEmpty) return null;
+
+  // Le texte replié, et pour chacun de ses caractères la position d'origine
+  // dont il vient.
+  final replie = StringBuffer();
+  final origines = <int>[];
+  var position = 0;
+  for (final rune in haystack.runes) {
+    final caractere = String.fromCharCode(rune);
+    final plie = _folding[caractere.toLowerCase()] ?? caractere.toLowerCase();
+    for (var i = 0; i < plie.length; i++) {
+      origines.add(position);
+    }
+    replie.write(plie);
+    position += caractere.length;
+  }
+  // Mêmes espaces que `normalizeForSearch` : simples, et sans bord.
+  final texte = replie.toString();
+  final debut = texte.indexOf(cherche);
+  if (debut < 0) return null;
+  final dernier = debut + cherche.length - 1;
+  final fin = dernier + 1 < origines.length ? origines[dernier + 1] : haystack.length;
+  return (origines[debut], fin);
+}
+

@@ -8,6 +8,8 @@ import '../../domain/entities/supplier_dashboard_stats.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_category.dart'
+    show SupplierType;
 
 import '../../data/datasources/supabase_supplier_datasource.dart';
 import '../../data/repositories/supabase_supplier_repository.dart';
@@ -27,6 +29,25 @@ final supplierDetailProvider = FutureProvider.family<SupplierProfile, String>((
   id,
 ) {
   return ref.watch(supplierRepositoryProvider).getById(id);
+});
+
+/// « Boutiques du Mali » : les boutiques que le client peut visiter, MTC
+/// Officiel d'abord, puis les plus suivies — le nombre d'avis dit mieux
+/// qu'une moyenne la confiance qu'une boutique a gagnée : un 5/5 sur un seul
+/// avis ne passe pas devant 4,8 sur deux cents.
+final listedShopsProvider = FutureProvider.autoDispose<List<SupplierProfile>>((
+  ref,
+) async {
+  final boutiques = await ref.watch(supplierRepositoryProvider).fetchListed();
+  return [...boutiques]..sort((a, b) {
+    final officielle =
+        (b.supplierType == SupplierType.principal ? 1 : 0) -
+        (a.supplierType == SupplierType.principal ? 1 : 0);
+    if (officielle != 0) return officielle;
+    final avis = b.ratingCount.compareTo(a.ratingCount);
+    if (avis != 0) return avis;
+    return a.businessName.compareTo(b.businessName);
+  });
 });
 
 /// Les chiffres du tableau de bord.
@@ -135,6 +156,15 @@ class SupplierCollaboratorController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref.read(supplierRepositoryProvider).removeCollaborator(userId),
+    );
+    if (!state.hasError) ref.invalidate(supplierCollaboratorsProvider);
+    return !state.hasError;
+  }
+
+  Future<bool> reactivate(String userId) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(supplierRepositoryProvider).reactivateCollaborator(userId),
     );
     if (!state.hasError) ref.invalidate(supplierCollaboratorsProvider);
     return !state.hasError;
