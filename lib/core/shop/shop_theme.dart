@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'shop_icons.dart';
 import 'shop_tokens.dart';
 
-/// Le thème du côté client, d'après `theme/` du kit FlutterShop.
+/// Le thème du côté client, d'après `theme/` du kit FlutterShop, aux
+/// couleurs et à la police de la charte MTC (`ShopColors`).
 ///
 /// Le kit gratuit ne livre que le clair (« le sombre est dans la version
 /// complète ») ; ses jetons sombres, eux, y sont : toile `#16161E`, champs
@@ -15,7 +16,32 @@ import 'shop_tokens.dart';
 /// titre d'écran 16, prix 16, texte secondaire 14 en noir 40), pas la
 /// typographie Material par défaut.
 abstract final class ShopTheme {
-  static const String fontFamily = 'Plus Jakarta';
+  /// Le fond des boutons pleins : le dégradé de la charte, à 90°.
+  ///
+  /// Peint avec `Ink`, sur le `Material` du bouton : l'onde du toucher reste
+  /// visible par-dessus, ce qu'une `DecoratedBox` empêcherait. Estompé quand
+  /// le bouton est inactif.
+  static Widget fondDegrade(
+    BuildContext context,
+    Set<WidgetState> states,
+    Widget? child,
+  ) {
+    final actif = !states.contains(WidgetState.disabled);
+    return Ink(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            for (final couleur in ShopColors.gradient)
+              actif ? couleur : couleur.withValues(alpha: 0.4),
+          ],
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  /// La police de la charte MTC.
+  static const String fontFamily = 'Plus Jakarta Sans';
 
   /// Construits une fois : `ShopScope` les applique à chaque écran client.
   static final ThemeData light = _build(Brightness.light);
@@ -26,10 +52,10 @@ abstract final class ShopTheme {
 
     final background = isDark ? ShopColors.black : Colors.white;
     final onBackground = isDark ? Colors.white : ShopColors.black;
-    final secondaryText = isDark ? ShopColors.white60 : ShopColors.black40;
+    final secondaryText = isDark ? ShopColors.white60 : ShopColors.text;
     final fill = isDark ? ShopColors.darkGrey : ShopColors.lightGrey;
     final border = isDark ? Colors.white10 : ShopColors.black10;
-    final hint = isDark ? ShopColors.white40 : ShopColors.grey;
+    final hint = isDark ? ShopColors.white40 : ShopColors.text;
 
     final scheme = ColorScheme(
       brightness: brightness,
@@ -151,13 +177,18 @@ abstract final class ShopTheme {
           color: onBackground,
         ),
       ),
+      // Les boutons pleins portent le dégradé de la charte (à 90°). Un
+      // bouton qui fixe sa propre couleur (le rouge d'une annulation) doit
+      // aussi neutraliser `backgroundBuilder`, sans quoi le dégradé la
+      // recouvre.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.all(ShopSizes.padding),
-          backgroundColor: ShopColors.primary,
+          backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: ShopColors.primary.withValues(alpha: 0.4),
+          disabledBackgroundColor: Colors.transparent,
           disabledForegroundColor: Colors.white70,
+          backgroundBuilder: fondDegrade,
           elevation: 0,
           minimumSize: const Size(double.infinity, 32),
           textStyle: const TextStyle(
@@ -188,7 +219,9 @@ abstract final class ShopTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: ShopColors.primary,
+          foregroundColor: isDark
+              ? ShopColors.primaryLight
+              : ShopColors.primary,
           textStyle: const TextStyle(
             fontFamily: fontFamily,
             fontSize: 16,
@@ -199,8 +232,11 @@ abstract final class ShopTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.all(ShopSizes.padding),
-          backgroundColor: ShopColors.primary,
+          backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.transparent,
+          disabledForegroundColor: Colors.white70,
+          backgroundBuilder: fondDegrade,
           minimumSize: const Size(double.infinity, 32),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(ShopSizes.radius)),

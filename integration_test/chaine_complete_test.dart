@@ -95,11 +95,11 @@ void main() {
       // ================= ACTE 1 — les inscriptions =====================
 
       await etapeVisuelle(tester, 'ch-01-accueil', () async {
-        await attendre(tester, find.text('Commencer'));
+        await attendre(tester, find.text('Bienvenue !'));
       });
 
       await etapeVisuelle(tester, 'ch-02-choix-du-role', () async {
-        await toucher(tester, find.text('Commencer'), pas: 8);
+        await toucher(tester, find.text('Se connecter'), pas: 8);
         await ouvrirInscription(tester);
         await attendre(tester, find.text('Je suis...'));
       });

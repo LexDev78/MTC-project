@@ -229,8 +229,7 @@ void main() {
       // ---- côté client : choisir dans la grille -------------------------
       // `logout()` renvoie sur l'écran de connexion, pas sur l'accueil :
       // c'est « Bon retour ! » qui signe le retour à l'état déconnecté, pas
-      // le bouton « Commencer » (qui n'existe que sur l'accueil du tout
-      // premier démarrage).
+      // « Bienvenue ! » (qui n'existe que sur l'accueil du démarrage).
       await etapeVisuelle(tester, 'variantes-11-deconnexion', () async {
         await ouvrirOnglet(tester, 'Profil');
         await toucher(tester, find.text('Déconnexion'), pas: 12);

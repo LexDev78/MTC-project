@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,10 +26,27 @@ const _supabaseUrl = String.fromEnvironment(
 );
 const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
+/// Les polices embarquées sont sous licence SIL OFL 1.1, qui demande que
+/// leur licence les accompagne : elle figure dans la page des licences de
+/// l'app (`showLicensePage`), lue depuis les fichiers joints aux polices.
+void _inscrireLicencesDesPolices() {
+  LicenseRegistry.addLicense(() async* {
+    for (final (police, fichier) in const [
+      ('Plus Jakarta Sans', 'assets/fonts/plus_jakarta_sans/OFL.txt'),
+      ('Archivo', 'assets/fonts/archivo/OFL.txt'),
+    ]) {
+      yield LicenseEntryWithLineBreaks([
+        police,
+      ], await rootBundle.loadString(fichier));
+    }
+  });
+}
+
 /// Single entry point for launching [MtcApp], wrapped in a [ProviderScope]
 /// so the whole widget tree can access Riverpod providers.
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _inscrireLicencesDesPolices();
   final prefs = await SharedPreferences.getInstance();
 
   assert(
@@ -49,13 +68,17 @@ Future<void> bootstrap() async {
   // `Firebase.apps.isEmpty` check, so this is the one place that also has
   // to survive `initializeApp` itself failing, not just being skipped.
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     // Must be a top-level function (see `push_background_handler.dart`) and
     // registered before `runApp` — this is what lets a push arrive while
     // the app is fully killed, not just backgrounded.
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   } catch (e) {
-    debugPrint('Firebase.initializeApp failed (push disabled for this run): $e');
+    debugPrint(
+      'Firebase.initializeApp failed (push disabled for this run): $e',
+    );
   }
 
   // Explicit `ProviderContainer`s (rather than a bare `ProviderScope`) so

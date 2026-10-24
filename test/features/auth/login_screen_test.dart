@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_theme.dart';
+import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/shop/shop.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
@@ -17,8 +20,9 @@ import 'package:mtc_app/features/auth/presentation/screens/login_screen.dart';
 
 import '../../support/shop_fixtures.dart';
 
-/// L'écran de connexion, repris du kit FlutterShop, sans base : ce qu'il
-/// montre, ce qu'il refuse avant d'envoyer, et ce qu'il envoie.
+/// L'écran de connexion de la charte MTC, sans base : ce qu'il montre, ce
+/// qu'il refuse avant d'envoyer, ce qu'il envoie, et ce que « Se souvenir de
+/// moi » garde sur le téléphone.
 
 /// Le compte, réduit à la connexion : il note les essais, et refuse ou
 /// accepte selon [refus].
@@ -48,29 +52,45 @@ class _Compte implements AuthRepository {
 
 late _Compte _compte;
 late ProviderContainer _conteneur;
+late SharedPreferences _preferences;
+late GoRouter _routeur;
 
+/// Ouvre la connexion. [retenu] : l'identifiant déjà gardé par « Se
+/// souvenir de moi ». [depuisAccueil] : ouverte par-dessus l'accueil, comme
+/// dans l'app.
 Future<void> _ouvrir(
   WidgetTester tester, {
   ThemeMode mode = ThemeMode.light,
-  Size taille = const Size(375, 1400),
+  Size taille = const Size(390, 1400),
+  String? retenu,
+  bool depuisAccueil = false,
 }) async {
   tester.view.physicalSize = taille * 2;
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
 
+  SharedPreferences.setMockInitialValues({
+    if (retenu != null) LoginScreen.cleIdentifiantRetenu: retenu,
+  });
+  _preferences = await SharedPreferences.getInstance();
   _compte = _Compte();
   _conteneur = ProviderContainer(
     overrides: [
       authRepositoryProvider.overrideWithValue(_compte),
       currentUserProvider.overrideWith((ref) => Stream.value(null)),
+      sharedPreferencesProvider.overrideWithValue(_preferences),
     ],
   );
   addTearDown(_conteneur.dispose);
 
-  // Comme dans `app_router.dart` : l'écran sous le thème du kit.
-  final router = GoRouter(
-    initialLocation: AppRoutes.login,
+  // Comme dans `app_router.dart` : l'écran sous le thème de la charte.
+  _routeur = GoRouter(
+    initialLocation: depuisAccueil ? AppRoutes.welcome : AppRoutes.login,
     routes: [
+      GoRoute(
+        path: AppRoutes.welcome,
+        builder: (_, _) => const Scaffold(body: Text('ACCUEIL')),
+      ),
       GoRoute(
         path: AppRoutes.login,
         builder: (_, _) => const ShopScope(child: LoginScreen()),
@@ -86,7 +106,7 @@ Future<void> _ouvrir(
       ),
     ],
   );
-  addTearDown(router.dispose);
+  addTearDown(_routeur.dispose);
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -95,11 +115,15 @@ Future<void> _ouvrir(
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: mode,
-        routerConfig: router,
+        routerConfig: _routeur,
       ),
     ),
   );
   await _avancer(tester);
+  if (depuisAccueil) {
+    unawaited(_routeur.push(AppRoutes.login));
+    await _avancer(tester);
+  }
 }
 
 Future<void> _avancer(WidgetTester tester) async {
@@ -127,72 +151,112 @@ EditableText _saisie(WidgetTester tester, Finder champ) =>
       find.descendant(of: champ, matching: find.byType(EditableText)),
     );
 
+Finder get _coche => find.byWidgetPredicate(
+  (w) => w is ShopIcon && w.asset == ShopIcons.singlecheck,
+);
+
+Future<void> _seConnecter(
+  WidgetTester tester,
+  String identifiant, {
+  String motDePasse = 'password123',
+}) async {
+  await tester.enterText(_champIdentifiant, identifiant);
+  await tester.enterText(_champMotDePasse, motDePasse);
+  await _toucher(tester, find.text('Se connecter'));
+}
+
 void main() {
-  testWidgets('l\'écran du kit : photo, titre, champs, liens et bouton', (
+  testWidgets('la maquette : bandeau au logo, titre, champs, liens, bouton', (
     tester,
   ) async {
     await _ouvrir(tester);
 
+    expect(find.byType(MtcBrandBand), findsOneWidget);
     expect(
-      find.image(const AssetImage('assets/shop/images/login_light.png')),
+      find.byWidgetPredicate(
+        (w) =>
+            w is SvgPicture &&
+            w.bytesLoader is SvgAssetLoader &&
+            (w.bytesLoader as SvgAssetLoader).assetName == MtcLogo.asset,
+      ),
       findsOneWidget,
     );
+    expect(find.text('MTC'), findsOneWidget);
     expect(find.text('Bon retour !'), findsOneWidget);
     expect(
       find.text(
-        'Connectez-vous avec l\'identifiant et le mot de passe choisis à '
-        'votre inscription.',
+        'Connectez-vous avec l\'identifiant et le\n'
+        'mot de passe choisis à votre inscription.',
       ),
       findsOneWidget,
     );
     expect(_champIdentifiant, findsOneWidget);
     expect(_champMotDePasse, findsOneWidget);
+    expect(find.text('Se souvenir de moi'), findsOneWidget);
     expect(find.text('Mot de passe oublié ?'), findsOneWidget);
-    expect(find.widgetWithText(ElevatedButton, 'Se connecter'), findsOneWidget);
+    expect(find.widgetWithText(GradientButton, 'Se connecter'), findsOneWidget);
     expect(find.text('Pas encore de compte ?'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Créer un compte'), findsOneWidget);
     // Les icônes du kit, pas celles de Material.
     expect(find.byType(Icon), findsNothing);
-    // Le bouton prend la couleur du kit : l'écran est bien sous `ShopScope`.
+    // Ouverte directement (après une déconnexion), rien derrière : pas de
+    // retour.
+    expect(find.byTooltip('Retour'), findsNothing);
+    // L'écran est sous le thème de la charte.
     expect(
-      Theme.of(tester.element(find.byType(ElevatedButton))).colorScheme.primary,
-      ShopColors.primary,
+      Theme.of(tester.element(find.text('Bon retour !'))).colorScheme.primary,
+      const Color(0xFF7762F6),
     );
   });
 
-  testWidgets('en sombre, la photo dont la vague a la couleur de la toile', (
+  testWidgets('ouverte depuis l\'accueil, le retour y ramène', (tester) async {
+    await _ouvrir(tester, depuisAccueil: true);
+    expect(find.text('Bon retour !'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byTooltip('Retour')),
+      containsSemantics(isButton: true, hasTapAction: true),
+    );
+
+    await _toucher(tester, find.byTooltip('Retour'));
+
+    expect(find.text('ACCUEIL'), findsOneWidget);
+    expect(find.text('Bon retour !'), findsNothing);
+  });
+
+  testWidgets('en sombre, liens et case passent au violet clair', (
     tester,
   ) async {
     await _ouvrir(tester, mode: ThemeMode.dark);
 
-    expect(
-      find.image(const AssetImage('assets/shop/images/login_dark.png')),
-      findsOneWidget,
+    final lien = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Mot de passe oublié ?'),
     );
     expect(
-      find.image(const AssetImage('assets/shop/images/login_light.png')),
-      findsNothing,
+      lien.style!.foregroundColor!.resolve(const {}),
+      ShopColors.primaryLight,
     );
-    final toile = Theme.of(
-      tester.element(find.text('Bon retour !')),
-    ).scaffoldBackgroundColor;
-    // La vague du fichier sombre est peinte en #16161E.
-    expect(toile, ShopColors.black);
+    expect(
+      Theme.of(
+        tester.element(find.text('Bon retour !')),
+      ).scaffoldBackgroundColor,
+      ShopColors.black,
+    );
   });
 
-  testWidgets('barre d\'état : foncée sur la photo, claire sur la toile '
-      'sombre', (tester) async {
-    // Assez bas pour que la photo puisse sortir tout entière par le haut.
-    await _ouvrir(tester, mode: ThemeMode.dark, taille: const Size(375, 480));
-    expect(SystemChrome.latestStyle?.statusBarIconBrightness, Brightness.dark);
+  testWidgets('barre d\'état : claire sur le bandeau, puis selon la toile', (
+    tester,
+  ) async {
+    // Assez bas pour que le bandeau puisse sortir tout entier par le haut.
+    await _ouvrir(tester, taille: const Size(390, 480));
+    expect(SystemChrome.latestStyle?.statusBarIconBrightness, Brightness.light);
 
     await tester.drag(
       find.byType(SingleChildScrollView),
       const Offset(0, -2000),
     );
     await _avancer(tester);
-    expect(find.byType(Image).hitTestable(), findsNothing);
-    expect(SystemChrome.latestStyle?.statusBarIconBrightness, Brightness.light);
+    expect(find.byType(MtcLogo).hitTestable(), findsNothing);
+    expect(SystemChrome.latestStyle?.statusBarIconBrightness, Brightness.dark);
   });
 
   // La police de `flutter test` est large : ce qui tient ici tient sur un
@@ -238,15 +302,45 @@ void main() {
     expect(_saisie(tester, _champMotDePasse).obscureText, isTrue);
   });
 
+  testWidgets('au focus, l\'icône du champ passe au violet', (tester) async {
+    await _ouvrir(tester);
+    Color? couleurCadenas() => tester
+        .widget<ShopIcon>(
+          find.descendant(
+            of: _champMotDePasse,
+            matching: find.byWidgetPredicate(
+              (w) => w is ShopIcon && w.asset == ShopIcons.lock,
+            ),
+          ),
+        )
+        .color;
+    expect(couleurCadenas(), ShopColors.fieldIcon);
+
+    await tester.showKeyboard(_champMotDePasse);
+    await _avancer(tester);
+    expect(couleurCadenas(), ShopColors.primary);
+  });
+
+  testWidgets('la coche suit la saisie de l\'identifiant', (tester) async {
+    await _ouvrir(tester);
+    expect(_coche, findsNothing);
+
+    await tester.enterText(_champIdentifiant, 'mariam.k');
+    await _avancer(tester);
+    expect(_coche, findsOneWidget);
+
+    await tester.enterText(_champIdentifiant, '   ');
+    await _avancer(tester);
+    expect(_coche, findsNothing);
+  });
+
   testWidgets('se connecter envoie l\'identifiant nettoyé, et attend', (
     tester,
   ) async {
     await _ouvrir(tester);
     _compte.attente = Completer<void>();
-    await tester.enterText(_champIdentifiant, '  client1 ');
-    await tester.enterText(_champMotDePasse, 'password123');
 
-    await _toucher(tester, find.text('Se connecter'));
+    await _seConnecter(tester, '  client1 ');
 
     expect(_compte.essais.single, (
       identifiant: 'client1',
@@ -254,13 +348,21 @@ void main() {
     ));
     // Posé avant la réponse : le routeur passera par le chargement.
     expect(_conteneur.read(justLoggedInProvider), isTrue);
-    // Pendant l'envoi, le bouton tourne et ne se retouche pas.
+    // Pendant l'envoi, le bouton tourne et ne se retouche pas ; un lecteur
+    // d'écran l'entend encore, inactif.
     expect(find.text('Se connecter'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(
-      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
-      isNull,
+      tester.getSemantics(find.byType(GradientButton)),
+      containsSemantics(
+        label: 'Se connecter',
+        isButton: true,
+        isEnabled: false,
+      ),
     );
+    await tester.tap(find.byType(GradientButton));
+    await _avancer(tester);
+    expect(_compte.essais, hasLength(1));
 
     _compte.attente!.complete();
     await _avancer(tester);
@@ -271,17 +373,88 @@ void main() {
   testWidgets('un refus le dit, et le bouton revient', (tester) async {
     await _ouvrir(tester);
     _compte.refus = const InvalidCredentialsException();
-    await tester.enterText(_champIdentifiant, 'client1');
-    await tester.enterText(_champMotDePasse, 'mauvais');
 
-    await _toucher(tester, find.text('Se connecter'));
+    await _seConnecter(tester, 'client1', motDePasse: 'mauvais');
 
     expect(find.text('Identifiants incorrects'), findsOneWidget);
     expect(_conteneur.read(justLoggedInProvider), isFalse);
-    expect(
-      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
-      isNotNull,
-    );
+    expect(find.text('Se connecter'), findsOneWidget);
+  });
+
+  group('se souvenir de moi', () {
+    testWidgets('la case se coche, et le dit', (tester) async {
+      await _ouvrir(tester);
+      final caseACocher = find.text('Se souvenir de moi');
+      expect(
+        tester.getSemantics(caseACocher),
+        containsSemantics(
+          label: 'Se souvenir de moi',
+          hasCheckedState: true,
+          isChecked: false,
+          hasTapAction: true,
+        ),
+      );
+
+      await _toucher(tester, caseACocher);
+
+      expect(
+        tester.getSemantics(caseACocher),
+        containsSemantics(hasCheckedState: true, isChecked: true),
+      );
+    });
+
+    testWidgets('cochée, l\'identifiant revient à la connexion suivante', (
+      tester,
+    ) async {
+      await _ouvrir(tester);
+      await _toucher(tester, find.text('Se souvenir de moi'));
+
+      await _seConnecter(tester, ' client1 ');
+
+      expect(
+        _preferences.getString(LoginScreen.cleIdentifiantRetenu),
+        'client1',
+      );
+      // Jamais le mot de passe.
+      expect(
+        _preferences.getKeys().map(_preferences.get),
+        isNot(contains('password123')),
+      );
+
+      // L'écran rouvert (après une déconnexion) le reprend, case cochée.
+      await _ouvrir(tester, retenu: 'client1');
+      expect(_saisie(tester, _champIdentifiant).controller.text, 'client1');
+      expect(_saisie(tester, _champMotDePasse).controller.text, isEmpty);
+      expect(
+        tester.getSemantics(find.text('Se souvenir de moi')),
+        containsSemantics(isChecked: true),
+      );
+    });
+
+    testWidgets('décochée, l\'identifiant gardé est oublié', (tester) async {
+      await _ouvrir(tester, retenu: 'ancien');
+      await _toucher(tester, find.text('Se souvenir de moi'));
+
+      await _seConnecter(tester, 'client2');
+
+      expect(
+        _preferences.containsKey(LoginScreen.cleIdentifiantRetenu),
+        isFalse,
+      );
+    });
+
+    testWidgets('un refus ne retient rien', (tester) async {
+      await _ouvrir(tester);
+      _compte.refus = const InvalidCredentialsException();
+      await _toucher(tester, find.text('Se souvenir de moi'));
+
+      await _seConnecter(tester, 'faute.de.frappe', motDePasse: 'mauvais');
+
+      expect(
+        _preferences.containsKey(LoginScreen.cleIdentifiantRetenu),
+        isFalse,
+      );
+    });
   });
 
   testWidgets('« Créer un compte » mène à l\'inscription', (tester) async {

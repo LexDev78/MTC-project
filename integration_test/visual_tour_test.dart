@@ -49,7 +49,7 @@ void main() {
       await capture(tester, 'client-01-bienvenue');
 
       await etapeVisuelle(tester, 'client-02-connexion', () async {
-        await tester.tap(find.text('Commencer'));
+        await tester.tap(find.text('Se connecter')); // l'accueil
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
       });

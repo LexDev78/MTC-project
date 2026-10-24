@@ -31,7 +31,7 @@ Future<void> _loginAsFournisseur1(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 500));
   await tester.pump(const Duration(milliseconds: 400));
 
-  await tester.tap(find.text('Commencer'));
+  await tester.tap(find.text('Se connecter')); // l'accueil
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
 

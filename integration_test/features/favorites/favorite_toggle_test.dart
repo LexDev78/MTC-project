@@ -26,12 +26,12 @@ Future<void> _loginAsClient1(WidgetTester tester) async {
     ),
   );
   // Settle splash timer + session restore, landing on the welcome screen.
-  // Its ball animation runs on a ticker that never settles, so advance by
-  // fixed durations here instead of pumpAndSettle.
+  // Fixed durations rather than pumpAndSettle, like the rest of these
+  // tests: loading skeletons elsewhere animate in a loop.
   await tester.pump(const Duration(milliseconds: 500));
   await tester.pump(const Duration(milliseconds: 400));
 
-  await tester.tap(find.text('Commencer'));
+  await tester.tap(find.text('Se connecter')); // l'accueil
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
 

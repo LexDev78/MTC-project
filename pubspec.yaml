@@ -75,23 +75,30 @@ flutter:
     # (`E-commerce-Complete-Flutter-UI`), voir `lib/core/shop/`.
     - assets/shop/icons/
     - assets/shop/illustrations/
-    # La photo de l'écran de connexion du kit, en clair et en sombre.
-    - assets/shop/images/
-    - assets/fonts/plus_jakarta/OFL.txt
+    # Le logo MTC de la charte (dauphin et vagues), tracé en vectoriel.
+    - assets/brand/
+    - assets/fonts/plus_jakarta_sans/OFL.txt
     - assets/fonts/archivo/OFL.txt
 
   # Polices du côté client, sous licence SIL OFL 1.1 (licences jointes et
   # inscrites au registre des licences de l'app, `bootstrap.dart`).
+  # Plus Jakarta Sans est la police de la charte MTC (fichiers statiques du
+  # dépôt officiel, tokotype/PlusJakartaSans 2.7.1) ; l'ExtraBold sert aux
+  # titres de l'accueil et de la connexion.
   # Archivo, en largeur étendue, remplace la Grandis Extended du kit : cette
   # dernière est une police commerciale (« All rights reserved »).
   fonts:
-    - family: Plus Jakarta
+    - family: Plus Jakarta Sans
       fonts:
-        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Regular.otf
-        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Medium.otf
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Regular.ttf
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Medium.ttf
           weight: 500
-        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Bold.otf
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Bold.ttf
           weight: 700
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-ExtraBold.ttf
+          weight: 800
     - family: Archivo
       fonts:
         - asset: assets/fonts/archivo/Archivo-Variable.ttf
@@ -99,18 +106,21 @@ flutter:
 # Icônes de lancement, générées depuis `assets/branding/` par
 # `dart run flutter_launcher_icons`.
 #
-# La source est vectorielle (`kit/icone-app.svg`, avec tout le reste de la
-# charte dans `kit/`) ; les PNG à côté en sont le rendu et sont ce que l'outil
+# Piste « Pastille » de la charte MTC (« Logo, couleurs et police ») : le
+# logo de l'app (`assets/brand/logo_mtc.svg`) dans sa pastille blanche, sur
+# le dégradé violet-bleu à 135°. Les SVG sont composés depuis ce logo ; les
+# PNG à côté en sont le rendu (Chrome, 1024 px) et sont ce que l'outil
 # consomme. Les trois variantes ne sont pas redondantes :
 #
 #   icon.png             carré plein, sans coins arrondis — iOS, web, macOS,
-#                        Windows. Le SVG d'origine arrondit ses propres
-#                        coins ; iOS applique **en plus** son masque, ce qui
-#                        rognerait deux fois et laisserait des angles
+#                        Windows ; la pastille à 56 % du côté. iOS applique
+#                        son propre masque : des coins arrondis dans l'image
+#                        seraient rognés deux fois et laisseraient des angles
 #                        transparents. L'App Store refuse par ailleurs toute
 #                        couche alpha, d'où `remove_alpha_ios`.
-#   icon-background.png  le dégradé bleu seul
-#   icon-foreground.png  le dauphin et son panier, en blanc sur transparent
+#   icon-background.png  le dégradé seul
+#   icon-foreground.png  la pastille et le logo (70 % du côté), sur
+#                        transparent
 #
 # Les deux derniers forment l'icône adaptative Android, que le lanceur masque
 # en cercle ou en « squircle » selon le téléphone sans garantir plus que les
@@ -140,8 +150,8 @@ flutter_launcher_icons:
   web:
     generate: true
     image_path: "assets/branding/icon.png"
-    background_color: "#1655E3"
-    theme_color: "#1655E3"
+    background_color: "#7762F6"
+    theme_color: "#7762F6"
 
   macos:
     generate: true

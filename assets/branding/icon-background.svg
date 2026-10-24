@@ -1,1 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs><linearGradient id="ibg" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3D8BFF"/><stop offset="1" stop-color="#1655E3"/></linearGradient><clipPath id="iclip"><rect width="1024" height="1024" rx="224"/></clipPath></defs><g><rect width="1024" height="1024" fill="url(#ibg)"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs><linearGradient id="fond" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024"><stop offset="0" stop-color="#7762F6"/><stop offset="1" stop-color="#5A9EF9"/></linearGradient>
+<linearGradient id="dauphin" gradientUnits="userSpaceOnUse" x1="60.0" y1="87.0" x2="540.4" y2="401.1"><stop offset="0" stop-color="#7762F6"/><stop offset="1" stop-color="#5A9EF9"/></linearGradient>
+<linearGradient id="vagues" gradientUnits="userSpaceOnUse" x1="128.0" y1="0" x2="338.0" y2="0"><stop offset="0" stop-color="#5A9EF9"/><stop offset="1" stop-color="#4FB4FA"/></linearGradient>
+</defs><rect width="1024" height="1024" fill="url(#fond)"/></svg>

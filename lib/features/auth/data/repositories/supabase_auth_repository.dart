@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -32,8 +33,7 @@ class SupabaseAuthRepository implements AuthRepository {
     // `currentUserProvider` — and the splash screen waiting on it — stuck
     // on `AsyncLoading` forever. Checking `currentSession` directly makes
     // this correct regardless of how the client was constructed.
-    final initialUserId = _datasource.currentSession?.user.id;
-    yield initialUserId == null ? null : await _hydrateOrSignOutIfDeleted(initialUserId);
+    yield* _compteDe(_datasource.currentSession?.user.id);
 
     // Les événements de session, et les relectures demandées après une
     // modification du profil faite hors de l'authentification (nom, adresse
@@ -51,9 +51,14 @@ class SupabaseAuthRepository implements AuthRepository {
       ),
     ];
     try {
-      await for (final userId in evenements.stream) {
-        yield userId == null ? null : await _hydrateOrSignOutIfDeleted(userId);
-      }
+      // `yield*` sur des flux, et non `await for` : une erreur — un compte
+      // illisible, un rafraîchissement de jeton manqué — passe dans le flux
+      // sans le fermer. Avant, elle terminait ce générateur, et
+      // `currentUserProvider` restait figé : plus aucune connexion
+      // n'atteignait le routeur, jusqu'au redémarrage de l'app (constaté le
+      // 24/10/2026 : un jeton refusé à la relecture qui suit la connexion,
+      // puis dix connexions réussies sans jamais quitter l'écran).
+      yield* evenements.stream.asyncExpand(_compteDe);
     } finally {
       for (final abonnement in abonnements) {
         await abonnement.cancel();
@@ -63,6 +68,12 @@ class SupabaseAuthRepository implements AuthRepository {
       // `close()` n'aboutirait jamais — le désabonnement resterait pendu.
       unawaited(evenements.close());
     }
+  }
+
+  /// Le compte de la session [userId], ou `null` sans session. Une erreur
+  /// en sort comme événement du flux, qui reste ouvert.
+  Stream<AppUser?> _compteDe(String? userId) async* {
+    yield userId == null ? null : await _hydrateOrSignOutIfDeleted(userId);
   }
 
   @override
@@ -472,11 +483,52 @@ class SupabaseAuthRepository implements AuthRepository {
     return userId;
   }
 
+  /// Les attentes avant de relire un compte après un échec passager.
+  static const _reprises = [
+    Duration(milliseconds: 250),
+    Duration(milliseconds: 750),
+    Duration(milliseconds: 1500),
+  ];
+
+  /// [_readAppUser], repris après un échec passager. Juste après une
+  /// connexion, PostgREST peut refuser le jeton qu'on vient de recevoir
+  /// (`PGRST303`, « JWT issued at future », constaté le 24/10/2026) alors
+  /// qu'un instant plus tard le même jeton passe ; de même pour un réseau
+  /// qui hoquette ou un serveur qui redémarre. Un refus qui dit quelque
+  /// chose — compte supprimé, accès retiré — n'est pas repris.
+  Future<AppUser> _hydrateAppUser(String userId) async {
+    for (var essai = 0; ; essai++) {
+      try {
+        return await _readAppUser(userId);
+      } catch (erreur) {
+        if (essai >= _reprises.length || !_estPassager(erreur)) rethrow;
+        await Future<void>.delayed(_reprises[essai]);
+      }
+    }
+  }
+
+  static bool _estPassager(Object erreur) => switch (erreur) {
+    // `code` porte un code de PostgREST (`PGRST…`), un code SQL de cinq
+    // caractères (`42501`, un refus : pas de reprise), ou le statut HTTP
+    // quand la réponse n'en dit pas plus — seul un 5xx est passager.
+    PostgrestException(:final code) =>
+      code == 'PGRST303' ||
+          (code != null &&
+              code.length == 3 &&
+              (int.tryParse(code) ?? 0) >= 500),
+    TimeoutException() || http.ClientException() => true,
+    _ => const [
+      'SocketException',
+      'HandshakeException',
+      'HttpException',
+    ].contains(erreur.runtimeType.toString()),
+  };
+
   /// `AppUser` is a sealed union with no direct table of its own — it's
   /// assembled here from `profiles` (+ `suppliers` for a tiers account),
   /// the same "reconstructed by joining at read time" shape the plan uses
   /// throughout instead of duplicating fields that could drift apart.
-  Future<AppUser> _hydrateAppUser(String userId) async {
+  Future<AppUser> _readAppUser(String userId) async {
     final profileRow = await _datasource.fetchProfileRow(userId);
     if (profileRow['deleted_at'] != null) throw const AccountDeletedException();
     final role = profileRow['role'] as String;

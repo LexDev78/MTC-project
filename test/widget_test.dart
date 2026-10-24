@@ -33,14 +33,13 @@ void main() {
     await tester.pump();
 
     // Let the splash timer + auth session restore + route transition play
-    // out. The welcome screen animates a continuously-running ticker, so it
-    // can never satisfy pumpAndSettle — advance by fixed durations instead.
+    // out, by fixed durations like the other boot tests.
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Trouver les articles du monde ici'), findsOneWidget);
+    expect(find.text('Bienvenue !'), findsOneWidget);
 
-    await tester.tap(find.text('Commencer'));
+    await tester.tap(find.text('Se connecter'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 

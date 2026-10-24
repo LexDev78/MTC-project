@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_theme.dart';
+import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
@@ -48,9 +50,15 @@ class _Compte implements AuthRepository {
     required String code,
     required String newPassword,
   }) async {
-    changements.add((identifier: identifier, code: code, password: newPassword));
+    changements.add((
+      identifier: identifier,
+      code: code,
+      password: newPassword,
+    ));
     if (code != _bonCode) {
-      throw const ValidationException('Code incorrect. Il vous reste 4 essais.');
+      throw const ValidationException(
+        'Code incorrect. Il vous reste 4 essais.',
+      );
     }
     // Venu par l'adresse e-mail : le serveur rend l'identifiant.
     return 'client1';
@@ -75,16 +83,23 @@ class _Compte implements AuthRepository {
 late _Compte _compte;
 late ProviderContainer _conteneur;
 
-Future<void> _ouvrir(WidgetTester tester, {String depart = AppRoutes.login}) async {
+Future<void> _ouvrir(
+  WidgetTester tester, {
+  String depart = AppRoutes.login,
+}) async {
   tester.view.physicalSize = const Size(375, 1100) * 2;
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
 
+  // La connexion relit l'identifiant que « Se souvenir de moi » a gardé.
+  SharedPreferences.setMockInitialValues({});
+  final preferences = await SharedPreferences.getInstance();
   _compte = _Compte();
   _conteneur = ProviderContainer(
     overrides: [
       authRepositoryProvider.overrideWithValue(_compte),
       currentUserProvider.overrideWith((ref) => Stream.value(null)),
+      sharedPreferencesProvider.overrideWithValue(preferences),
     ],
   );
   addTearDown(_conteneur.dispose);
@@ -221,7 +236,10 @@ void main() {
     await _toucher(tester, find.text('Recevoir un code'));
 
     expect(find.byType(MtcErrorBanner), findsOneWidget);
-    expect(find.textContaining('pas d\'adresse e-mail vérifiée'), findsOneWidget);
+    expect(
+      find.textContaining('pas d\'adresse e-mail vérifiée'),
+      findsOneWidget,
+    );
     expect(find.text('Nouveau mot de passe'), findsNothing);
   });
 
@@ -283,7 +301,10 @@ void main() {
     await _saisirMotsDePasse(tester, 'NouveauMdp1');
     await _toucher(tester, find.text('Changer le mot de passe'));
 
-    expect(find.text('Code incorrect. Il vous reste 4 essais.'), findsOneWidget);
+    expect(
+      find.text('Code incorrect. Il vous reste 4 essais.'),
+      findsOneWidget,
+    );
     expect(tester.widget<TextField>(_champCode).controller!.text, isEmpty);
     expect(_compte.connexions, isEmpty);
   });

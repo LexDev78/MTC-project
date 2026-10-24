@@ -178,14 +178,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _fluidPage(state, const SplashScreen()),
       ),
+      // L'accueil, la connexion et la récupération du mot de passe suivent
+      // la charte MTC, comme le côté client (`ShopScope`). Ce sont les écrans
+      // de tous les rôles, avant qu'on sache lequel se connecte.
       GoRoute(
         path: AppRoutes.welcome,
         pageBuilder: (context, state) =>
-            _fluidPage(state, const WelcomeScreen()),
+            _fluidPage(state, const ShopScope(child: WelcomeScreen())),
       ),
-      // La connexion et la récupération du mot de passe suivent le kit
-      // FlutterShop, comme le côté client. Ce sont les écrans de tous les
-      // rôles, avant qu'on sache lequel se connecte.
       GoRoute(
         path: AppRoutes.login,
         pageBuilder: (context, state) =>

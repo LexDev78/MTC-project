@@ -13,6 +13,7 @@ export 'shop_theme.dart';
 export 'shop_tokens.dart';
 export 'widgets/banners.dart';
 export 'widgets/bottom_bars.dart';
+export 'widgets/brand.dart';
 export 'widgets/chips.dart';
 export 'widgets/details.dart';
 export 'widgets/messages.dart';

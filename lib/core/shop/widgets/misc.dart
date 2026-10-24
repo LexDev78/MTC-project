@@ -167,7 +167,11 @@ class ShopFieldIcon extends StatelessWidget {
     child: ShopIcon(
       icon,
       size: 20,
-      color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.3),
+      // Le gris des icônes de champ de la charte ; en sombre, le blanc
+      // estompé du kit.
+      color: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).iconTheme.color?.withValues(alpha: 0.3)
+          : ShopColors.fieldIcon,
     ),
   );
 }

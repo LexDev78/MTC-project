@@ -36,10 +36,12 @@ Future<void> chargerPolices() async {
     await loader.load();
   }
 
-  await famille('Plus Jakarta', const [
-    'assets/fonts/plus_jakarta/PlusJakartaDisplay-Regular.otf',
-    'assets/fonts/plus_jakarta/PlusJakartaDisplay-Medium.otf',
-    'assets/fonts/plus_jakarta/PlusJakartaDisplay-Bold.otf',
+  await famille('Plus Jakarta Sans', const [
+    'assets/fonts/plus_jakarta_sans/PlusJakartaSans-Regular.ttf',
+    'assets/fonts/plus_jakarta_sans/PlusJakartaSans-Medium.ttf',
+    'assets/fonts/plus_jakarta_sans/PlusJakartaSans-SemiBold.ttf',
+    'assets/fonts/plus_jakarta_sans/PlusJakartaSans-Bold.ttf',
+    'assets/fonts/plus_jakarta_sans/PlusJakartaSans-ExtraBold.ttf',
   ]);
   await famille('Archivo', const ['assets/fonts/archivo/Archivo-Variable.ttf']);
 
@@ -69,11 +71,46 @@ Future<void> rendreEcran(
   List<Override> overrides = const [],
   Brightness brightness = Brightness.light,
   Size taille = const Size(375, 812),
+  double barreEtat = 0,
   Future<void> Function(WidgetTester tester)? geste,
 }) async {
   await tester.runAsync(chargerPolices);
+  // `flutter test` dessine les ombres sans flou (`debugDisableShadows`),
+  // en aplats durs qui n'existent pas sur un téléphone : on les rend
+  // floues le temps du rendu, et on remet le réglage avant la fin du test
+  // (le banc le vérifie).
+  debugDisableShadows = false;
+  try {
+    await _rendre(
+      tester,
+      nom,
+      ecran,
+      overrides,
+      brightness,
+      taille,
+      barreEtat,
+      geste,
+    );
+  } finally {
+    debugDisableShadows = true;
+  }
+}
+
+Future<void> _rendre(
+  WidgetTester tester,
+  String nom,
+  Widget ecran,
+  List<Override> overrides,
+  Brightness brightness,
+  Size taille,
+  double barreEtat,
+  Future<void> Function(WidgetTester tester)? geste,
+) async {
   tester.view.physicalSize = taille * 2;
   tester.view.devicePixelRatio = 2;
+  // La barre d'état d'un téléphone (47 pt sur les maquettes de la
+  // charte) : les écrans sans `SafeArea` en haut la débordent.
+  tester.view.padding = FakeViewPadding(top: barreEtat * 2);
   addTearDown(tester.view.reset);
 
   final cle = GlobalKey();
@@ -128,12 +165,15 @@ Future<void> rendreEcran(
 ///
 /// [hauteur] au-delà de 812 : une capture « page entière », pour relire ce
 /// qui est sous le pli. [geste] : ce que l'utilisateur fait avant la
-/// capture (ouvrir une feuille, changer un tri).
+/// capture (ouvrir une feuille, changer un tri). [largeur] et [barreEtat] :
+/// le téléphone d'une maquette, pour comparer au pixel près.
 void capturerEcran(
   String nom,
   Widget Function() ecran, {
   List<Override> Function()? overrides,
   double hauteur = 812,
+  double largeur = 375,
+  double barreEtat = 0,
   Future<void> Function(WidgetTester tester)? geste,
 }) {
   for (final brightness in Brightness.values) {
@@ -146,7 +186,8 @@ void capturerEcran(
           ecran(),
           overrides: overrides?.call() ?? const [],
           brightness: brightness,
-          taille: Size(375, hauteur),
+          taille: Size(largeur, hauteur),
+          barreEtat: barreEtat,
           geste: geste,
         );
       },

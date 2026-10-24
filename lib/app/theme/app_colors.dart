@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 ///
 /// Les quelques exceptions légitimes sont les « moments de marque » qui ne
 /// correspondent à aucun rôle du `ColorScheme` (dégradé du héros, barre de
-/// navigation peinte à la main, toile des écrans de connexion) : chacune a
-/// sa variante claire *et* sombre ci-dessous, à choisir sur la `brightness`
-/// du thème — jamais une couleur claire codée en dur des deux côtés.
+/// navigation peinte à la main) : chacune a sa variante claire *et* sombre
+/// ci-dessous, à choisir sur la `brightness` du thème — jamais une couleur
+/// claire codée en dur des deux côtés.
 abstract final class AppColors {
   static const Color brandPrimary = Color(0xFF5B4FE5);
   static const Color brandPrimaryDeep = Color(0xFF3F35B0);
@@ -37,16 +37,6 @@ abstract final class AppColors {
   /// l'onglet actif, elle restée en dégradé vif, qui porte l'accent.
   static const Color navBarLight = brandPrimary;
   static const Color navBarDark = Color(0xFF221C3E);
-
-  /// Toile des écrans d'accueil et de connexion — deux teintes très claires
-  /// côté clair (lavande pour l'accueil, bleu pour la connexion) et leurs
-  /// équivalents sombres. Sans ces dernières, ces deux écrans gardaient leur
-  /// fond clair en mode sombre pendant que leurs textes, eux, suivaient le
-  /// thème : « MTC » en blanc cassé sur bleu pâle, soit un titre invisible.
-  static const Color welcomeCanvasLight = Color(0xFFF3F1FB);
-  static const Color welcomeCanvasDark = Color(0xFF15131F);
-  static const Color loginCanvasLight = Color(0xFFE3F2FD);
-  static const Color loginCanvasDark = Color(0xFF101620);
 
   /// The moving-vehicle marker on the live tracking map needs to stand out
   /// against both the route line and the destination pin — kept as a

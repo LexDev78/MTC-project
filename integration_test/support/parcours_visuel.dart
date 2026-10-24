@@ -27,8 +27,8 @@ final List<String> echecs = [];
 
 /// Avance le temps par pas fixes, **jamais** `pumpAndSettle`.
 ///
-/// `WelcomeScreen` porte une animation décorative permanente (ses balles
-/// qui rebondissent) qui ne se déclare jamais stabilisée :
+/// Les squelettes de chargement animent en boucle et ne se déclarent
+/// jamais stabilisés :
 /// `pumpAndSettle` y attend jusqu'à son timeout, app figée à l'écran. Les
 /// autres tests d'intégration de ce dépôt documentent déjà ce piège et
 /// l'évitent de la même façon.
@@ -144,13 +144,14 @@ Future<void> demarrer(WidgetTester tester) async {
 /// connexion cède réellement la place, au lieu de parier sur une durée.
 Future<void> seConnecter(WidgetTester tester, String identifiant) async {
   // Deux portes d'entrée vers le formulaire : l'écran d'accueil au
-  // démarrage (bouton « Commencer »), ou directement l'écran de connexion
+  // démarrage (« Bienvenue ! », bouton « Se connecter »), ou directement
+  // l'écran de connexion
   // après une déconnexion — `logout()` y renvoie sans repasser par
   // l'accueil. Attendre l'un *ou* l'autre plutôt que de supposer le
   // premier : le focus variantes se reconnecte en client juste après avoir
-  // déconnecté le fournisseur, et cherchait « Commencer » sur un écran qui
-  // ne l'a jamais eu.
-  final accueil = find.text('Commencer');
+  // déconnecté le fournisseur, et cherchait l'accueil sur un écran qui ne
+  // l'a jamais eu.
+  final accueil = find.text('Bienvenue !');
   final formulaire = find.byType(TextFormField);
   for (var i = 0; i < 25; i++) {
     if (accueil.evaluate().isNotEmpty || formulaire.evaluate().isNotEmpty) break;
@@ -160,7 +161,7 @@ Future<void> seConnecter(WidgetTester tester, String identifiant) async {
     await tester.pump();
   }
   if (accueil.evaluate().isNotEmpty) {
-    await tester.tap(accueil);
+    await tester.tap(find.text('Se connecter'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
   }

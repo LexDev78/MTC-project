@@ -37,67 +37,79 @@ class CartButton extends StatelessWidget {
         child: SizedBox(
           height: 64,
           child: Material(
-            color: onPressed == null
-                ? ShopColors.primary.withValues(alpha: 0.5)
-                : ShopColors.primary,
+            color: Colors.transparent,
             clipBehavior: Clip.hardEdge,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(ShopSizes.radius)),
             ),
-            child: InkWell(
-              onTap: isLoading ? null : onPressed,
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: ShopSizes.padding,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              CurrencyFormatter.formatFcfa(priceFcfa),
-                              style: texte,
-                            ),
-                          ),
-                          Text(
-                            subtitle,
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Container(
-                      alignment: Alignment.center,
-                      height: double.infinity,
-                      color: Colors.black.withValues(alpha: 0.15),
-                      child: isLoading
-                          ? const SizedBox.square(
-                              dimension: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+            // Le dégradé de la charte, comme les autres boutons pleins
+            // (`ShopTheme.fondDegrade`) ; `Ink` le peint sous l'onde du toucher.
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    for (final couleur in ShopColors.gradient)
+                      onPressed == null
+                          ? couleur.withValues(alpha: 0.5)
+                          : couleur,
+                  ],
+                ),
+              ),
+              child: InkWell(
+                onTap: isLoading ? null : onPressed,
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ShopSizes.padding,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                CurrencyFormatter.formatFcfa(priceFcfa),
+                                style: texte,
                               ),
-                            )
-                          : Text(
-                              title,
-                              style: texte,
-                              textAlign: TextAlign.center,
                             ),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      flex: 3,
+                      child: Container(
+                        alignment: Alignment.center,
+                        height: double.infinity,
+                        color: Colors.black.withValues(alpha: 0.15),
+                        child: isLoading
+                            ? const SizedBox.square(
+                                dimension: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                title,
+                                style: texte,
+                                textAlign: TextAlign.center,
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -107,7 +119,7 @@ class CartButton extends StatelessWidget {
   }
 }
 
-/// Le gros bouton violet collé en bas des écrans de maquette
+/// Le gros bouton (au dégradé de la charte) collé en bas des écrans de maquette
 /// (« Commander », « Continuer », « Confirmer »), avec ce qu'il faut de
 /// marge pour le geste de retour du téléphone.
 class BottomActionBar extends StatelessWidget {
@@ -128,7 +140,7 @@ class BottomActionBar extends StatelessWidget {
   /// Une icône du kit devant le libellé (« Suivre ma commande »).
   final Widget? icon;
 
-  /// Le rouge de l'annulation ; violet sinon.
+  /// Le rouge de l'annulation ; le dégradé de la charte sinon.
   final Color? color;
 
   /// Ce qui s'affiche juste au-dessus du bouton (un total, une mention).
@@ -137,8 +149,12 @@ class BottomActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = ElevatedButton.styleFrom(
-      backgroundColor: color ?? ShopColors.primary,
       padding: const EdgeInsets.symmetric(vertical: 18),
+      // Une couleur imposée (le rouge d'une annulation) remplace le dégradé
+      // du thème : il la recouvrirait.
+      backgroundColor: color,
+      disabledBackgroundColor: color?.withValues(alpha: 0.4),
+      backgroundBuilder: color == null ? null : (_, _, child) => child!,
     );
     final contenu = isLoading
         ? const SizedBox.square(

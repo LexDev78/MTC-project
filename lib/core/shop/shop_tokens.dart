@@ -10,9 +10,28 @@ import 'package:flutter/material.dart';
 ///
 /// Les noms suivent le kit (« noir 80 » = noir à 80 % d'opacité, posé sur
 /// blanc), pour qu'on retrouve d'un coup d'œil la valeur d'une maquette.
+///
+/// Les valeurs de la charte MTC (« Logo, couleurs et police ») remplacent
+/// celles du kit quand elle en donne une : le violet, le bleu du dégradé,
+/// les vagues, les titres, les textes et les champs.
 abstract final class ShopColors {
-  /// La couleur d'accent du kit. Une seule par écran : l'action qui compte.
-  static const primary = Color(0xFF7B61FF);
+  /// Le violet de la charte, accent du côté client. Une seule action par
+  /// écran le porte.
+  static const primary = Color(0xFF7762F6);
+
+  /// Le bleu où finit le dégradé de la charte.
+  static const blue = Color(0xFF5A9EF9);
+
+  /// Le bleu clair des vagues du logo.
+  static const waves = Color(0xFF4FB4FA);
+
+  /// Le dégradé de la charte, du violet au bleu : à 90° sur les boutons,
+  /// à 135° sur le bandeau de l'accueil et de la connexion.
+  static const gradient = [primary, blue];
+
+  /// Le violet pour un texte ou un lien sur fond sombre : [primary] y tombe
+  /// à 4,2:1, celui-ci tient 7,3:1 sur [black].
+  static const primaryLight = Color(0xFFA799F9);
 
   static const primarySwatch = MaterialColor(0xFF9581FF, <int, Color>{
     50: Color(0xFFEFECFF),
@@ -20,14 +39,23 @@ abstract final class ShopColors {
     200: Color(0xFFBDB0FF),
     300: Color(0xFFA390FF),
     400: Color(0xFF8F79FF),
-    500: Color(0xFF7B61FF),
+    500: Color(0xFF7762F6),
     600: Color(0xFF7359FF),
     700: Color(0xFF684FFF),
     800: Color(0xFF5E45FF),
     900: Color(0xFF6C56DD),
   });
 
-  static const black = Color(0xFF16161E);
+  /// Les titres de la charte ; aussi la toile du mode sombre.
+  static const black = Color(0xFF16161D);
+
+  /// Les textes de la charte : sous-titres, texte courant, indications des
+  /// champs. Plus foncé que le « noir 40 » du kit, qu'il remplace en clair :
+  /// 5,1:1 sur blanc, contre 2,6:1.
+  static const text = Color(0xFF6E6E76);
+
+  /// Les icônes en tête des champs, sur [lightGrey].
+  static const fieldIcon = Color(0xFF8E8C98);
   static const black80 = Color(0xFF45454B);
   static const black60 = Color(0xFF737378);
   static const black40 = Color(0xFFA2A2A5);
@@ -42,7 +70,9 @@ abstract final class ShopColors {
   static const white10 = Color(0xFF191919);
 
   static const grey = Color(0xFFB8B5C3);
-  static const lightGrey = Color(0xFFF8F8F9);
+
+  /// Le fond des champs de la charte.
+  static const lightGrey = Color(0xFFF6F6F8);
   static const darkGrey = Color(0xFF1C1C25);
 
   static const success = Color(0xFF2ED573);
