@@ -109,6 +109,19 @@ class SupabaseSupplierRepository implements SupplierRepository {
   }
 
   @override
+  Future<ShopLocation?> fetchMyShopLocation() async {
+    final row = await _datasource.fetchMyShopLocation();
+    if (row == null) return null;
+    final confirmee = row['position_confirmed_at'] as String?;
+    return (
+      fullAddress: row['full_address'] as String?,
+      latitude: (row['latitude'] as num?)?.toDouble(),
+      longitude: (row['longitude'] as num?)?.toDouble(),
+      positionConfirmedAt: confirmee == null ? null : DateTime.parse(confirmee),
+    );
+  }
+
+  @override
   Future<void> updateLocation({
     required String supplierId,
     required String? fullAddress,

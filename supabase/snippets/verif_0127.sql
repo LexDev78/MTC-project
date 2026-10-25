@@ -1,3 +1,7 @@
+-- **Remplacé par `verif_0132.sql`** : depuis `0132`, la récupération ne dit
+-- plus « Aucun compte ne correspond », ni l'adresse masquée, ni les essais
+-- restants — ce que ce fichier vérifiait. Gardé pour l'historique.
+--
 -- Vérifie la migration 0127 (mot de passe oublié) contre la base locale,
 -- sans rien y laisser : tout se passe dans une transaction annulée, mots de
 -- passe et sessions compris, et les e-mails mis en file disparaissent avec

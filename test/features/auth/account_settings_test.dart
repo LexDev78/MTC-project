@@ -330,7 +330,8 @@ void main() {
       await depot.logout();
 
       final demande = await depot.requestPasswordReset('client1');
-      expect(demande.maskedEmail, 'aw•••@example.com');
+      // La réponse ne dit rien du compte (`0132`) : le code, lui, arrive.
+      expect(demande.resendAfterSeconds, 60);
       final code = await codeRecuPar('awa.traore@example.com');
 
       // Par l'adresse e-mail : le serveur rend l'identifiant de connexion.
@@ -364,24 +365,28 @@ void main() {
           isA<ValidationException>().having(
             (e) => e.message,
             'message',
-            'Code incorrect. Il vous reste 4 essais.',
+            'Code incorrect ou expiré. Vérifiez-le, ou demandez-en un nouveau.',
           ),
         ),
       );
       expect(await ouvre('client1', 'password123'), isTrue);
     });
 
-    test('sans adresse vérifiée, pas de récupération par e-mail', () async {
-      await expectLater(
-        container.read(authRepositoryProvider).requestPasswordReset('client2'),
-        throwsA(
-          isA<ValidationException>().having(
-            (e) => e.message,
-            'message',
-            contains('pas d\'adresse e-mail vérifiée'),
-          ),
-        ),
-      );
-    });
+    test(
+      'sans adresse vérifiée, la réponse est celle d\'un compte inconnu',
+      () async {
+        final depot = container.read(authRepositoryProvider);
+        final sansAdresse = await depot.requestPasswordReset('client2');
+        final inconnu = await depot.requestPasswordReset('personne-ici');
+        // Un inconnu ne distingue pas un compte sans adresse d'un compte
+        // qui n'existe pas (`0132`).
+        // (Qu'aucun e-mail ne parte se vérifie en base : verif_0132.sql.)
+        expect(sansAdresse.resendAfterSeconds, inconnu.resendAfterSeconds);
+        expect(
+          sansAdresse.expiresAt.difference(inconnu.expiresAt).inSeconds.abs(),
+          lessThan(5),
+        );
+      },
+    );
   });
 }

@@ -1,3 +1,5 @@
+import 'package:mtc_app/features/supplier_finance/domain/entities/supplier_financial_summary.dart';
+
 /// Ce que le fournisseur voit en ouvrant son application.
 ///
 /// Un modèle de **lecture**, assemblé à la main depuis
@@ -5,9 +7,9 @@
 /// serveur plutôt que de transmettre toutes les commandes pour les
 /// additionner sur le téléphone.
 ///
-/// Ne porte ni commission, ni net, ni solde : ces trois-là suivent une règle
-/// métier qui vit dans `compute_financial_summary.dart`, et l'écran la lui
-/// demande plutôt que de la refaire.
+/// L'argent — commission, dû, solde — arrive tout calculé dans [finance] :
+/// la règle « qui a encaissé » ne vit qu'en base (`supplier_ledger`,
+/// `0131`).
 class SupplierDashboardStats {
   const SupplierDashboardStats({
     required this.productsTotal,
@@ -21,6 +23,7 @@ class SupplierDashboardStats {
     required this.grossLast7DaysFcfa,
     required this.paidOutFcfa,
     required this.bestSellers,
+    this.finance,
   });
 
   final int productsTotal;
@@ -42,8 +45,13 @@ class SupplierDashboardStats {
   final int grossLast30DaysFcfa;
   final int grossLast7DaysFcfa;
 
-  /// Somme des retraits non refusés.
+  /// Somme des retraits non refusés. Zéro pour un collaborateur.
   final int paidOutFcfa;
+
+  /// Le grand livre de la boutique, pour son propriétaire seulement : le
+  /// serveur ne l'envoie pas à un collaborateur (l'argent ne se délègue
+  /// pas, `0093`).
+  final SupplierFinancialSummary? finance;
 
   final List<BestSeller> bestSellers;
 
@@ -78,6 +86,11 @@ class SupplierDashboardStats {
         for (final ligne in (row['best_sellers'] as List? ?? const []))
           BestSeller.fromRow(ligne as Map<String, dynamic>),
       ],
+      finance: switch (row['finance']) {
+        final Map<String, dynamic> grandLivre =>
+          SupplierFinancialSummary.fromRow(grandLivre),
+        _ => null,
+      },
     );
   }
 }

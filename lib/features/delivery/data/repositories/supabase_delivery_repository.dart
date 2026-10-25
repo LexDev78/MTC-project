@@ -297,6 +297,9 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
     final contact = order['client_contact'] as Map<String, dynamic>?;
     final group = row['group_data'] as Map<String, dynamic>;
     final supplier = group['supplier'] as Map<String, dynamic>?;
+    // Où prendre le colis (`pickup_point`, `0133`) : nul quand la course
+    // n'est plus la sienne, comme les coordonnées du client.
+    final retrait = row['pickup_point'] as Map<String, dynamic>?;
     final items = (group['items'] as List<dynamic>? ?? const []);
 
     return CourierDelivery(
@@ -308,10 +311,10 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
           ? null
           : DateTime.parse(row['offer_expires_at'] as String),
       supplierName: group['supplier_name'] as String,
-      supplierAddress: supplier?['full_address'] as String?,
+      supplierAddress: retrait?['full_address'] as String?,
       supplierCity: supplier?['city'] as String? ?? '',
-      supplierLatitude: (supplier?['address_latitude'] as num?)?.toDouble(),
-      supplierLongitude: (supplier?['address_longitude'] as num?)?.toDouble(),
+      supplierLatitude: (retrait?['latitude'] as num?)?.toDouble(),
+      supplierLongitude: (retrait?['longitude'] as num?)?.toDouble(),
       supplierPhones: List<String>.from(
         supplier?['public_phone_numbers'] as List<dynamic>? ?? const [],
       ),

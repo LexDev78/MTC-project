@@ -15,14 +15,15 @@ typedef ContactEmailCodeRequest = ({
 /// (`0124`). Les adresses enregistrées avant ne l'ont jamais été.
 typedef ContactEmailStatus = ({String? email, bool verified});
 
-/// Un code de réinitialisation du mot de passe parti (`0127`) : vers quelle
-/// adresse, masquée (« la•••@gmail.com »), jusqu'à quand il vaut, et dans
-/// combien de secondes on peut en redemander un.
-typedef PasswordResetRequest = ({
-  String maskedEmail,
-  DateTime expiresAt,
-  int resendAfterSeconds,
-});
+/// Une demande de code de réinitialisation enregistrée (`0132`) : jusqu'à
+/// quand un code vaudrait, et dans combien de secondes en redemander un.
+///
+/// Ni l'adresse, ni même la certitude qu'un code est parti : le serveur
+/// répond la même chose pour un compte inconnu, un compte sans adresse
+/// vérifiée et un vrai compte. L'adresse masquée (« aw•••@gmail.com ») que
+/// rendait `0127` disait à n'importe qui qu'un identifiant existe, et la
+/// moitié de son adresse.
+typedef PasswordResetRequest = ({DateTime expiresAt, int resendAfterSeconds});
 
 /// Auth contract. The in-memory implementation backs this today; a Firebase
 /// Auth implementation can replace it later without touching any call site.
@@ -64,13 +65,9 @@ abstract interface class AuthRepository {
     String? vehicleLabel,
   });
 
-  Future<AppUser> signUpSupplierPrincipal({
-    required String displayName,
-    required String usernameOrPhone,
-    required String phoneNumber,
-    required String password,
-    required StaffRole staffRole,
-  });
+  // Pas d'inscription staff : un compte MTC se crée côté serveur, avec la
+  // clé de service et `app_metadata.staff_role` (`0128`). Une inscription
+  // publique qui le demande est refusée par la base.
 
   Future<void> logout();
 
@@ -111,17 +108,18 @@ abstract interface class AuthRepository {
   /// `ValidationException` qui le dit.
   Future<String> confirmContactEmail(String code);
 
-  /// Mot de passe oublié (`request_password_reset`, `0127`) : envoie un code
+  /// Mot de passe oublié (`request_password_reset`, `0132`) : envoie un code
   /// à l'adresse e-mail **vérifiée** du compte désigné par [identifier] —
-  /// son identifiant de connexion, ou cette adresse elle-même. Appelé sans
-  /// être connecté. Lève une `ValidationException` lisible (compte inconnu,
-  /// pas d'adresse vérifiée, délai avant un nouvel envoi).
+  /// son identifiant de connexion, ou cette adresse elle-même —, s'il
+  /// existe. Appelé sans être connecté. La réponse est la même dans tous les
+  /// cas ; les délais entre deux envois s'appliquent sans le dire.
   Future<PasswordResetRequest> requestPasswordReset(String identifier);
 
   /// Change le mot de passe avec le code reçu, ferme toutes les sessions du
   /// compte, et rend son identifiant de connexion — de quoi s'y connecter
-  /// aussitôt, même venu par l'adresse e-mail. Un code faux, expiré, ou un
-  /// mot de passe refusé lèvent une `ValidationException` qui le dit.
+  /// aussitôt, même venu par l'adresse e-mail. Tout refus du code (faux,
+  /// expiré, épuisé, compte bloqué ou inconnu) lève la même
+  /// `ValidationException` ; un mot de passe refusé lève la sienne.
   Future<String> resetPasswordWithCode({
     required String identifier,
     required String code,

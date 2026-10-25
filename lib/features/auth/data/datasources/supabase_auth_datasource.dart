@@ -53,20 +53,31 @@ class SupabaseAuthDatasource {
     return _client.from('profiles').select().eq('id', userId).single();
   }
 
+  /// La fiche publique de la boutique (`supplier_storefronts`, `0133`) :
+  /// tout ce qu'il faut pour le compte connecté, sans l'adresse exacte, que
+  /// `select *` sur la table ne peut plus lire.
   Future<Map<String, dynamic>> fetchSupplierRow(String supplierId) {
-    return _client.from('suppliers').select().eq('id', supplierId).single();
+    return _client
+        .from('supplier_storefronts')
+        .select()
+        .eq('id', supplierId)
+        .single();
   }
 
   /// La fiche, ou `null` si ce compte n'en a pas — sans lever l'erreur
   /// `PGRST116` d'un `.single()` qui ne trouve rien.
   Future<Map<String, dynamic>?> fetchSupplierRowOrNull(String supplierId) {
-    return _client.from('suppliers').select().eq('id', supplierId).maybeSingle();
+    return _client
+        .from('supplier_storefronts')
+        .select()
+        .eq('id', supplierId)
+        .maybeSingle();
   }
 
   /// Le nom d'une boutique, lisible par tous (le catalogue est public).
   Future<String?> fetchSupplierName(String supplierId) async {
     final row = await _client
-        .from('suppliers')
+        .from('supplier_storefronts')
         .select('business_name')
         .eq('id', supplierId)
         .maybeSingle();
@@ -167,8 +178,8 @@ class SupabaseAuthDatasource {
     return Map<String, dynamic>.from(result as Map);
   }
 
-  /// Mot de passe oublié : rend l'adresse masquée, l'échéance du code et
-  /// le délai avant d'en redemander un (`0127`).
+  /// Mot de passe oublié : rend l'échéance du code et le délai avant d'en
+  /// redemander un — la même réponse que le compte existe ou non (`0132`).
   Future<Map<String, dynamic>> requestPasswordReset(String identifier) async {
     final result = await _client.rpc(
       'request_password_reset',

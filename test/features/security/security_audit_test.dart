@@ -30,18 +30,18 @@ Future<SupabaseClient> _connecte(String identifiant) async {
   return client;
 }
 
-/// Le chiffre d'affaires livré de la boutique, lu par son propriétaire —
-/// qui en a le droit, contrairement au rôle de service.
-Future<int> _brutLivre(SupabaseClient patron) async {
-  final rows = await patron
-      .from('order_supplier_groups')
-      .select('subtotal_fcfa')
-      .eq('supplier_id', DemoIds.supplierBogolanBamako)
-      .eq('status', 'delivered');
-  return (rows as List).fold<int>(
-    0,
-    (somme, row) => somme + ((row as Map)['subtotal_fcfa'] as num).toInt(),
-  );
+/// Ce que MTC doit à la boutique avant tout retrait : ce qu'il a encaissé
+/// pour elle, moins sa commission — y compris celle due sur ce que la
+/// boutique a encaissé elle-même (`supplier_ledger`, `0131`). Lu par le
+/// propriétaire, qui en a le droit.
+///
+/// C'est **le** plafond : aucune combinaison de retraits ne doit le
+/// dépasser. Il se lit chez le serveur plutôt que de recopier la règle ici.
+/// Recopiée, elle comptait toute vente « livrée », y compris celles payées
+/// à la boutique en espèces : c'est la faille que `0131` ferme.
+Future<int> _netDu(SupabaseClient patron) async {
+  final grandLivre = await patron.rpc('fetch_my_finance_summary') as Map;
+  return (grandLivre['net_fcfa'] as num).toInt();
 }
 
 /// Le total des retraits non refusés.
@@ -56,12 +56,10 @@ Future<int> _totalDemande(SupabaseClient patron) async {
       .fold<int>(0, (somme, row) => somme + (row['amount_fcfa'] as num).toInt());
 }
 
-/// Le solde réellement disponible, calculé comme `guard_payout_amount` le
-/// calcule : brut livré, moins la commission par défaut de 10 %, moins ce
-/// qui a déjà été demandé.
+/// Le solde réellement disponible : le net dû, moins ce qui a déjà été
+/// demandé — ce que `guard_payout_amount` compte sous verrou.
 Future<int> _soldeDisponible(SupabaseClient patron) async {
-  final brut = await _brutLivre(patron);
-  return brut - (brut * 10 / 100).round() - await _totalDemande(patron);
+  return await _netDu(patron) - await _totalDemande(patron);
 }
 
 /// Lance l'appel et dit seulement s'il a abouti.
@@ -155,10 +153,9 @@ void main() {
         // Et l'invariant, vérifié sur la base plutôt que sur les retours :
         // le total demandé ne dépasse jamais ce qui était disponible.
         final demande = await _totalDemande(lecteur);
-        final brut = await _brutLivre(lecteur);
         expect(
           demande,
-          lessThanOrEqualTo(brut - (brut * 10 / 100).round()),
+          lessThanOrEqualTo(await _netDu(lecteur)),
           reason: 'le total demandé ne peut pas dépasser le net gagné',
         );
       },
@@ -378,8 +375,7 @@ void main() {
               .catchError((_) => null),
       ]);
 
-      final brut = await _brutLivre(lecteur);
-      final net = brut - (brut * 10 / 100).round();
+      final net = await _netDu(lecteur);
       expect(
         await _totalDemande(lecteur),
         lessThanOrEqualTo(net),

@@ -694,10 +694,11 @@ fetchAccountDeletionStateAsAdmin(String userId) async {
 /// Crée le compte d'un collaborateur rattaché à une boutique (`0093`).
 ///
 /// Fait ce que la fonction edge `create-collaborator` fait en production :
-/// un compte créé avec la clé de service, dont les métadonnées portent le
-/// rattachement. Le passer par la fonction edge demanderait de la servir
-/// pendant les tests, pour vérifier une mécanique qui est tout entière dans
-/// le déclencheur `handle_new_user`.
+/// un compte créé avec la clé de service, dont `app_metadata` porte le
+/// rattachement (`0128` — `user_metadata` s'écrit par n'importe qui à
+/// l'inscription, il ne rattache plus personne). Le passer par la fonction
+/// edge demanderait de la servir pendant les tests, pour vérifier une
+/// mécanique qui est tout entière dans `apply_account_provisioning`.
 Future<String> createCollaboratorAsAdmin({
   required String supplierId,
   required String username,
@@ -710,12 +711,14 @@ Future<String> createCollaboratorAsAdmin({
       password: 'password123',
       emailConfirm: true,
       userMetadata: {
-        'role': 'supplier_tiers',
         'display_name': displayName,
         'username_or_phone': username,
         'phone_number': '+22370000111',
+      },
+      appMetadata: {
         'collaborator_of': supplierId,
         'permissions': permissions.toList(),
+        'invited_by': supplierId,
       },
     ),
   );

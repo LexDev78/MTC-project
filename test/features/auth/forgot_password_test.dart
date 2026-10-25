@@ -37,11 +37,7 @@ class _Compte implements AuthRepository {
   Future<PasswordResetRequest> requestPasswordReset(String identifier) async {
     if (refusDemande != null) throw refusDemande!;
     demandes.add(identifier);
-    return (
-      maskedEmail: 'aw•••@example.com',
-      expiresAt: DateTime(2026, 10, 22, 10, 10),
-      resendAfterSeconds: 60,
-    );
+    return (expiresAt: DateTime(2026, 10, 22, 10, 10), resendAfterSeconds: 60);
   }
 
   @override
@@ -56,8 +52,9 @@ class _Compte implements AuthRepository {
       password: newPassword,
     ));
     if (code != _bonCode) {
+      // Le même refus que le serveur rend pour tout code refusé (`0132`).
       throw const ValidationException(
-        'Code incorrect. Il vous reste 4 essais.',
+        'Code incorrect ou expiré. Vérifiez-le, ou demandez-en un nouveau.',
       );
     }
     // Venu par l'adresse e-mail : le serveur rend l'identifiant.
@@ -223,47 +220,51 @@ void main() {
     expect(_compte.demandes, isEmpty);
   });
 
-  testWidgets('un compte sans adresse vérifiée le dit, et l\'on reste', (
-    tester,
-  ) async {
-    await _ouvrir(tester, depart: AppRoutes.forgotPassword);
-    _compte.refusDemande = const ValidationException(
-      'Ce compte n\'a pas d\'adresse e-mail vérifiée : il ne peut pas être '
-      'récupéré par e-mail. Contactez MTC.',
-    );
+  testWidgets(
+    'une demande qui n\'arrive pas au serveur le dit, et l\'on reste',
+    (tester) async {
+      await _ouvrir(tester, depart: AppRoutes.forgotPassword);
+      // Le serveur, lui, ne refuse plus rien qu'un inconnu puisse lire
+      // (`0132`) : seule une panne empêche d'avancer.
+      _compte.refusDemande = Exception('Connexion perdue');
 
-    await tester.enterText(find.byType(TextFormField), 'client2');
-    await _toucher(tester, find.text('Recevoir un code'));
+      await tester.enterText(find.byType(TextFormField), 'client2');
+      await _toucher(tester, find.text('Recevoir un code'));
 
-    expect(find.byType(MtcErrorBanner), findsOneWidget);
-    expect(
-      find.textContaining('pas d\'adresse e-mail vérifiée'),
-      findsOneWidget,
-    );
-    expect(find.text('Nouveau mot de passe'), findsNothing);
-  });
+      expect(find.byType(MtcErrorBanner), findsOneWidget);
+      expect(find.textContaining('Connexion perdue'), findsOneWidget);
+      expect(find.text('Nouveau mot de passe'), findsNothing);
+    },
+  );
 
-  testWidgets('le code part : l\'écran dit où, et attend avant de renvoyer', (
-    tester,
-  ) async {
-    await _jusquAuCode(tester);
+  testWidgets(
+    "le code part : l'écran n'en dit pas plus que le serveur, et attend "
+    'avant de renvoyer',
+    (tester) async {
+      await _jusquAuCode(tester);
 
-    expect(_compte.demandes, ['awa']);
-    expect(find.textContaining('aw•••@example.com'), findsOneWidget);
-    expect(find.text('Renvoyer le code dans 1:00'), findsOneWidget);
-    final renvoyer = find.widgetWithText(TextButton, 'Renvoyer');
-    expect(tester.widget<TextButton>(renvoyer).onPressed, isNull);
+      expect(_compte.demandes, ['awa']);
+      // Ni adresse, même masquée, ni certitude que le compte existe (`0132`).
+      expect(find.textContaining('« awa »'), findsOneWidget);
+      expect(find.textContaining('adresse e-mail vérifiée'), findsOneWidget);
+      expect(find.textContaining('•••'), findsNothing);
+      expect(find.text('Renvoyer le code dans 1:00'), findsOneWidget);
+      final renvoyer = find.widgetWithText(TextButton, 'Renvoyer');
+      expect(tester.widget<TextButton>(renvoyer).onPressed, isNull);
 
-    await tester.pump(const Duration(seconds: 61));
-    await _avancer(tester);
-    expect(tester.widget<TextButton>(renvoyer).onPressed, isNotNull);
-    await _toucher(tester, renvoyer);
-    expect(_compte.demandes, ['awa', 'awa']);
-    expect(
-      find.text('Un nouveau code est parti à aw•••@example.com.'),
-      findsOneWidget,
-    );
-  });
+      await tester.pump(const Duration(seconds: 61));
+      await _avancer(tester);
+      expect(tester.widget<TextButton>(renvoyer).onPressed, isNotNull);
+      await _toucher(tester, renvoyer);
+      expect(_compte.demandes, ['awa', 'awa']);
+      expect(
+        find.text(
+          'Si ce compte a une adresse vérifiée, un nouveau code y est parti.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('code incomplet, mots de passe différents : rien ne part', (
     tester,
@@ -302,7 +303,9 @@ void main() {
     await _toucher(tester, find.text('Changer le mot de passe'));
 
     expect(
-      find.text('Code incorrect. Il vous reste 4 essais.'),
+      find.text(
+        'Code incorrect ou expiré. Vérifiez-le, ou demandez-en un nouveau.',
+      ),
       findsOneWidget,
     );
     expect(tester.widget<TextField>(_champCode).controller!.text, isEmpty);

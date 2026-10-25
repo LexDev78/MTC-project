@@ -25,15 +25,20 @@ class SupabaseDeliveryDatasource {
   /// Les numéros et l'adresse du client viennent de `client_contact`
   /// (`0120`) : l'adresse dès que la course est proposée, le numéro une fois
   /// acceptée, plus rien une fois livrée.
+  ///
+  /// L'adresse de retrait de la boutique vient de `pickup_point` (`0133`),
+  /// pour la même raison : elle n'est plus publique, et le livreur ne la lit
+  /// que tant que la course lui est proposée ou confiée.
   static const _nestedSelect = '''
     *,
+    pickup_point,
     order_data:orders (
       id, client_display_name_snapshot, delivery_city, payment_method,
       client_contact
     ),
     group_data:order_supplier_groups (
       id, supplier_name, delivery_fee_fcfa, subtotal_fcfa,
-      supplier:suppliers (city, full_address, address_latitude, address_longitude, public_phone_numbers),
+      supplier:suppliers (city, public_phone_numbers),
       items:order_items (product_name_snapshot, quantity, variant_name_snapshot)
     )
   ''';

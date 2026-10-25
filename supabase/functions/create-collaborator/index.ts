@@ -12,10 +12,15 @@
 //  2. possède-t-il une boutique — un collaborateur ne recrute pas ;
 //  3. le nom d'utilisateur est-il libre.
 //
-// Le rattachement, lui, n'est pas fait ici : `handle_new_user()` (`0093`)
-// le pose depuis les métadonnées, dans la même transaction que la création
-// du profil. Le faire en deux temps laisserait, sur une coupure, un compte
-// qui existe et n'appartient à aucune boutique.
+// Le rattachement, lui, n'est pas fait ici : la base le pose depuis
+// `app_metadata` (`apply_account_provisioning`, `0128`), dans la même
+// transaction que la création du compte. Le faire en deux temps laisserait,
+// sur une coupure, un compte qui existe et n'appartient à aucune boutique.
+//
+// `app_metadata` et non `user_metadata` : le second s'écrit par n'importe
+// qui à l'inscription publique — c'est ainsi qu'on entrait dans la boutique
+// de son choix avant `0128`. Le premier n'est écrit que par la clé de
+// service, donc par cette fonction, après ses trois gardes.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -139,13 +144,21 @@ Deno.serve(async (request) => {
       // à aucune boîte. Le patron remet le mot de passe de la main à la
       // main.
       email_confirm: true,
+      // Ni rôle ni boutique ici : le compte naît client, et la base le
+      // convertit en collaborateur d'après `app_metadata`. Mettre
+      // `collaborator_of` ou `permissions` dans `user_metadata` fait
+      // désormais échouer la création (`handle_new_user`, `0128`).
       user_metadata: {
-        role: "supplier_tiers",
         display_name: displayName,
         username_or_phone: username,
         phone_number: phoneNumber,
+      },
+      app_metadata: {
         collaborator_of: shopId,
         permissions,
+        // Le patron qui recrute : seul le propriétaire passe la garde 2, et
+        // sa boutique porte son identifiant.
+        invited_by: shopId,
       },
     });
 

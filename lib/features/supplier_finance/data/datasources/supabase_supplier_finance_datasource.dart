@@ -76,6 +76,20 @@ class SupabaseSupplierFinanceDatasource {
     return updated;
   }
 
+  /// Le grand livre de la boutique opérée (`fetch_my_finance_summary`,
+  /// `0131`). Le propriétaire seulement : le serveur refuse un
+  /// collaborateur.
+  Future<Map<String, dynamic>> fetchMyFinanceSummary() async {
+    final row = await _client.rpc('fetch_my_finance_summary');
+    return Map<String, dynamic>.from(row as Map);
+  }
+
+  /// Le total des commissions de la plateforme — administrateurs seulement.
+  Future<int> fetchPlatformCommissionFcfa() async {
+    final total = await _client.rpc('fetch_platform_commission_fcfa');
+    return (total as num).toInt();
+  }
+
   Future<Map<String, dynamic>?> getSettings(String supplierId) {
     return _client
         .from('supplier_finance_settings')

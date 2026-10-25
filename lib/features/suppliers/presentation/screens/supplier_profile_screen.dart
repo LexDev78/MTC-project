@@ -287,7 +287,9 @@ class _Avis extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final avis = ref.watch(supplierReviewsProvider(boutique.id));
+    // La vitrine publique : les champs affichés, et rien de la commande ni
+    // du client (`0134`).
+    final avis = ref.watch(publicSupplierReviewsProvider(boutique.id));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

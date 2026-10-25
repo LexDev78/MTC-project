@@ -17,12 +17,25 @@ final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
   return SupabaseReviewRepository(ref.watch(reviewDatasourceProvider));
 });
 
+/// Les avis de la boutique **que l'on gère** : lignes complètes, pour y
+/// répondre. Le serveur ne les rend qu'à la boutique concernée, à l'auteur
+/// et au staff (`0134`).
 final supplierReviewsProvider = StreamProvider.family<List<Review>, String>((
   ref,
   supplierId,
 ) {
   return ref.watch(reviewRepositoryProvider).watchForSupplier(supplierId);
 });
+
+/// Les cinq derniers avis d'une boutique, pour sa vitrine publique : ce qui
+/// s'affiche, et rien de la commande ni du client (`fetch_supplier_reviews`,
+/// `0134`).
+final publicSupplierReviewsProvider = FutureProvider.autoDispose
+    .family<List<ProductReview>, String>((ref, supplierId) {
+      return ref
+          .watch(reviewRepositoryProvider)
+          .fetchSupplierReviews(supplierId, limit: 5);
+    });
 
 typedef ReviewKey = ({String orderId, String groupId});
 

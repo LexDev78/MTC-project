@@ -34,9 +34,21 @@ class SupplierLocationScreen extends ConsumerWidget {
             ? const MtcLoadingView()
             : AsyncValueWidget(
                 value: ref.watch(supplierDetailProvider(supplierId)),
-                data: (supplier) => SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: _LocationForm(supplier: supplier),
+                data: (supplier) => AsyncValueWidget(
+                  // L'adresse exacte ne vient plus avec la fiche publique
+                  // (`0133`) : elle se lit à part, et seulement ici.
+                  value: ref.watch(myShopLocationProvider),
+                  data: (adresse) => SingleChildScrollView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: _LocationForm(
+                      supplier: supplier.copyWith(
+                        fullAddress: adresse?.fullAddress,
+                        addressLatitude: adresse?.latitude,
+                        addressLongitude: adresse?.longitude,
+                        positionConfirmedAt: adresse?.positionConfirmedAt,
+                      ),
+                    ),
+                  ),
                 ),
               ),
       ),

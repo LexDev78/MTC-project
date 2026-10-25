@@ -106,8 +106,9 @@ void main() {
       // products must no longer be publicly visible.
       await login('client1');
       final client = container.read(supabaseClientProvider);
+      // La fiche publique (`0133`) : `select *` sur la table est refusé.
       final supplierRows = await client
-          .from('suppliers')
+          .from('supplier_storefronts')
           .select()
           .eq('id', DemoIds.supplierBogolanBamako);
       expect(supplierRows, isEmpty);

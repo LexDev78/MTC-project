@@ -482,7 +482,8 @@ class _StatsBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summary = ref.watch(supplierDashboardSummaryProvider).valueOrNull;
+    // Calculé par le serveur, et envoyé au seul propriétaire (`0131`).
+    final summary = stats.finance;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -574,11 +575,21 @@ class _StatsBody extends ConsumerWidget {
                     muted: true,
                   ),
                   const Divider(),
-                  _MoneyRow(
-                    label: 'Disponible au retrait',
-                    amountFcfa: summary.availableFcfa,
-                    strong: true,
-                  ),
+                  // Ce qu'une boutique encaisse en livrant elle-même ne se
+                  // retire pas : sa commission seule compte, à son débit.
+                  // Un solde négatif se dit donc comme ce qu'il est.
+                  if (summary.owedToMtcFcfa > 0)
+                    _MoneyRow(
+                      label: 'Commission à régler à MTC',
+                      amountFcfa: summary.owedToMtcFcfa,
+                      strong: true,
+                    )
+                  else
+                    _MoneyRow(
+                      label: 'Disponible au retrait',
+                      amountFcfa: summary.availableFcfa,
+                      strong: true,
+                    ),
                 ],
               ],
             ),

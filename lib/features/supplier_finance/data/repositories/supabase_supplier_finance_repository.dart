@@ -6,6 +6,7 @@ import 'package:mtc_app/core/error/exceptions.dart';
 import '../../../orders/domain/entities/payment.dart';
 import '../../domain/entities/payout_request.dart';
 import '../../domain/entities/supplier_finance_settings.dart';
+import '../../domain/entities/supplier_financial_summary.dart';
 import '../../domain/repositories/supplier_finance_repository.dart';
 import '../datasources/supabase_supplier_finance_datasource.dart';
 
@@ -13,6 +14,23 @@ class SupabaseSupplierFinanceRepository implements SupplierFinanceRepository {
   SupabaseSupplierFinanceRepository(this._datasource);
 
   final SupabaseSupplierFinanceDatasource _datasource;
+
+  @override
+  Future<SupplierFinancialSummary> fetchMyFinanceSummary() async {
+    try {
+      return SupplierFinancialSummary.fromRow(
+        await _datasource.fetchMyFinanceSummary(),
+      );
+    } on PostgrestException catch (e) {
+      // Le refus est rédigé pour l'utilisateur (« réservées à son
+      // propriétaire »).
+      throw ValidationException(e.message);
+    }
+  }
+
+  @override
+  Future<int> fetchPlatformCommissionFcfa() =>
+      _datasource.fetchPlatformCommissionFcfa();
 
   @override
   Stream<List<PayoutRequest>> watchPayoutRequests(String supplierId) {

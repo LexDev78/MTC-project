@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import 'package:mtc_app/core/di/providers.dart';
 import 'package:mtc_app/core/mock_data/demo_ids.dart';
@@ -67,7 +68,13 @@ void main() {
 
       final updated = await repo.getById(DemoIds.supplierBogolanBamako);
       expect(updated.description, 'Tissus traditionnels tissés main.');
-      expect(updated.fullAddress, 'Marché de Médine, Bamako');
+      // L'adresse exacte n'est plus sur la fiche publique (`0133`) : la
+      // boutique la relit à part.
+      expect(updated.fullAddress, isNull);
+      expect(
+        (await repo.fetchMyShopLocation())?.fullAddress,
+        'Marché de Médine, Bamako',
+      );
       expect(updated.publicPhoneNumbers, ['+22370000000', '+22370000001']);
       expect(updated.deliveryZones, ['Bamako', 'Kati']);
       expect(updated.openingHoursLabel, 'Lun-Sam 8h-18h');
@@ -106,13 +113,14 @@ void main() {
       expect(ok, isTrue);
 
       final repository = container.read(supplierRepositoryProvider);
-      var updated = await repository.getById(DemoIds.supplierBogolanBamako);
-      expect(updated.fullAddress, 'Rue 123, Bamako');
-      expect(updated.addressLatitude, closeTo(pose.latitude, 0.00001));
-      expect(updated.addressLongitude, closeTo(pose.longitude, 0.00001));
+      var adresse = (await repository.fetchMyShopLocation())!;
+      expect(adresse.fullAddress, 'Rue 123, Bamako');
+      expect(adresse.latitude, closeTo(pose.latitude, 0.00001));
+      expect(adresse.longitude, closeTo(pose.longitude, 0.00001));
+      expect(adresse.positionConfirmedAt, isNotNull);
       // Et surtout : ce n'est pas le centre de Bamako.
       expect(
-        updated.addressLatitude,
+        adresse.latitude,
         isNot(closeTo(MalianCity.bamako.coordinates.latitude, 0.0001)),
       );
 
@@ -126,8 +134,9 @@ void main() {
             deliveryZones: const ['Bamako', 'Kati'],
           );
 
-      updated = await repository.getById(DemoIds.supplierBogolanBamako);
-      expect(updated.addressLatitude, closeTo(pose.latitude, 0.00001));
+      adresse = (await repository.fetchMyShopLocation())!;
+      expect(adresse.latitude, closeTo(pose.latitude, 0.00001));
+      final updated = await repository.getById(DemoIds.supplierBogolanBamako);
       expect(updated.deliveryZones, ['Bamako', 'Kati']);
     },
   );
@@ -168,8 +177,9 @@ void main() {
       var updated = await repository.getById(DemoIds.supplierBogolanBamako);
       expect(updated.description, 'Une description toute neuve.');
       // L'adresse et le repère ont survécu à l'enregistrement de la vitrine.
-      expect(updated.fullAddress, 'Rue 123, Bamako');
-      expect(updated.addressLatitude, closeTo(12.6601, 0.00001));
+      var adresse = (await repository.fetchMyShopLocation())!;
+      expect(adresse.fullAddress, 'Rue 123, Bamako');
+      expect(adresse.latitude, closeTo(12.6601, 0.00001));
       expect(updated.deliveryZones, ['Bamako']);
 
       // Et dans l'autre sens.
@@ -180,7 +190,8 @@ void main() {
       );
 
       updated = await repository.getById(DemoIds.supplierBogolanBamako);
-      expect(updated.fullAddress, 'Rue 456, Bamako');
+      adresse = (await repository.fetchMyShopLocation())!;
+      expect(adresse.fullAddress, 'Rue 456, Bamako');
       expect(updated.description, 'Une description toute neuve.');
       expect(updated.openingHoursLabel, 'Lun-Ven 9h-17h');
       expect(updated.publicPhoneNumbers, ['+22370000003']);
@@ -286,7 +297,11 @@ void main() {
       final apresLocalisation = await container.read(
         supplierDetailProvider(DemoIds.supplierBogolanBamako).future,
       );
-      expect(apresLocalisation.fullAddress, 'Rue 789, Bamako');
+      // L'adresse se relit à part (`0133`), et elle aussi est rafraîchie.
+      expect(
+        (await container.read(myShopLocationProvider.future))?.fullAddress,
+        'Rue 789, Bamako',
+      );
       // Et la vitrine n'a pas été perdue au passage.
       expect(
         apresLocalisation.description,
@@ -304,7 +319,10 @@ void main() {
   // n'avait été enregistré.
   //
   // Ce test suit le chemin complet, d'une session à l'autre.
-  test('ce que le fournisseur enregistre, le client le lit', () async {
+  //
+  // Tout, sauf l'adresse exacte et le point GPS (`0133`) : pour un vendeur
+  // particulier, c'est souvent son domicile. Le visiteur voit la ville.
+  test('ce que le fournisseur enregistre, le client le lit, sauf son adresse', () async {
     await container
         .read(authRepositoryProvider)
         .login(usernameOrPhone: 'fournisseur1', password: 'password123');
@@ -336,9 +354,26 @@ void main() {
     ).getById(DemoIds.supplierBogolanBamako);
 
     expect(vu.description, 'Tissés main, teinture végétale.');
-    expect(vu.fullAddress, 'Marché de Médine, Bamako');
+    expect(vu.city, 'Bamako');
+    expect(vu.fullAddress, isNull);
+    expect(vu.addressLatitude, isNull);
+    expect(vu.addressLongitude, isNull);
     expect(vu.openingHoursLabel, 'Lun-Sam 8h-18h');
     expect(vu.publicPhoneNumbers, ['+22376000000']);
     expect(vu.deliveryZones, ['Bamako', 'Kati']);
+
+    // Et en la demandant à la table, le refus est net.
+    await expectLater(
+      visiteur
+          .from('suppliers')
+          .select('full_address, address_latitude')
+          .eq('id', DemoIds.supplierBogolanBamako),
+      throwsA(isA<PostgrestException>()),
+    );
+    // Ni par la fonction de la boutique : elle est fermée sans session.
+    await expectLater(
+      visiteur.rpc('fetch_my_shop_location'),
+      throwsA(isA<PostgrestException>()),
+    );
   });
 }

@@ -24,7 +24,8 @@ enum PayoutStatus {
 /// A supplier's withdrawal request against their available balance (see
 /// `SupplierFinancialSummary.availableFcfa`) — the only element of the
 /// finance feature actually **stored**; the summary itself is always
-/// computed fresh from delivered orders (see `computeFinancialSummary`).
+/// computed fresh by the server from the money MTC actually received
+/// (`supplier_ledger`, `0131`).
 @freezed
 class PayoutRequest with _$PayoutRequest {
   const factory PayoutRequest({

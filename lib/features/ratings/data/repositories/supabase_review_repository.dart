@@ -56,6 +56,18 @@ class SupabaseReviewRepository implements ReviewRepository {
   }
 
   @override
+  Future<List<ProductReview>> fetchSupplierReviews(
+    String supplierId, {
+    int limit = 20,
+  }) async {
+    final rows = await _datasource.fetchSupplierReviews(
+      supplierId: supplierId,
+      limit: limit,
+    );
+    return rows.map(ProductReview.fromJson).toList();
+  }
+
+  @override
   Future<ProductReviewSummary> fetchProductReviewSummary(
     String productId,
   ) async {

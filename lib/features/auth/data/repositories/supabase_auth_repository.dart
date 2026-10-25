@@ -203,28 +203,6 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AppUser> signUpSupplierPrincipal({
-    required String displayName,
-    required String usernameOrPhone,
-    required String phoneNumber,
-    required String password,
-    required StaffRole staffRole,
-  }) async {
-    final userId = await _signUp(
-      usernameOrPhone: usernameOrPhone,
-      password: password,
-      data: {
-        'role': 'supplier_principal',
-        'username_or_phone': usernameOrPhone,
-        'display_name': displayName,
-        'phone_number': phoneNumber,
-        'staff_role': staffRole.name,
-      },
-    );
-    return _hydrateAppUser(userId);
-  }
-
-  @override
   Future<void> logout() => _datasource.signOut();
 
   @override
@@ -384,7 +362,6 @@ class SupabaseAuthRepository implements AuthRepository {
       throw ValidationException(e.message);
     }
     return (
-      maskedEmail: reponse['masked_email'] as String,
       expiresAt: DateTime.parse(reponse['expires_at'] as String),
       resendAfterSeconds: (reponse['resend_after_seconds'] as num).toInt(),
     );

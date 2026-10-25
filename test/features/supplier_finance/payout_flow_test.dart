@@ -147,16 +147,16 @@ void main() {
       await container.read(currentUserProvider.future);
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      // Seeded: two delivered groups for Bogolan Bamako — order-awa-delivered
-      // (25000) and seed-order-1 (25000, the order `seed-review-1`
-      // references — needs a real row to satisfy the FK now that reviews
-      // live in the same relational schema, unlike the old unlinked
-      // in-memory collections). Gross 50000, 10% commission → net 45000,
-      // already paid out 10000 → available 35000.
+      // Seeded: two delivered groups for Bogolan Bamako, 25000 each.
+      // order-awa-delivered was paid by Orange Money and MTC received it;
+      // seed-order-1 was delivered by the shop itself and paid in cash, so
+      // the money is already with the shop (`0131`). MTC owes 25000 − 10 %
+      // on it − 10 % on the cash sale = 20000, already paid out 10000 →
+      // available 10000. The old rule counted both sales and said 35000.
       final tooMuch = await container
           .read(supplierFinanceControllerProvider.notifier)
           .requestPayout(
-            amountFcfa: 40000,
+            amountFcfa: 10001,
             method: MobileMoneyProvider.orangeMoney,
             payoutDestination: '+22370000001',
           );
@@ -165,7 +165,7 @@ void main() {
       final ok = await container
           .read(supplierFinanceControllerProvider.notifier)
           .requestPayout(
-            amountFcfa: 20000,
+            amountFcfa: 10000,
             method: MobileMoneyProvider.orangeMoney,
             payoutDestination: '+22370000001',
           );
@@ -175,7 +175,7 @@ void main() {
           .read(supplierFinanceRepositoryProvider)
           .watchPayoutRequests(DemoIds.supplierBogolanBamako)
           .first;
-      expect(payouts.any((p) => p.amountFcfa == 20000), isTrue);
+      expect(payouts.any((p) => p.amountFcfa == 10000), isTrue);
     },
   );
 

@@ -136,7 +136,6 @@ void main() {
       args: (
         identifier: 'awa',
         request: (
-          maskedEmail: 'aw•••@example.com',
           expiresAt: DateTime(2026, 10, 22, 10, 10),
           resendAfterSeconds: 60,
         ),

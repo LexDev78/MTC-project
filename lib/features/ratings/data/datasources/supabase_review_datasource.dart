@@ -122,6 +122,20 @@ class SupabaseReviewDatasource {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
+  /// Les avis d'une boutique, pour sa vitrine publique
+  /// (`fetch_supplier_reviews`, `0134`) : ni client, ni commande. La table
+  /// elle-même ne se lit plus que par l'auteur, la boutique et le staff.
+  Future<List<Map<String, dynamic>>> fetchSupplierReviews({
+    required String supplierId,
+    int limit = 20,
+  }) async {
+    final rows = await _client.rpc(
+      'fetch_supplier_reviews',
+      params: {'p_supplier_id': supplierId, 'p_limit': limit},
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
   Future<Map<String, dynamic>?> fetchProductReviewSummary(
     String productId,
   ) async {

@@ -2,10 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/features/orders/domain/entities/payment.dart' show MobileMoneyProvider;
-import 'package:mtc_app/features/orders/presentation/providers/supplier_order_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
-import '../../domain/compute_financial_summary.dart';
 import '../../domain/entities/payout_request.dart';
 import '../providers/supplier_finance_providers.dart';
 
@@ -35,17 +33,12 @@ class SupplierFinanceController extends AsyncNotifier<void> {
         throw const ValidationException('Le montant doit être positif');
       }
 
-      // Awaited fresh rather than read off `financialSummaryProvider`
-      // directly — that derived provider only has a value once some
-      // screen has already watched it, which isn't guaranteed here.
-      final views = await ref.read(supplierOrdersProvider(supplierId).future);
-      final settings = await ref.read(financeSettingsProvider(supplierId).future);
-      final payouts = await ref.read(payoutRequestsProvider(supplierId).future);
-      final summary = computeFinancialSummary(
-        supplierGroups: [for (final v in views) v.myGroup],
-        commissionRatePercent: settings.commissionRatePercent,
-        payoutRequests: payouts,
-      );
+      // Relu à l'instant chez le serveur plutôt que pris sur l'écran : le
+      // solde affiché a pu vieillir. Ce n'est qu'un refus poli — la garde
+      // des retraits (`guard_payout_amount`) refait le compte sous verrou.
+      final summary = await ref
+          .read(supplierFinanceRepositoryProvider)
+          .fetchMyFinanceSummary();
       if (amountFcfa > summary.availableFcfa) {
         throw const ValidationException(
           'Le montant dépasse votre solde disponible',

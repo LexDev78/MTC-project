@@ -70,7 +70,10 @@ void main() {
       await tester.tap(find.text('Demander un retrait'));
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      expect(find.text('Solde disponible : 35000 FCFA'), findsOneWidget);
+      // 25 000 reçus par MTC (Orange Money), moins 10 % sur les deux ventes
+      // — l'autre a été encaissée par la boutique —, moins 10 000 déjà
+      // versés (`0131`).
+      expect(find.text('Solde disponible : 10000 FCFA'), findsOneWidget);
 
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Montant (FCFA)'),

@@ -165,8 +165,10 @@ class _ForgotPasswordCodeScreenState
         lancerCompteARebours(nouvelle.resendAfterSeconds);
       });
       messager.showSnackBar(
-        SnackBar(
-          content: Text('Un nouveau code est parti à ${nouvelle.maskedEmail}.'),
+        const SnackBar(
+          content: Text(
+            'Si ce compte a une adresse vérifiée, un nouveau code y est parti.',
+          ),
         ),
       );
     } on ValidationException catch (e) {
@@ -216,20 +218,26 @@ class _ForgotPasswordCodeScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Le serveur ne dit pas si le compte existe (`0132`) : l'écran
+                // ne l'affirme pas non plus. L'identifiant, lui, est celui
+                // que la personne vient de taper — rien de secret.
                 Text.rich(
                   TextSpan(
                     children: [
-                      const TextSpan(
-                        text: 'Nous avons envoyé un code à six chiffres à ',
-                      ),
+                      const TextSpan(text: 'Si '),
                       TextSpan(
-                        text: demande.maskedEmail,
+                        text: '« ${widget.args!.identifier} »',
                         style: TextStyle(
                           color: scheme.onSurface,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const TextSpan(text: '. Il est valable 10 minutes.'),
+                      const TextSpan(
+                        text:
+                            ' correspond à un compte doté d\'une adresse '
+                            'e-mail vérifiée, un code à six chiffres vient d\'y '
+                            'partir. Il est valable 10 minutes.',
+                      ),
                     ],
                   ),
                   style: textTheme.bodyMedium?.copyWith(

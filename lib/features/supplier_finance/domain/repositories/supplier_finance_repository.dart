@@ -2,8 +2,18 @@ import 'package:mtc_app/features/orders/domain/entities/payment.dart' show Mobil
 
 import '../entities/payout_request.dart';
 import '../entities/supplier_finance_settings.dart';
+import '../entities/supplier_financial_summary.dart';
 
 abstract interface class SupplierFinanceRepository {
+  /// Le grand livre de la boutique que l'on opère, calculé par le serveur
+  /// (`0131`) : ce que MTC a encaissé, ce que la boutique a encaissé
+  /// elle-même, et ce qui reste à retirer. Réservé au propriétaire.
+  Future<SupplierFinancialSummary> fetchMyFinanceSummary();
+
+  /// Le total des commissions de la plateforme, boutique par boutique,
+  /// avec la même règle — administrateurs seulement.
+  Future<int> fetchPlatformCommissionFcfa();
+
   Stream<List<PayoutRequest>> watchPayoutRequests(String supplierId);
 
   /// Every payout request across every supplier — admin only, cross-

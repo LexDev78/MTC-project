@@ -1,9 +1,4 @@
 import '../../domain/entities/supplier_collaborator.dart';
-import 'operating_supplier_providers.dart';
-import 'package:mtc_app/features/supplier_finance/presentation/providers/supplier_finance_providers.dart';
-import 'package:mtc_app/features/supplier_finance/domain/entities/supplier_financial_summary.dart';
-import 'package:mtc_app/features/supplier_finance/domain/compute_financial_summary.dart';
-import 'package:mtc_app/core/constants/app_constants.dart';
 import '../../domain/entities/supplier_dashboard_stats.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,6 +24,17 @@ final supplierDetailProvider = FutureProvider.family<SupplierProfile, String>((
   id,
 ) {
   return ref.watch(supplierRepositoryProvider).getById(id);
+});
+
+/// L'adresse de retrait de la boutique opérée, pour l'écran qui la tient à
+/// jour. La fiche de [supplierDetailProvider] ne la porte plus (`0133`).
+///
+/// `autoDispose` : relue à chaque ouverture de l'écran, et jamais gardée en
+/// mémoire au-delà — c'est une adresse, souvent celle d'un domicile.
+final myShopLocationProvider = FutureProvider.autoDispose<ShopLocation?>((
+  ref,
+) {
+  return ref.watch(supplierRepositoryProvider).fetchMyShopLocation();
 });
 
 /// « Boutiques du Mali » : les boutiques que le client peut visiter, MTC
@@ -58,39 +64,6 @@ final listedShopsProvider = FutureProvider.autoDispose<List<SupplierProfile>>((
 final supplierDashboardStatsProvider =
     FutureProvider.autoDispose<SupplierDashboardStats>((ref) {
       return ref.watch(supplierRepositoryProvider).fetchDashboardStats();
-    });
-
-
-/// Le résumé financier du tableau de bord, calculé depuis les totaux que le
-/// serveur a comptés.
-///
-/// Passe par `summaryFromTotals` plutôt que de refaire la soustraction :
-/// commission, net et solde disponible disent au fournisseur combien il a
-/// gagné, et cette règle n'a le droit d'exister qu'une fois.
-final supplierDashboardSummaryProvider =
-    Provider.autoDispose<AsyncValue<SupplierFinancialSummary>>((ref) {
-      final stats = ref.watch(supplierDashboardStatsProvider);
-      final supplierId = ref.watch(operatingSupplierIdProvider);
-      final settings = supplierId == null
-          ? null
-          : ref.watch(financeSettingsProvider(supplierId)).valueOrNull;
-
-      if (stats.isLoading) return const AsyncLoading();
-      if (stats.hasError) {
-        return AsyncError(stats.error!, stats.stackTrace!);
-      }
-
-      return AsyncData(
-        summaryFromTotals(
-          grossFcfa: stats.value!.grossFcfa,
-          // Le taux du fournisseur s'il en a un, celui de la plateforme
-          // sinon — même repli que l'écran des finances.
-          commissionRatePercent:
-              settings?.commissionRatePercent ??
-              AppConstants.defaultCommissionRatePercent,
-          paidOutFcfa: stats.value!.paidOutFcfa,
-        ),
-      );
     });
 
 /// L'équipe de la boutique.

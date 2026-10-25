@@ -24,6 +24,8 @@ Map<String, dynamic> _ligne({
   'supplier_group_id': 'groupe-1',
   'status': statut,
   'offer_expires_at': null,
+  // L'adresse de retrait, rendue à part (`pickup_point`, `0133`).
+  'pickup_point': {'full_address': 'Marché Rose'},
   'order_data': {
     'id': 'cmd-1',
     'client_display_name_snapshot': 'Awa Traoré',
@@ -36,13 +38,7 @@ Map<String, dynamic> _ligne({
     'supplier_name': 'Electro Bamako',
     'delivery_fee_fcfa': 1000,
     'subtotal_fcfa': 85000,
-    'supplier': {
-      'city': 'Bamako',
-      'full_address': 'Marché Rose',
-      'address_latitude': null,
-      'address_longitude': null,
-      'public_phone_numbers': <String>[],
-    },
+    'supplier': {'city': 'Bamako', 'public_phone_numbers': <String>[]},
     'items': [
       {
         'product_name_snapshot': 'Smartphone',

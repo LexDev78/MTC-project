@@ -31,6 +31,14 @@ abstract interface class ReviewRepository {
     ReviewSort sort,
   });
 
+  /// Les avis d'une boutique, pour sa vitrine publique, du plus récent au
+  /// plus ancien. Sans rien de la commande ni du client (`0134`) —
+  /// [watchForSupplier], lui, sert la boutique qui gère ses avis.
+  Future<List<ProductReview>> fetchSupplierReviews(
+    String supplierId, {
+    int limit,
+  });
+
   Future<ProductReviewSummary> fetchProductReviewSummary(String productId);
 
   /// Le nombre d'avis par note (1 à 5) ; une note sans avis est absente.

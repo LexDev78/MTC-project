@@ -10,6 +10,12 @@ class SupabaseSupplierDatasource {
 
   final SupabaseClient _client;
 
+  /// Les lectures passent par la fiche publique (`0133`) : l'adresse exacte
+  /// et la position GPS d'une boutique n'y figurent pas, et `select *` sur
+  /// la table elle-même est refusé à toute session. Les écritures, elles,
+  /// vont toujours à `suppliers`.
+  static const _vitrines = 'supplier_storefronts';
+
   /// No Realtime here (out of scope for this lot, see
   /// BACKEND_MIGRATION_PROGRESS.md) — re-fetches on every write made
   /// through this same repository instance, same "notify after mutation"
@@ -29,7 +35,7 @@ class SupabaseSupplierDatasource {
 
   Stream<List<Map<String, dynamic>>> watchByType(String supplierType) {
     return _watch(
-      () => _client.from('suppliers').select().eq('supplier_type', supplierType),
+      () => _client.from(_vitrines).select().eq('supplier_type', supplierType),
     );
   }
 
@@ -37,7 +43,7 @@ class SupabaseSupplierDatasource {
   /// vitrine annonce au client — une fonction, que `*` n'inclut pas.
   Future<Map<String, dynamic>> getById(String id) {
     return _client
-        .from('suppliers')
+        .from(_vitrines)
         .select('*, listed_product_count')
         .eq('id', id)
         .single();
@@ -46,7 +52,7 @@ class SupabaseSupplierDatasource {
   Stream<List<Map<String, dynamic>>> watchTopRated({required int limit}) {
     return _watch(
       () => _client
-          .from('suppliers')
+          .from(_vitrines)
           .select()
           .or('verification_status.eq.verified,verification_status.is.null')
           .order('rating_average', ascending: false)
@@ -63,16 +69,18 @@ class SupabaseSupplierDatasource {
   /// boutique tierce la ferait passer pour vérifiée.
   Future<List<Map<String, dynamic>>> fetchListed() {
     return _client
-        .from('suppliers')
+        .from(_vitrines)
         .select('*, listed_product_count')
         .or('verification_status.eq.verified,supplier_type.eq.principal')
         .order('business_name');
   }
 
   Future<Map<String, dynamic>> add(Map<String, dynamic> row) async {
-    final inserted = await _client.from('suppliers').insert(row).select().single();
+    // Pas de `.select()` sur l'insertion : il relirait la ligne entière,
+    // adresse comprise, ce qu'aucune session ne peut plus faire (`0133`).
+    await _client.from('suppliers').insert(row);
     _notify();
-    return inserted;
+    return getById(row['id'] as String);
   }
 
   Future<({double average, int count})> recordReview({
@@ -122,6 +130,13 @@ class SupabaseSupplierDatasource {
   Future<void> setOpen(String supplierId, bool isOpen) async {
     await _client.from('suppliers').update({'is_open': isOpen}).eq('id', supplierId);
     _notify();
+  }
+
+  /// L'adresse de retrait de la boutique opérée (`fetch_my_shop_location`,
+  /// `0133`) — `null` pour qui n'a pas le droit de vitrine.
+  Future<Map<String, dynamic>?> fetchMyShopLocation() async {
+    final row = await _client.rpc('fetch_my_shop_location');
+    return row == null ? null : Map<String, dynamic>.from(row as Map);
   }
 
   /// Les chiffres du tableau de bord, comptés côté serveur (`0092`).

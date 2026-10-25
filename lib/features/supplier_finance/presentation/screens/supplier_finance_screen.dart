@@ -8,11 +8,9 @@ import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/orders/domain/entities/payment.dart';
-import 'package:mtc_app/features/orders/presentation/providers/supplier_order_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 import 'package:mtc_app/core/error/user_message.dart';
 
-import '../../domain/compute_financial_summary.dart';
 import '../../domain/entities/payout_request.dart';
 import '../../domain/entities/supplier_financial_summary.dart';
 import '../controllers/supplier_finance_controller.dart';
@@ -61,10 +59,25 @@ class _TiersFinance extends ConsumerWidget {
 
     return AsyncValueWidget(
       value: summaryAsync,
+      // Le grand livre se relit à chaque commande ou retrait qui bouge : on
+      // garde le chiffre affiché pendant ce temps plutôt que de vider la page.
+      skipLoadingOnReload: true,
       data: (summary) => ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           _SummaryCard(summary: summary),
+          const SizedBox(height: AppSpacing.sm),
+          // La règle, dite une fois : sans elle, « encaissé par vous » qui
+          // ne s'ajoute pas au disponible ressemble à une erreur de calcul.
+          Text(
+            'Seul l\'argent reçu par MTC se retire : un paiement en ligne '
+            'confirmé, ou un paiement à la livraison encaissé par un livreur '
+            'MTC. Ce que vous encaissez vous-même en livrant reste chez vous ; '
+            'sa commission est déduite ici.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: AppSpacing.md),
           MtcPrimaryButton(
             label: 'Demander un retrait',
@@ -113,18 +126,14 @@ class _PrincipalFinance extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ordersAsync = ref.watch(supplierOrdersProvider(supplierId));
+    // Le grand livre de la boutique MTC : le serveur n'y prend aucune
+    // commission — MTC ne se vend pas à lui-même.
+    final summaryAsync = ref.watch(financialSummaryProvider(supplierId));
 
     return AsyncValueWidget(
-      value: ordersAsync,
-      data: (views) {
-        // MTC's own direct sales carry no platform commission — it isn't
-        // selling to itself.
-        final summary = computeFinancialSummary(
-          supplierGroups: [for (final v in views) v.myGroup],
-          commissionRatePercent: 0,
-          payoutRequests: const [],
-        );
+      value: summaryAsync,
+      skipLoadingOnReload: true,
+      data: (summary) {
         return ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
@@ -203,42 +212,88 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-    Widget row(String label, int amount, {bool emphasize = false}) {
+    // `detail` : une ligne qui décompose celle du dessus, en retrait et en
+    // plus discret — elle explique le chiffre, elle ne s'y ajoute pas.
+    Widget row(
+      String label,
+      int amount, {
+      bool emphasize = false,
+      bool detail = false,
+      Color? color,
+    }) {
+      final style = emphasize
+          ? theme.textTheme.titleMedium?.copyWith(
+              color: color ?? scheme.primary,
+              fontWeight: FontWeight.w700,
+            )
+          : detail
+          ? theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)
+          : theme.textTheme.bodyMedium;
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: EdgeInsets.only(
+          top: AppSpacing.xs,
+          bottom: AppSpacing.xs,
+          left: detail ? AppSpacing.md : 0,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label),
-            CurrencyText(
-              amount,
-              style: emphasize
-                  ? Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                    )
-                  : Theme.of(context).textTheme.bodyMedium,
-            ),
+            Flexible(child: Text(label, style: detail ? style : null)),
+            const SizedBox(width: AppSpacing.sm),
+            CurrencyText(amount, style: style),
           ],
         ),
       );
     }
 
+    final taux = summary.commissionRatePercent;
+    final libelleTaux = taux == taux.roundToDouble()
+        ? taux.toStringAsFixed(0)
+        : taux.toStringAsFixed(1);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             row('Ventes brutes', summary.grossFcfa),
-            row('Commission plateforme', -summary.commissionFcfa),
-            const Divider(),
-            row('Net', summary.netFcfa),
-            row('Déjà retiré', -summary.paidOutFcfa),
+            row('Encaissé par MTC', summary.collectedByMtcFcfa, detail: true),
+            if (summary.collectedBySupplierFcfa > 0)
+              row(
+                'Encaissé par vous',
+                summary.collectedBySupplierFcfa,
+                detail: true,
+              ),
+            if (summary.awaitingPaymentFcfa > 0)
+              row(
+                'Paiement en ligne à confirmer',
+                summary.awaitingPaymentFcfa,
+                detail: true,
+              ),
+            // MTC ne se prend rien sur ses propres ventes : la ligne n'a
+            // alors rien à dire.
+            if (taux > 0)
+              row('Commission MTC ($libelleTaux %)', -summary.commissionFcfa),
             if (showAvailable) ...[
               const Divider(),
-              row('Disponible', summary.availableFcfa, emphasize: true),
+              row('Dû par MTC', summary.netFcfa),
+              row('Déjà retiré', -summary.paidOutFcfa),
+              const Divider(),
+              // Un solde négatif n'est pas un « disponible » de −2 500 : c'est
+              // une commission que la boutique doit encore.
+              if (summary.owedToMtcFcfa > 0)
+                row(
+                  'Commission à régler à MTC',
+                  summary.owedToMtcFcfa,
+                  emphasize: true,
+                  color: scheme.error,
+                )
+              else
+                row('Disponible', summary.availableFcfa, emphasize: true),
             ],
           ],
         ),

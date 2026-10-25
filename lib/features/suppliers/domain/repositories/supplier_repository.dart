@@ -7,6 +7,17 @@ import 'package:mtc_app/features/catalog/domain/entities/product_category.dart'
 
 import '../entities/supplier_profile.dart';
 
+/// L'adresse de retrait d'une boutique, telle qu'elle seule la lit
+/// (`fetch_my_shop_location`, `0133`) — avec le livreur pendant sa course et
+/// le staff. Elle ne figure plus sur la fiche publique : pour un vendeur
+/// particulier, c'est souvent son domicile.
+typedef ShopLocation = ({
+  String? fullAddress,
+  double? latitude,
+  double? longitude,
+  DateTime? positionConfirmedAt,
+});
+
 abstract interface class SupplierRepository {
   Stream<List<SupplierProfile>> watchByType(SupplierType type);
 
@@ -79,6 +90,10 @@ abstract interface class SupplierRepository {
     required String? openingHoursLabel,
   });
 
+  /// L'adresse de retrait de la boutique que l'on opère, ou `null` sans le
+  /// droit de vitrine. La fiche publique ([getById]) ne la porte pas.
+  Future<ShopLocation?> fetchMyShopLocation();
+
   /// Où la boutique se trouve, et où elle livre.
   Future<void> updateLocation({
     required String supplierId,
@@ -89,9 +104,8 @@ abstract interface class SupplierRepository {
   });
 
   /// Les chiffres du tableau de bord du fournisseur connecté : ventes,
-  /// vues, chiffre d'affaires livré, versements. Pas la commission ni le
-  /// net — ceux-là suivent une règle qui vit dans
-  /// `compute_financial_summary.dart`.
+  /// vues, chiffre d'affaires livré — et, pour le propriétaire, le grand
+  /// livre calculé par le serveur (`0131`).
   Future<SupplierDashboardStats> fetchDashboardStats();
 
   /// L'équipe de la boutique. Vide pour un collaborateur : il n'a pas à

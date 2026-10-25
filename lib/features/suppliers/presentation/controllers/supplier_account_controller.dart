@@ -28,6 +28,7 @@ class SupplierAccountController extends AsyncNotifier<void> {
   /// plus souvent l'avait oublié.
   void _refreshCachedProfile(String supplierId) {
     ref.invalidate(supplierDetailProvider(supplierId));
+    ref.invalidate(myShopLocationProvider);
   }
 
   /// Ce que la boutique montre d'elle-même : nom, bannière, description,
@@ -81,6 +82,9 @@ class SupplierAccountController extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final repository = ref.read(supplierRepositoryProvider);
       final supplier = await repository.getById(supplierId);
+      // Le point déjà enregistré ne figure plus sur la fiche publique
+      // (`0133`) : il se lit à part.
+      final enregistre = await repository.fetchMyShopLocation();
 
       // Ordre de préférence : le point qu'on vient de poser, sinon celui déjà
       // enregistré, et en tout dernier recours le centre de la ville.
@@ -92,11 +96,11 @@ class SupplierAccountController extends AsyncNotifier<void> {
       // soit d'autre tant qu'il n'a pas placé son repère.
       final latitude =
           pickupPoint?.latitude ??
-          supplier.addressLatitude ??
+          enregistre?.latitude ??
           _cityCenter(supplier.city).latitude;
       final longitude =
           pickupPoint?.longitude ??
-          supplier.addressLongitude ??
+          enregistre?.longitude ??
           _cityCenter(supplier.city).longitude;
 
       await repository.updateLocation(
