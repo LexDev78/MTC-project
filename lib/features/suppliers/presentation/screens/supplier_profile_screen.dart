@@ -104,8 +104,9 @@ class _Vitrine extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: ShopSizes.padding / 2),
-              if (boutique.fullAddress case final adresse?)
-                _Ligne(icon: ShopIcons.location, text: adresse),
+              // Pas d'adresse exacte ici : la vitrine publique dit la ville
+              // (dans l'en-tête), pas la porte — pour un vendeur
+              // particulier, c'est souvent son domicile (`0133`).
               if (boutique.openingHoursLabel case final horaires?)
                 _Ligne(icon: ShopIcons.clock, text: horaires),
               if (boutique.publicPhoneNumbers.isNotEmpty)

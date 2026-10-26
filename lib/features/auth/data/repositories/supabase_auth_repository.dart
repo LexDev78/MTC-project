@@ -501,6 +501,84 @@ class SupabaseAuthRepository implements AuthRepository {
     ].contains(erreur.runtimeType.toString()),
   };
 
+  /// Une session staff ouverte au seul mot de passe, alors que la base exige
+  /// le code d'une application d'authentification (`0135`).
+  ///
+  /// La base ne reconnaît pas une telle session comme staff : sans cet
+  /// écran intermédiaire, chaque écran du staff s'ouvrirait vide.
+  Future<bool> _sessionStaffAConfirmer() async {
+    if (_datasource.currentAssuranceLevel() ==
+        AuthenticatorAssuranceLevels.aal2) {
+      return false;
+    }
+    return _datasource.staffMfaRequired();
+  }
+
+  @override
+  Future<String?> fetchVerifiedTotpFactorId() async {
+    final facteurs = await _datasource.listFactors();
+    for (final facteur in facteurs) {
+      if (facteur.factorType == FactorType.totp &&
+          facteur.status == FactorStatus.verified) {
+        return facteur.id;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<TotpEnrollment> enrollTotp() async {
+    try {
+      // Un QR affiché puis abandonné laisse un facteur non vérifié. GoTrue en
+      // limite le nombre (`max_enrolled_factors`) : ils sont retirés avant
+      // d'en créer un neuf.
+      for (final facteur in await _datasource.listFactors()) {
+        if (facteur.status != FactorStatus.verified) {
+          await _datasource.unenrollFactor(facteur.id);
+        }
+      }
+      final reponse = await _datasource.enrollTotp();
+      final totp = reponse.totp;
+      if (totp == null) {
+        throw const ValidationException(
+          'Le serveur n\'a pas rendu de code à scanner. Réessayez.',
+        );
+      }
+      return (factorId: reponse.id, uri: totp.uri, secret: totp.secret);
+    } on AuthException catch (e) {
+      throw ValidationException(_messageDoubleAuthentification(e));
+    }
+  }
+
+  @override
+  Future<void> verifyTotp({
+    required String factorId,
+    required String code,
+  }) async {
+    try {
+      await _datasource.verifyTotp(factorId: factorId, code: code.trim());
+    } on AuthException catch (e) {
+      throw ValidationException(_messageDoubleAuthentification(e));
+    }
+  }
+
+  /// GoTrue répond en anglais (« Invalid TOTP code entered ») : traduit, et
+  /// avec la cause la plus fréquente d'un bon code refusé — l'heure du
+  /// téléphone.
+  String _messageDoubleAuthentification(AuthException e) {
+    final message = e.message.toLowerCase();
+    if (message.contains('disabled') || message.contains('not enabled')) {
+      return 'La double authentification n\'est pas activée sur le serveur. '
+          'Prévenez l\'administrateur MTC.';
+    }
+    if (message.contains('invalid') || message.contains('code')) {
+      return 'Code incorrect. Saisissez celui qui s\'affiche en ce moment ; '
+          's\'il est refusé encore, vérifiez que l\'heure du téléphone est '
+          'réglée automatiquement.';
+    }
+    return 'La double authentification a échoué. Réessayez.';
+  }
+
   /// `AppUser` is a sealed union with no direct table of its own — it's
   /// assembled here from `profiles` (+ `suppliers` for a tiers account),
   /// the same "reconstructed by joining at read time" shape the plan uses
@@ -599,6 +677,7 @@ class SupabaseAuthRepository implements AuthRepository {
           phoneNumber: phoneNumber,
           createdAt: createdAt,
           staffRole: StaffRole.values.byName(profileRow['staff_role'] as String),
+          mfaPending: await _sessionStaffAConfirmer(),
         );
       default:
         throw StateError('Rôle de profil inconnu : $role');

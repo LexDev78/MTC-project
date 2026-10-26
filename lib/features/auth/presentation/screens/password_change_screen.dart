@@ -6,6 +6,7 @@ import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/error/exceptions.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 
+import '../../domain/entities/app_user.dart';
 import '../providers/auth_providers.dart';
 
 /// Changer son mot de passe, de son plein gré.
@@ -33,7 +34,14 @@ class _PasswordChangeScreenState extends ConsumerState<PasswordChangeScreen> {
   bool _enCours = false;
   String? _erreur;
 
-  static const _longueurMinimale = 6;
+  /// 10 caractères pour un compte du staff MTC, qui voit les commandes, les
+  /// pièces d'identité et les versements (`0135`) ; 6 pour les autres, le
+  /// minimum de Supabase Auth. La règle du staff vaut aussi pour le mot de
+  /// passe oublié (`reset_password_with_code`, `0132`).
+  int get _longueurMinimale =>
+      ref.read(currentUserProvider).valueOrNull is SupplierPrincipalUser
+      ? 10
+      : 6;
 
   @override
   void initState() {

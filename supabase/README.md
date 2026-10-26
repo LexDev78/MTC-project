@@ -4,7 +4,44 @@ Deux pannes de l'environnement local se sont présentées comme des bugs de
 l'application. Les voici, avec ce qui les distingue et ce qui les répare.
 
 Pour les fonctions edge (une fonction nouvelle qui rend `404`), voir
-[`functions/README.md`](functions/README.md).
+[`functions/README.md`](functions/README.md). Pour la mise en production,
+voir [`production/MISE_EN_PRODUCTION.md`](production/MISE_EN_PRODUCTION.md).
+
+## Trois règles depuis l'audit d'avant lancement (`0128`–`0135`)
+
+**Les fonctions de test vivent dans `seeds/test_helpers.sql`**, plus dans
+les migrations (`0130`). Seul `supabase db reset` les joue — jamais
+`db push`. Pour les recharger sur une base locale sans la réinitialiser :
+
+```bash
+docker exec -i supabase_db_MTC_project psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 -1 -q < supabase/seeds/test_helpers.sql
+```
+
+Une migration qui créerait un helper de test le réinstallerait en
+production.
+
+**La suite d'intégration se lance contre une pile à part**, pour ne pas
+vider celle où l'on essaie l'app :
+
+```bash
+tool/pile_de_verification.sh demarrer   # rejoue toutes les migrations depuis zéro
+tool/pile_de_verification.sh tester
+tool/pile_de_verification.sh arreter
+```
+
+**Le staff exige la double authentification** (`0135`), sauf en local où
+le jeu de démonstration l'éteint : les tests connectent le staff par mot
+de passe. Pour l'essayer dans l'app (la TOTP est activée dans
+`config.toml`) :
+
+```sql
+update public.app_settings set value = 'true' where key = 'staff_mfa_required';
+```
+
+et `'false'` pour revenir en arrière. Les vérifications de chaque
+migration sont dans `snippets/verif_0128.sql` … `verif_0135.sql`, plus
+`verif_0128_api.sh` et `verif_0135_api.sh` par la vraie API.
 
 ## Plus aucun téléversement ne passe : `DatabaseError`, code `42P10`
 

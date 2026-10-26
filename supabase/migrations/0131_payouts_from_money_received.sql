@@ -233,91 +233,129 @@ $$;
 revoke all on function public.fetch_platform_commission_fcfa() from public, anon;
 grant execute on function public.fetch_platform_commission_fcfa() to authenticated;
 
--- Reprise de `0092` : le tableau de bord porte le grand livre pour le
--- propriétaire, et plus rien d'argent pour un collaborateur — `paid_out_fcfa`
--- lui parvenait jusqu'ici, l'écran se contentant de ne pas l'afficher.
-create or replace function public.fetch_supplier_dashboard_stats()
-returns jsonb
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  with moi as (
-    select public.operating_supplier_id() as id,
-           public.is_supplier_owner() or public.is_staff() as voit_l_argent
-  ),
-  produits as (
-    select
-      count(*) as total,
-      count(*) filter (where p.status = 'active') as actifs,
-      coalesce(sum(p.view_count), 0) as vues
-      from public.products p, moi
-     where p.supplier_id = moi.id
-  ),
-  groupes as (
-    select
-      count(*) as total,
-      count(*) filter (where g.status = 'delivered') as livrees,
-      -- « En cours » : tout ce qui n'est ni livré ni annulé. C'est ce que le
-      -- fournisseur doit traiter aujourd'hui.
-      count(*) filter (
-        where g.status not in ('delivered', 'cancelled')
-      ) as en_cours,
-      -- Jamais `delivery_fee_fcfa` : en livraison MTC il revient à la
-      -- plateforme, pas au vendeur.
-      coalesce(sum(g.subtotal_fcfa) filter (
-        where g.status = 'delivered'
-      ), 0) as brut,
-      coalesce(sum(g.subtotal_fcfa) filter (
-        where g.status = 'delivered' and o.placed_at >= now() - interval '30 days'
-      ), 0) as brut_30j,
-      coalesce(sum(g.subtotal_fcfa) filter (
-        where g.status = 'delivered' and o.placed_at >= now() - interval '7 days'
-      ), 0) as brut_7j
-      from public.order_supplier_groups g
-      join public.orders o on o.id = g.order_id, moi
-     where g.supplier_id = moi.id
-  ),
-  articles as (
-    -- Les cinq articles les plus vendus, en quantité livrée. C'est la
-    -- question que se pose un commerçant : « qu'est-ce qui part ? »
-    select coalesce(jsonb_agg(ligne order by quantite desc), '[]'::jsonb) as top
-      from (
+-- Reprise de `0100`, telle qu'elle vit en base — **pas** de `0092` : `0100`
+-- y a ajouté l'enveloppe qui retire au collaborateur toute clé d'argent
+-- (chiffre d'affaires, versé, montant par article). Une première version de
+-- cette migration repartait de `0092` et la perdait ; la suite d'intégration
+-- l'a dit (`le tableau de bord ne lui montre pas l'argent`).
+--
+-- Seul ajout : le grand livre (`finance`), pour le propriétaire et le staff,
+-- calculé par `supplier_ledger`. Comme les autres clés d'argent, il est
+-- absent — pas nul — pour un collaborateur.
+CREATE OR REPLACE FUNCTION public.fetch_supplier_dashboard_stats()
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+    -- L'argent ne se délègue pas, pas même en lecture. Un collaborateur voit
+  -- ce qui s'est vendu — combien de commandes, combien de vues — jamais le
+  -- chiffre d'affaires, ni ce qui a été versé, ni le montant que chaque
+  -- article a rapporté.
+  --
+  -- Les clés sont **retirées** du résultat plutôt que mises à zéro : un
+  -- zéro se lit comme une information (« la boutique n'a rien vendu »), une
+  -- clé absente ne dit rien. Et le corps du calcul n'est pas récrit — il est
+  -- enveloppé, pour ne pas risquer d'en perdre une ligne au passage.
+  with brut(j) as (
+    with moi as (select public.operating_supplier_id() as id),
+      produits as (
         select
-          i.product_name_snapshot as nom,
-          sum(i.quantity) as quantite,
-          sum(i.unit_price_fcfa_snapshot * i.quantity) as montant,
-          jsonb_build_object(
-            'name', i.product_name_snapshot,
-            'quantity', sum(i.quantity),
-            'amount_fcfa', sum(i.unit_price_fcfa_snapshot * i.quantity)
-          ) as ligne
-          from public.order_items i
-          join public.order_supplier_groups g on g.id = i.group_id, moi
+          count(*) as total,
+          count(*) filter (where p.status = 'active') as actifs,
+          coalesce(sum(p.view_count), 0) as vues
+          from public.products p, moi
+         where p.supplier_id = moi.id
+      ),
+      groupes as (
+        select
+          count(*) as total,
+          count(*) filter (where g.status = 'delivered') as livrees,
+          -- « En cours » : tout ce qui n'est ni livré ni annulé. C'est ce que le
+          -- fournisseur doit traiter aujourd'hui.
+          count(*) filter (
+            where g.status not in ('delivered', 'cancelled')
+          ) as en_cours,
+          -- Jamais `delivery_fee_fcfa` : en livraison MTC il revient à la
+          -- plateforme, pas au vendeur. Même règle que
+          -- `compute_financial_summary`.
+          coalesce(sum(g.subtotal_fcfa) filter (
+            where g.status = 'delivered'
+          ), 0) as brut,
+          coalesce(sum(g.subtotal_fcfa) filter (
+            where g.status = 'delivered' and o.placed_at >= now() - interval '30 days'
+          ), 0) as brut_30j,
+          coalesce(sum(g.subtotal_fcfa) filter (
+            where g.status = 'delivered' and o.placed_at >= now() - interval '7 days'
+          ), 0) as brut_7j
+          from public.order_supplier_groups g
+          join public.orders o on o.id = g.order_id, moi
          where g.supplier_id = moi.id
-           and g.status = 'delivered'
-         group by i.product_name_snapshot
-         order by quantite desc
-         limit 5
-      ) s
+      ),
+      retraits as (
+        -- Un retrait refusé n'a rien versé. Même filtre que le calcul financier.
+        select coalesce(sum(r.amount_fcfa) filter (
+                 where r.status <> 'rejected'
+               ), 0) as verse
+          from public.payout_requests r, moi
+         where r.supplier_id = moi.id
+      ),
+      articles as (
+        -- Les cinq articles les plus vendus, en quantité livrée. C'est la
+        -- question que se pose un commerçant : « qu'est-ce qui part ? »
+        select coalesce(jsonb_agg(ligne order by quantite desc), '[]'::jsonb) as top
+          from (
+            select
+              i.product_name_snapshot as nom,
+              sum(i.quantity) as quantite,
+              sum(i.unit_price_fcfa_snapshot * i.quantity) as montant,
+              jsonb_build_object(
+                'name', i.product_name_snapshot,
+                'quantity', sum(i.quantity),
+                'amount_fcfa', sum(i.unit_price_fcfa_snapshot * i.quantity)
+              ) as ligne
+              from public.order_items i
+              join public.order_supplier_groups g on g.id = i.group_id, moi
+             where g.supplier_id = moi.id
+               and g.status = 'delivered'
+             group by i.product_name_snapshot
+             order by quantite desc
+             limit 5
+          ) s
+      )
+      select jsonb_build_object(
+        'products_total', produits.total,
+        'products_active', produits.actifs,
+        'views_total', produits.vues,
+        'orders_total', groupes.total,
+        'orders_delivered', groupes.livrees,
+        'orders_in_progress', groupes.en_cours,
+        'gross_fcfa', groupes.brut,
+        'gross_last_30_days_fcfa', groupes.brut_30j,
+        'gross_last_7_days_fcfa', groupes.brut_7j,
+        'paid_out_fcfa', retraits.verse,
+        'best_sellers', articles.top
+      )
+        from produits, groupes, retraits, articles
   )
-  select jsonb_build_object(
-    'products_total', produits.total,
-    'products_active', produits.actifs,
-    'views_total', produits.vues,
-    'orders_total', groupes.total,
-    'orders_delivered', groupes.livrees,
-    'orders_in_progress', groupes.en_cours,
-    'gross_fcfa', groupes.brut,
-    'gross_last_30_days_fcfa', groupes.brut_30j,
-    'gross_last_7_days_fcfa', groupes.brut_7j,
-    'paid_out_fcfa', case when moi.voit_l_argent
-      then (public.supplier_ledger(moi.id) ->> 'paid_out_fcfa')::bigint else 0 end,
-    'finance', case when moi.voit_l_argent then public.supplier_ledger(moi.id) end,
-    'best_sellers', articles.top
-  )
-    from moi, produits, groupes, articles;
-$$;
+  select case
+    when public.is_supplier_owner() or public.is_staff() then
+      brut.j || jsonb_build_object('finance', public.supplier_ledger(public.operating_supplier_id()))
+    else (
+      brut.j
+        - 'gross_fcfa'
+        - 'gross_last_30_days_fcfa'
+        - 'gross_last_7_days_fcfa'
+        - 'paid_out_fcfa'
+    ) || jsonb_build_object(
+      'best_sellers',
+      coalesce((
+        select jsonb_agg(article - 'amount_fcfa')
+          from jsonb_array_elements(brut.j -> 'best_sellers') article
+      ), '[]'::jsonb)
+    )
+  end
+    from brut;
+$function$;
 
 notify pgrst, 'reload schema';

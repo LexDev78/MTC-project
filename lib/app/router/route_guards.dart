@@ -58,6 +58,13 @@ String? authRedirect(Ref ref, GoRouterState state) {
   // l'historique renverrait sur un formulaire sans objet.
   if (path == AppRoutes.changePassword) return roleHome;
 
+  // Un compte du staff ouvert au seul mot de passe n'est pas encore du
+  // staff pour la base (`0135`) : rien d'autre ne s'ouvre avant le code.
+  if (user is SupplierPrincipalUser && user.mfaPending) {
+    return path == AppRoutes.staffMfa ? null : AppRoutes.staffMfa;
+  }
+  if (path == AppRoutes.staffMfa) return roleHome;
+
   if (isAuthRoute) {
     // Fresh sign-in from the login form gets a beat on the loading
     // animation before landing on the dashboard; a restored session (app

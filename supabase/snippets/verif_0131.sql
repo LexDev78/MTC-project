@@ -196,8 +196,11 @@ select set_config('request.jwt.claims', current_setting('verif.vendeuse'), true)
 do $$ begin
   perform verif.refuse('la vendeuse lit les finances', 'select public.fetch_my_finance_summary()',
     'Les finances de la boutique sont réservées à son propriétaire.');
-  if (public.fetch_supplier_dashboard_stats() -> 'finance') <> 'null'::jsonb
-     or (public.fetch_supplier_dashboard_stats() ->> 'paid_out_fcfa')::int <> 0
+  -- Les clés d'argent sont **absentes** (`0100`), pas à zéro : un zéro se
+  -- lirait comme « la boutique n'a rien vendu ».
+  if public.fetch_supplier_dashboard_stats() ?| array['finance', 'gross_fcfa', 'paid_out_fcfa']
+     or exists (select 1 from jsonb_array_elements(public.fetch_supplier_dashboard_stats() -> 'best_sellers') a
+                 where a ? 'amount_fcfa')
      or (public.fetch_supplier_dashboard_stats() ->> 'orders_total')::int = 0 then
     raise exception 'ÉCHEC : le tableau de bord de la vendeuse montre de l''argent, ou plus ses ventes (%)',
       public.fetch_supplier_dashboard_stats();

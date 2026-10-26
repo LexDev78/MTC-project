@@ -84,6 +84,38 @@ class SupabaseAuthDatasource {
     return row?['business_name'] as String?;
   }
 
+  // ---- double authentification du staff (`0135`) ------------------------
+
+  /// Le niveau de la session ouverte, lu dans son jeton : `aal1` après le
+  /// seul mot de passe, `aal2` une fois un code d'application validé.
+  AuthenticatorAssuranceLevels? currentAssuranceLevel() =>
+      _client.auth.mfa.getAuthenticatorAssuranceLevel().currentLevel;
+
+  /// La base exige-t-elle le code pour le staff ? Oui, sauf réglage
+  /// contraire de l'exploitant (`staff_mfa_required`).
+  Future<bool> staffMfaRequired() async =>
+      await _client.rpc('staff_mfa_required') as bool;
+
+  /// Les facteurs du compte, vérifiés ou non. `listFactors` rafraîchit la
+  /// session d'abord : c'est ce qui rend visible un facteur enrôlé ailleurs.
+  Future<List<Factor>> listFactors() async =>
+      (await _client.auth.mfa.listFactors()).all;
+
+  Future<AuthMFAEnrollResponse> enrollTotp() => _client.auth.mfa.enroll(
+    factorType: FactorType.totp,
+    issuer: 'MTC',
+    // Un nom par enrôlement : GoTrue refuse deux facteurs du même nom.
+    friendlyName: 'MTC ${DateTime.now().toUtc().toIso8601String()}',
+  );
+
+  Future<void> unenrollFactor(String factorId) =>
+      _client.auth.mfa.unenroll(factorId);
+
+  /// Valide le code : la session passe en `aal2`, et GoTrue émet
+  /// `mfaChallengeVerified`, qui fait relire le compte.
+  Future<void> verifyTotp({required String factorId, required String code}) =>
+      _client.auth.mfa.challengeAndVerify(factorId: factorId, code: code);
+
   /// Fiche livreur (`couriers`, `0046_couriers_and_deliveries.sql`) — créée
   /// à l'inscription par `handle_new_user()`, comme la fiche fournisseur.
   Future<Map<String, dynamic>> fetchCourierRow(String courierId) {

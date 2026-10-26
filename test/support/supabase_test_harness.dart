@@ -24,7 +24,15 @@ void _allowRealHttpRequests() {
 /// well-known fixed local-dev keys the Supabase CLI derives from the
 /// equally-fixed local `JWT_SECRET` — not secrets in any meaningful sense,
 /// safe to commit, and re-displayable at any time via `supabase status`.
-const _supabaseUrl = 'http://127.0.0.1:54321';
+///
+/// `--dart-define=MTC_TEST_SUPABASE_URL=…` lance la suite contre une autre
+/// pile locale — une pile de vérification montée à part, pour ne pas vider
+/// celle où l'on essaie l'app à la main. Les clés restent celles-ci : elles
+/// découlent du `JWT_SECRET` local par défaut, le même sur toute pile.
+const _supabaseUrl = String.fromEnvironment(
+  'MTC_TEST_SUPABASE_URL',
+  defaultValue: 'http://127.0.0.1:54321',
+);
 const _anonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 const _serviceRoleKey =
@@ -738,7 +746,13 @@ Future<void> adminDeleteCollaboratorLink(String userId) async {
 
 /// La boîte de test de la pile locale (Mailpit), où la base envoie ses
 /// e-mails (`send_mail`, `0124`).
-const _mailpitUrl = 'http://127.0.0.1:54324';
+/// L'adresse de la pile visée, pour un test qui monte son propre client.
+const testSupabaseUrl = _supabaseUrl;
+
+const _mailpitUrl = String.fromEnvironment(
+  'MTC_TEST_MAILPIT_URL',
+  defaultValue: 'http://127.0.0.1:54324',
+);
 
 /// Le code à six chiffres du dernier e-mail reçu par [adresse] — lu là où
 /// l'utilisateur le lirait, dans sa boîte.

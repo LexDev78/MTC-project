@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/ratings/domain/entities/review.dart';
+import 'package:mtc_app/features/ratings/domain/entities/product_review.dart';
 import 'package:mtc_app/features/ratings/presentation/providers/review_providers.dart';
 import 'package:mtc_app/features/suppliers/domain/entities/supplier_profile.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
@@ -28,25 +28,28 @@ const _boutique = SupplierProfile(
   description:
       'Masques, paniers et sculptures du pays dogon, faits main par les '
       'artisans de l\'atelier depuis 1998.',
-  fullAddress: 'Quartier Komoguel, près du port, Mopti',
   openingHoursLabel: 'Lun.–sam., 8 h – 18 h',
   publicPhoneNumbers: ['+223 76 12 34 56'],
   deliveryZones: ['Mopti', 'Sévaré', 'Bamako'],
 );
 
-Review _avis(String id, int etoiles, String texte, {String? reponse}) => Review(
+// Un avis tel que la vitrine publique le reçoit (`fetch_supplier_reviews`,
+// `0134`) : ni commande ni client.
+ProductReview _avis(
+  String id,
+  int etoiles,
+  String texte, {
+  String? reponse,
+}) => ProductReview(
   id: id,
-  orderId: 'cmd-$id',
-  supplierGroupId: 'g-$id',
-  clientId: 'client-$id',
-  supplierId: _boutique.id,
   stars: etoiles,
   comment: texte,
   createdAt: maintenant.subtract(const Duration(days: 3)),
+  authorName: 'Client MTC',
   supplierReply: reponse,
 );
 
-List<Override> _donnees({List<Review>? avis}) {
+List<Override> _donnees({List<ProductReview>? avis}) {
   final produits = [
     for (final p in catalogueDemo())
       if (p.supplierName == _boutique.businessName) p,
@@ -56,19 +59,18 @@ List<Override> _donnees({List<Review>? avis}) {
     supplierProductsProvider(
       _boutique.id,
     ).overrideWith((ref) => Stream.value(produits)),
-    supplierReviewsProvider(_boutique.id).overrideWith(
-      (ref) => Stream.value(
-        avis ??
-            [
-              _avis(
-                'a1',
-                5,
-                'Masque superbe, emballé avec soin.',
-                reponse: 'Merci ! Le sculpteur sera ravi.',
-              ),
-              _avis('a2', 4, 'Panier solide, un peu plus petit que prévu.'),
-            ],
-      ),
+    publicSupplierReviewsProvider(_boutique.id).overrideWith(
+      (ref) async =>
+          avis ??
+          [
+            _avis(
+              'a1',
+              5,
+              'Masque superbe, emballé avec soin.',
+              reponse: 'Merci ! Le sculpteur sera ravi.',
+            ),
+            _avis('a2', 4, 'Panier solide, un peu plus petit que prévu.'),
+          ],
     ),
   ];
 }

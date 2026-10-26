@@ -84,6 +84,12 @@ sealed class AppUser with _$AppUser {
     required String phoneNumber,
     required DateTime createdAt,
     required StaffRole staffRole,
+
+    /// Vrai tant que la session n'a pas été confirmée par le code d'une
+    /// application d'authentification (`aal2`), alors que la base l'exige
+    /// (`0135`). Le serveur ne reconnaît pas encore ce compte comme staff ;
+    /// le routeur l'immobilise sur l'écran du code.
+    @Default(false) bool mfaPending,
   }) = SupplierPrincipalUser;
 }
 

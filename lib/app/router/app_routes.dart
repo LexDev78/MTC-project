@@ -19,6 +19,11 @@ abstract final class AppRoutes {
   /// unique que son patron lui a dicté (`0098`).
   static const String changePassword = '/change-password';
 
+  /// Imposé à un compte du staff MTC tant que sa session n'est pas confirmée
+  /// par le code d'une application d'authentification (`0135`). Hors des
+  /// aires de rôle, comme [changePassword].
+  static const String staffMfa = '/double-authentification';
+
   /// Le compte lui-même — mot de passe, adresse e-mail —, hors des aires de
   /// rôle : client, fournisseur, collaborateur et livreur y ont tous accès,
   /// chacun pour le sien. Le garde de routes ne redirige pas ces chemins,

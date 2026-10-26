@@ -824,6 +824,15 @@ begin
       values (v_variant_id, v_characteristic_id, v_option_id);
     end loop;
   end;
+
+  -- La double authentification du staff (`0135`) : éteinte en local, où
+  -- GoTrue n'active la TOTP qu'avec `[auth.mfa.totp]` de `config.toml` et un
+  -- redémarrage de la pile, et où les tests connectent le staff par mot de
+  -- passe. Les tests de la double authentification la rallument
+  -- (`test_set_staff_mfa_required`). En production, aucune ligne : exigée.
+  insert into public.app_settings (key, value)
+  values ('staff_mfa_required', 'false'::jsonb)
+  on conflict (key) do update set value = excluded.value, updated_at = now();
 end;
 $function$
 
@@ -1063,3 +1072,19 @@ $function$
 revoke all on function public.test_set_group_status(text,text) from public, anon, authenticated;
 grant execute on function public.test_set_group_status(text,text) to service_role;
 
+-- Allumer ou éteindre l'exigence de double authentification du staff
+-- (`0135`) — pour les tests qui la vérifient, sur une pile locale où la TOTP
+-- est activée.
+CREATE OR REPLACE FUNCTION public.test_set_staff_mfa_required(p_required boolean)
+ RETURNS void
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  insert into public.app_settings (key, value)
+  values ('staff_mfa_required', to_jsonb(p_required))
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+$function$
+;
+revoke all on function public.test_set_staff_mfa_required(boolean) from public, anon, authenticated;
+grant execute on function public.test_set_staff_mfa_required(boolean) to service_role;

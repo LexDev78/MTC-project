@@ -457,6 +457,11 @@ void main() {
       expect(find.text('Ajouter au panier'), findsOneWidget);
       expect(sheetButton(tester).onPressed, isNotNull);
 
+      // Depuis la charte du 24/10 (police et marges du kit), la feuille
+      // d'achat dépasse de 24 px l'écran de test : sans défilement, le
+      // toucher tombait à côté du bouton et rien n'arrivait au panier.
+      await tester.ensureVisible(find.text('Ajouter au panier'));
+      await settle(tester);
       await tester.tap(find.text('Ajouter au panier'));
       await settle(tester);
 

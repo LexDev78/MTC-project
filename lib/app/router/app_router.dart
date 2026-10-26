@@ -72,6 +72,7 @@ import 'package:mtc_app/features/auth/domain/repositories/auth_repository.dart'
 import 'package:mtc_app/features/auth/presentation/screens/contact_email_code_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/contact_email_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/forced_password_change_screen.dart';
+import 'package:mtc_app/features/auth/presentation/screens/staff_mfa_screen.dart';
 import 'package:mtc_app/features/auth/presentation/screens/password_change_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_collaborators_screen.dart';
 import 'package:mtc_app/features/suppliers/presentation/screens/supplier_location_screen.dart';
@@ -574,6 +575,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.changePassword,
         pageBuilder: (context, state) =>
             _fluidPage(state, const ForcedPasswordChangeScreen()),
+      ),
+      // Le code d'application d'un compte staff (`0135`), imposé comme le
+      // mot de passe d'un collaborateur.
+      GoRoute(
+        path: AppRoutes.staffMfa,
+        pageBuilder: (context, state) =>
+            _fluidPage(state, const StaffMfaScreen()),
       ),
       GoRoute(
         path: AppRoutes.accountPassword,

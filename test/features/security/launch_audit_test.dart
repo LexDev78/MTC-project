@@ -486,8 +486,9 @@ void main() {
       );
       final tableau =
           await vendeuse.rpc('fetch_supplier_dashboard_stats') as Map;
-      expect(tableau['finance'], isNull);
-      expect(tableau['paid_out_fcfa'], 0);
+      // Absentes, pas à zéro (`0100`) : un zéro se lirait « rien vendu ».
+      expect(tableau.containsKey('finance'), isFalse);
+      expect(tableau.containsKey('paid_out_fcfa'), isFalse);
       expect(tableau['orders_total'], greaterThan(0));
     });
   });

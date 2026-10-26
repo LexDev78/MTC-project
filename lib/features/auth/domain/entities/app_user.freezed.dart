@@ -72,6 +72,7 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) => throw _privateConstructorUsedError;
@@ -125,6 +126,7 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) => throw _privateConstructorUsedError;
@@ -178,6 +180,7 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -492,6 +495,7 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) {
@@ -558,6 +562,7 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) {
@@ -624,6 +629,7 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -1035,6 +1041,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) {
@@ -1107,6 +1114,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) {
@@ -1179,6 +1187,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -1543,6 +1552,7 @@ class _$CourierUserImpl implements CourierUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) {
@@ -1611,6 +1621,7 @@ class _$CourierUserImpl implements CourierUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) {
@@ -1679,6 +1690,7 @@ class _$CourierUserImpl implements CourierUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -1796,6 +1808,7 @@ abstract class _$$SupplierPrincipalUserImplCopyWith<$Res>
     String phoneNumber,
     DateTime createdAt,
     StaffRole staffRole,
+    bool mfaPending,
   });
 }
 
@@ -1819,6 +1832,7 @@ class __$$SupplierPrincipalUserImplCopyWithImpl<$Res>
     Object? phoneNumber = null,
     Object? createdAt = null,
     Object? staffRole = null,
+    Object? mfaPending = null,
   }) {
     return _then(
       _$SupplierPrincipalUserImpl(
@@ -1846,6 +1860,10 @@ class __$$SupplierPrincipalUserImplCopyWithImpl<$Res>
             ? _value.staffRole
             : staffRole // ignore: cast_nullable_to_non_nullable
                   as StaffRole,
+        mfaPending: null == mfaPending
+            ? _value.mfaPending
+            : mfaPending // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -1861,6 +1879,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
     required this.phoneNumber,
     required this.createdAt,
     required this.staffRole,
+    this.mfaPending = false,
   });
 
   @override
@@ -1876,9 +1895,17 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
   @override
   final StaffRole staffRole;
 
+  /// Vrai tant que la session n'a pas été confirmée par le code d'une
+  /// application d'authentification (`aal2`), alors que la base l'exige
+  /// (`0135`). Le serveur ne reconnaît pas encore ce compte comme staff ;
+  /// le routeur l'immobilise sur l'écran du code.
+  @override
+  @JsonKey()
+  final bool mfaPending;
+
   @override
   String toString() {
-    return 'AppUser.supplierPrincipal(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, staffRole: $staffRole)';
+    return 'AppUser.supplierPrincipal(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, staffRole: $staffRole, mfaPending: $mfaPending)';
   }
 
   @override
@@ -1896,7 +1923,9 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.staffRole, staffRole) ||
-                other.staffRole == staffRole));
+                other.staffRole == staffRole) &&
+            (identical(other.mfaPending, mfaPending) ||
+                other.mfaPending == mfaPending));
   }
 
   @override
@@ -1908,6 +1937,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
     phoneNumber,
     createdAt,
     staffRole,
+    mfaPending,
   );
 
   /// Create a copy of AppUser
@@ -1973,6 +2003,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) {
@@ -1983,6 +2014,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       phoneNumber,
       createdAt,
       staffRole,
+      mfaPending,
     );
   }
 
@@ -2037,6 +2069,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) {
@@ -2047,6 +2080,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       phoneNumber,
       createdAt,
       staffRole,
+      mfaPending,
     );
   }
 
@@ -2101,6 +2135,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -2113,6 +2148,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
         phoneNumber,
         createdAt,
         staffRole,
+        mfaPending,
       );
     }
     return orElse();
@@ -2164,6 +2200,7 @@ abstract class SupplierPrincipalUser implements AppUser {
     required final String phoneNumber,
     required final DateTime createdAt,
     required final StaffRole staffRole,
+    final bool mfaPending,
   }) = _$SupplierPrincipalUserImpl;
 
   @override
@@ -2177,6 +2214,12 @@ abstract class SupplierPrincipalUser implements AppUser {
   @override
   DateTime get createdAt;
   StaffRole get staffRole;
+
+  /// Vrai tant que la session n'a pas été confirmée par le code d'une
+  /// application d'authentification (`aal2`), alors que la base l'exige
+  /// (`0135`). Le serveur ne reconnaît pas encore ce compte comme staff ;
+  /// le routeur l'immobilise sur l'écran du code.
+  bool get mfaPending;
 
   /// Create a copy of AppUser
   /// with the given fields replaced by the non-null parameter values.

@@ -274,7 +274,7 @@ void main() {
   group('le contrôle de session', () {
     test('un jeton forgé n\'ouvre rien', () async {
       final faux = SupabaseClient(
-        'http://127.0.0.1:54321',
+        testSupabaseUrl,
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwi'
             'cm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43k'
             'dQwgnWNReilDMblYTn_I0',

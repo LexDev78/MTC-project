@@ -24,7 +24,40 @@ const _supabaseUrl = String.fromEnvironment(
   'SUPABASE_URL',
   defaultValue: 'http://127.0.0.1:54321',
 );
+const _supabaseUrlDefinie = bool.hasEnvironment('SUPABASE_URL');
 const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+/// Une version publiée parle à la base de production, en https — jamais à
+/// la pile locale.
+///
+/// `127.0.0.1` par défaut est commode en développement, et désastreux dans
+/// un APK : l'app chercherait la base sur le téléphone lui-même. Et une
+/// adresse `http` ferait passer mots de passe et jetons de session en clair
+/// sur le réseau. Un build de release mal configuré refuse donc de démarrer,
+/// plutôt que de démarrer faux ; `tool/build_release.sh` l'empêche de se
+/// construire.
+void _verifierLaConfigurationDeProduction() {
+  if (!kReleaseMode) return;
+  final adresse = Uri.tryParse(_supabaseUrl);
+  final hote = adresse?.host ?? '';
+  final problemes = [
+    if (!_supabaseUrlDefinie)
+      'SUPABASE_URL manquant (--dart-define=SUPABASE_URL=https://…)',
+    if (adresse == null || adresse.scheme != 'https')
+      'SUPABASE_URL doit être en https (reçu : $_supabaseUrl)',
+    if (hote == '127.0.0.1' ||
+        hote == 'localhost' ||
+        hote == '10.0.2.2' ||
+        hote.endsWith('.local'))
+      'SUPABASE_URL désigne une machine locale ($hote)',
+    if (_supabaseAnonKey.isEmpty) 'SUPABASE_ANON_KEY manquant',
+  ];
+  if (problemes.isNotEmpty) {
+    throw StateError(
+      'Configuration de production invalide : ${problemes.join(' ; ')}.',
+    );
+  }
+}
 
 /// Les polices embarquées sont sous licence SIL OFL 1.1, qui demande que
 /// leur licence les accompagne : elle figure dans la page des licences de
@@ -46,6 +79,7 @@ void _inscrireLicencesDesPolices() {
 /// so the whole widget tree can access Riverpod providers.
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _verifierLaConfigurationDeProduction();
   _inscrireLicencesDesPolices();
   final prefs = await SharedPreferences.getInstance();
 

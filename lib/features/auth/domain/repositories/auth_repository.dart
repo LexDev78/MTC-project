@@ -25,6 +25,10 @@ typedef ContactEmailStatus = ({String? email, bool verified});
 /// moitié de son adresse.
 typedef PasswordResetRequest = ({DateTime expiresAt, int resendAfterSeconds});
 
+/// Un facteur TOTP qui vient d'être créé, à faire scanner (`0135`) : [uri]
+/// pour le QR code, [secret] pour la saisie à la main.
+typedef TotpEnrollment = ({String factorId, String uri, String secret});
+
 /// Auth contract. The in-memory implementation backs this today; a Firebase
 /// Auth implementation can replace it later without touching any call site.
 abstract interface class AuthRepository {
@@ -68,6 +72,20 @@ abstract interface class AuthRepository {
   // Pas d'inscription staff : un compte MTC se crée côté serveur, avec la
   // clé de service et `app_metadata.staff_role` (`0128`). Une inscription
   // publique qui le demande est refusée par la base.
+
+  /// L'identifiant du facteur TOTP **vérifié** du compte connecté, ou
+  /// `null` s'il n'en a pas encore : il faut alors l'enrôler.
+  Future<String?> fetchVerifiedTotpFactorId();
+
+  /// Crée un facteur TOTP à faire scanner. Les enrôlements laissés en
+  /// plan (QR jamais validé) sont retirés d'abord. Lève une
+  /// `ValidationException` lisible si le serveur n'accepte pas la TOTP.
+  Future<TotpEnrollment> enrollTotp();
+
+  /// Valide un code à six chiffres : la session passe en `aal2` et le compte
+  /// staff retrouve ses droits (`0135`). Un code refusé lève une
+  /// `ValidationException`.
+  Future<void> verifyTotp({required String factorId, required String code});
 
   Future<void> logout();
 
