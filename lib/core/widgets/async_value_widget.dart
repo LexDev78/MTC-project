@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mtc_app/core/error/user_message.dart';
+
 import 'mtc_error_view.dart';
 import 'mtc_loading_view.dart';
 
@@ -13,6 +15,7 @@ class AsyncValueWidget<T> extends StatelessWidget {
     required this.data,
     this.loading,
     this.error,
+    this.skipLoadingOnReload = false,
   });
 
   final AsyncValue<T> value;
@@ -20,13 +23,30 @@ class AsyncValueWidget<T> extends StatelessWidget {
   final WidgetBuilder? loading;
   final Widget Function(Object error, StackTrace stackTrace)? error;
 
+  /// Garder les données déjà affichées pendant un **recalcul**, au lieu de
+  /// les remplacer par l'indicateur de chargement.
+  ///
+  /// À activer sur un écran dont les données se recalculent en réponse à un
+  /// geste de l'utilisateur. Sans cela, appliquer un code promo au paiement
+  /// vidait toute la page et la redessinait — pour une soustraction.
+  ///
+  /// Laissé à `false` par défaut : sur un écran dont le contenu se
+  /// rafraîchit tout seul, montrer l'ancien état sans rien signaler peut
+  /// aussi induire en erreur. C'est à chaque écran de dire ce qui convient.
+  final bool skipLoadingOnReload;
+
   @override
   Widget build(BuildContext context) {
     return value.when(
+      skipLoadingOnReload: skipLoadingOnReload,
       data: data,
       loading: () => loading?.call(context) ?? const MtcLoadingView(),
       error: (err, stack) =>
-          error?.call(err, stack) ?? MtcErrorView(message: err.toString()),
+          error?.call(err, stack) ??
+          // Jamais `err.toString()` : pour une erreur de la base, c'est
+          // `PostgrestException(message: …, code: 42501, …)` qui s'affichait
+          // en plein écran. Tous les écrans de lecture passent par ici.
+          MtcErrorView(message: messagePourUtilisateur(err)),
     );
   }
 }

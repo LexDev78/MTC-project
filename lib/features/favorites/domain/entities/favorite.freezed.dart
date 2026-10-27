@@ -15,12 +15,19 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+Favorite _$FavoriteFromJson(Map<String, dynamic> json) {
+  return _Favorite.fromJson(json);
+}
+
 /// @nodoc
 mixin _$Favorite {
   String get id => throw _privateConstructorUsedError;
   String get userId => throw _privateConstructorUsedError;
   String get productId => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
+
+  /// Serializes this Favorite to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Favorite
   /// with the given fields replaced by the non-null parameter values.
@@ -136,7 +143,7 @@ class __$$FavoriteImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$FavoriteImpl implements _Favorite {
   const _$FavoriteImpl({
     required this.id,
@@ -144,6 +151,9 @@ class _$FavoriteImpl implements _Favorite {
     required this.productId,
     required this.createdAt,
   });
+
+  factory _$FavoriteImpl.fromJson(Map<String, dynamic> json) =>
+      _$$FavoriteImplFromJson(json);
 
   @override
   final String id;
@@ -172,6 +182,7 @@ class _$FavoriteImpl implements _Favorite {
                 other.createdAt == createdAt));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, id, userId, productId, createdAt);
@@ -183,6 +194,11 @@ class _$FavoriteImpl implements _Favorite {
   @pragma('vm:prefer-inline')
   _$$FavoriteImplCopyWith<_$FavoriteImpl> get copyWith =>
       __$$FavoriteImplCopyWithImpl<_$FavoriteImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$FavoriteImplToJson(this);
+  }
 }
 
 abstract class _Favorite implements Favorite {
@@ -192,6 +208,9 @@ abstract class _Favorite implements Favorite {
     required final String productId,
     required final DateTime createdAt,
   }) = _$FavoriteImpl;
+
+  factory _Favorite.fromJson(Map<String, dynamic> json) =
+      _$FavoriteImpl.fromJson;
 
   @override
   String get id;

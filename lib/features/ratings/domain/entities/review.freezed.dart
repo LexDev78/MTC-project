@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+Review _$ReviewFromJson(Map<String, dynamic> json) {
+  return _Review.fromJson(json);
+}
+
 /// @nodoc
 mixin _$Review {
   String get id => throw _privateConstructorUsedError;
@@ -24,7 +28,25 @@ mixin _$Review {
   String get supplierId => throw _privateConstructorUsedError;
   int get stars => throw _privateConstructorUsedError;
   String get comment => throw _privateConstructorUsedError;
+
+  /// Le titre de l'avis (`0119`), facultatif : une ligne qui résume.
+  String? get title => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
+
+  /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans
+  /// sa gestion des avis : un reproche illustré se traite autrement qu'un
+  /// reproche décrit.
+  List<String> get imagePaths => throw _privateConstructorUsedError;
+  String? get videoPath => throw _privateConstructorUsedError;
+
+  /// The supplier's public reply to this review, if they've written one —
+  /// re-calling `ReviewRepository.reply` edits it in place rather than
+  /// appending a second one.
+  String? get supplierReply => throw _privateConstructorUsedError;
+  DateTime? get supplierRepliedAt => throw _privateConstructorUsedError;
+
+  /// Serializes this Review to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Review
   /// with the given fields replaced by the non-null parameter values.
@@ -45,7 +67,12 @@ abstract class $ReviewCopyWith<$Res> {
     String supplierId,
     int stars,
     String comment,
+    String? title,
     DateTime createdAt,
+    List<String> imagePaths,
+    String? videoPath,
+    String? supplierReply,
+    DateTime? supplierRepliedAt,
   });
 }
 
@@ -71,7 +98,12 @@ class _$ReviewCopyWithImpl<$Res, $Val extends Review>
     Object? supplierId = null,
     Object? stars = null,
     Object? comment = null,
+    Object? title = freezed,
     Object? createdAt = null,
+    Object? imagePaths = null,
+    Object? videoPath = freezed,
+    Object? supplierReply = freezed,
+    Object? supplierRepliedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -103,10 +135,30 @@ class _$ReviewCopyWithImpl<$Res, $Val extends Review>
                 ? _value.comment
                 : comment // ignore: cast_nullable_to_non_nullable
                       as String,
+            title: freezed == title
+                ? _value.title
+                : title // ignore: cast_nullable_to_non_nullable
+                      as String?,
             createdAt: null == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
+            imagePaths: null == imagePaths
+                ? _value.imagePaths
+                : imagePaths // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
+            videoPath: freezed == videoPath
+                ? _value.videoPath
+                : videoPath // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            supplierReply: freezed == supplierReply
+                ? _value.supplierReply
+                : supplierReply // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            supplierRepliedAt: freezed == supplierRepliedAt
+                ? _value.supplierRepliedAt
+                : supplierRepliedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -129,7 +181,12 @@ abstract class _$$ReviewImplCopyWith<$Res> implements $ReviewCopyWith<$Res> {
     String supplierId,
     int stars,
     String comment,
+    String? title,
     DateTime createdAt,
+    List<String> imagePaths,
+    String? videoPath,
+    String? supplierReply,
+    DateTime? supplierRepliedAt,
   });
 }
 
@@ -154,7 +211,12 @@ class __$$ReviewImplCopyWithImpl<$Res>
     Object? supplierId = null,
     Object? stars = null,
     Object? comment = null,
+    Object? title = freezed,
     Object? createdAt = null,
+    Object? imagePaths = null,
+    Object? videoPath = freezed,
+    Object? supplierReply = freezed,
+    Object? supplierRepliedAt = freezed,
   }) {
     return _then(
       _$ReviewImpl(
@@ -186,17 +248,37 @@ class __$$ReviewImplCopyWithImpl<$Res>
             ? _value.comment
             : comment // ignore: cast_nullable_to_non_nullable
                   as String,
+        title: freezed == title
+            ? _value.title
+            : title // ignore: cast_nullable_to_non_nullable
+                  as String?,
         createdAt: null == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
+        imagePaths: null == imagePaths
+            ? _value._imagePaths
+            : imagePaths // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        videoPath: freezed == videoPath
+            ? _value.videoPath
+            : videoPath // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        supplierReply: freezed == supplierReply
+            ? _value.supplierReply
+            : supplierReply // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        supplierRepliedAt: freezed == supplierRepliedAt
+            ? _value.supplierRepliedAt
+            : supplierRepliedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ReviewImpl implements _Review {
   const _$ReviewImpl({
     required this.id,
@@ -206,8 +288,16 @@ class _$ReviewImpl implements _Review {
     required this.supplierId,
     required this.stars,
     required this.comment,
+    this.title,
     required this.createdAt,
-  });
+    final List<String> imagePaths = const [],
+    this.videoPath,
+    this.supplierReply,
+    this.supplierRepliedAt,
+  }) : _imagePaths = imagePaths;
+
+  factory _$ReviewImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ReviewImplFromJson(json);
 
   @override
   final String id;
@@ -223,12 +313,43 @@ class _$ReviewImpl implements _Review {
   final int stars;
   @override
   final String comment;
+
+  /// Le titre de l'avis (`0119`), facultatif : une ligne qui résume.
+  @override
+  final String? title;
   @override
   final DateTime createdAt;
 
+  /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans
+  /// sa gestion des avis : un reproche illustré se traite autrement qu'un
+  /// reproche décrit.
+  final List<String> _imagePaths;
+
+  /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans
+  /// sa gestion des avis : un reproche illustré se traite autrement qu'un
+  /// reproche décrit.
+  @override
+  @JsonKey()
+  List<String> get imagePaths {
+    if (_imagePaths is EqualUnmodifiableListView) return _imagePaths;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_imagePaths);
+  }
+
+  @override
+  final String? videoPath;
+
+  /// The supplier's public reply to this review, if they've written one —
+  /// re-calling `ReviewRepository.reply` edits it in place rather than
+  /// appending a second one.
+  @override
+  final String? supplierReply;
+  @override
+  final DateTime? supplierRepliedAt;
+
   @override
   String toString() {
-    return 'Review(id: $id, orderId: $orderId, supplierGroupId: $supplierGroupId, clientId: $clientId, supplierId: $supplierId, stars: $stars, comment: $comment, createdAt: $createdAt)';
+    return 'Review(id: $id, orderId: $orderId, supplierGroupId: $supplierGroupId, clientId: $clientId, supplierId: $supplierId, stars: $stars, comment: $comment, title: $title, createdAt: $createdAt, imagePaths: $imagePaths, videoPath: $videoPath, supplierReply: $supplierReply, supplierRepliedAt: $supplierRepliedAt)';
   }
 
   @override
@@ -246,10 +367,22 @@ class _$ReviewImpl implements _Review {
                 other.supplierId == supplierId) &&
             (identical(other.stars, stars) || other.stars == stars) &&
             (identical(other.comment, comment) || other.comment == comment) &&
+            (identical(other.title, title) || other.title == title) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            const DeepCollectionEquality().equals(
+              other._imagePaths,
+              _imagePaths,
+            ) &&
+            (identical(other.videoPath, videoPath) ||
+                other.videoPath == videoPath) &&
+            (identical(other.supplierReply, supplierReply) ||
+                other.supplierReply == supplierReply) &&
+            (identical(other.supplierRepliedAt, supplierRepliedAt) ||
+                other.supplierRepliedAt == supplierRepliedAt));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -260,7 +393,12 @@ class _$ReviewImpl implements _Review {
     supplierId,
     stars,
     comment,
+    title,
     createdAt,
+    const DeepCollectionEquality().hash(_imagePaths),
+    videoPath,
+    supplierReply,
+    supplierRepliedAt,
   );
 
   /// Create a copy of Review
@@ -270,6 +408,11 @@ class _$ReviewImpl implements _Review {
   @pragma('vm:prefer-inline')
   _$$ReviewImplCopyWith<_$ReviewImpl> get copyWith =>
       __$$ReviewImplCopyWithImpl<_$ReviewImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ReviewImplToJson(this);
+  }
 }
 
 abstract class _Review implements Review {
@@ -281,8 +424,15 @@ abstract class _Review implements Review {
     required final String supplierId,
     required final int stars,
     required final String comment,
+    final String? title,
     required final DateTime createdAt,
+    final List<String> imagePaths,
+    final String? videoPath,
+    final String? supplierReply,
+    final DateTime? supplierRepliedAt,
   }) = _$ReviewImpl;
+
+  factory _Review.fromJson(Map<String, dynamic> json) = _$ReviewImpl.fromJson;
 
   @override
   String get id;
@@ -298,8 +448,28 @@ abstract class _Review implements Review {
   int get stars;
   @override
   String get comment;
+
+  /// Le titre de l'avis (`0119`), facultatif : une ligne qui résume.
+  @override
+  String? get title;
   @override
   DateTime get createdAt;
+
+  /// Photos et vidéo de l'acheteur (`0061`). Le fournisseur les voit dans
+  /// sa gestion des avis : un reproche illustré se traite autrement qu'un
+  /// reproche décrit.
+  @override
+  List<String> get imagePaths;
+  @override
+  String? get videoPath;
+
+  /// The supplier's public reply to this review, if they've written one —
+  /// re-calling `ReviewRepository.reply` edits it in place rather than
+  /// appending a second one.
+  @override
+  String? get supplierReply;
+  @override
+  DateTime? get supplierRepliedAt;
 
   /// Create a copy of Review
   /// with the given fields replaced by the non-null parameter values.

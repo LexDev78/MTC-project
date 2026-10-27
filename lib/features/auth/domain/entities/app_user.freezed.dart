@@ -31,6 +31,8 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -44,6 +46,10 @@ mixin _$AppUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -52,7 +58,21 @@ mixin _$AppUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) => throw _privateConstructorUsedError;
@@ -65,6 +85,8 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -78,6 +100,10 @@ mixin _$AppUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -86,7 +112,21 @@ mixin _$AppUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) => throw _privateConstructorUsedError;
@@ -99,6 +139,8 @@ mixin _$AppUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(
@@ -112,6 +154,10 @@ mixin _$AppUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -120,7 +166,21 @@ mixin _$AppUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -129,18 +189,21 @@ mixin _$AppUser {
   TResult map<TResult extends Object?>({
     required TResult Function(ClientUser value) client,
     required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
     required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(ClientUser value)? client,
     TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
     TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(ClientUser value)? client,
     TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
     TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
@@ -230,6 +293,8 @@ abstract class _$$ClientUserImplCopyWith<$Res>
     String phoneNumber,
     DateTime createdAt,
     String? defaultAddressId,
+    DateTime? birthDate,
+    String? avatarPath,
   });
 }
 
@@ -253,6 +318,8 @@ class __$$ClientUserImplCopyWithImpl<$Res>
     Object? phoneNumber = null,
     Object? createdAt = null,
     Object? defaultAddressId = freezed,
+    Object? birthDate = freezed,
+    Object? avatarPath = freezed,
   }) {
     return _then(
       _$ClientUserImpl(
@@ -280,6 +347,14 @@ class __$$ClientUserImplCopyWithImpl<$Res>
             ? _value.defaultAddressId
             : defaultAddressId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        birthDate: freezed == birthDate
+            ? _value.birthDate
+            : birthDate // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        avatarPath: freezed == avatarPath
+            ? _value.avatarPath
+            : avatarPath // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -295,6 +370,8 @@ class _$ClientUserImpl implements ClientUser {
     required this.phoneNumber,
     required this.createdAt,
     this.defaultAddressId,
+    this.birthDate,
+    this.avatarPath,
   });
 
   @override
@@ -310,9 +387,18 @@ class _$ClientUserImpl implements ClientUser {
   @override
   final String? defaultAddressId;
 
+  /// Facultative, et lue par lui seul (`0121`).
+  @override
+  final DateTime? birthDate;
+
+  /// Chemin dans le bucket privé `avatars` : la photo n'est montrée qu'à
+  /// son propriétaire. `null` = les initiales.
+  @override
+  final String? avatarPath;
+
   @override
   String toString() {
-    return 'AppUser.client(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, defaultAddressId: $defaultAddressId)';
+    return 'AppUser.client(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, defaultAddressId: $defaultAddressId, birthDate: $birthDate, avatarPath: $avatarPath)';
   }
 
   @override
@@ -330,7 +416,11 @@ class _$ClientUserImpl implements ClientUser {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.defaultAddressId, defaultAddressId) ||
-                other.defaultAddressId == defaultAddressId));
+                other.defaultAddressId == defaultAddressId) &&
+            (identical(other.birthDate, birthDate) ||
+                other.birthDate == birthDate) &&
+            (identical(other.avatarPath, avatarPath) ||
+                other.avatarPath == avatarPath));
   }
 
   @override
@@ -342,6 +432,8 @@ class _$ClientUserImpl implements ClientUser {
     phoneNumber,
     createdAt,
     defaultAddressId,
+    birthDate,
+    avatarPath,
   );
 
   /// Create a copy of AppUser
@@ -362,6 +454,8 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -375,6 +469,10 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -383,7 +481,21 @@ class _$ClientUserImpl implements ClientUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) {
@@ -394,6 +506,8 @@ class _$ClientUserImpl implements ClientUser {
       phoneNumber,
       createdAt,
       defaultAddressId,
+      birthDate,
+      avatarPath,
     );
   }
 
@@ -407,6 +521,8 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -420,6 +536,10 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -428,7 +548,21 @@ class _$ClientUserImpl implements ClientUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) {
@@ -439,6 +573,8 @@ class _$ClientUserImpl implements ClientUser {
       phoneNumber,
       createdAt,
       defaultAddressId,
+      birthDate,
+      avatarPath,
     );
   }
 
@@ -452,6 +588,8 @@ class _$ClientUserImpl implements ClientUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(
@@ -465,6 +603,10 @@ class _$ClientUserImpl implements ClientUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -473,7 +615,21 @@ class _$ClientUserImpl implements ClientUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -486,6 +642,8 @@ class _$ClientUserImpl implements ClientUser {
         phoneNumber,
         createdAt,
         defaultAddressId,
+        birthDate,
+        avatarPath,
       );
     }
     return orElse();
@@ -496,6 +654,7 @@ class _$ClientUserImpl implements ClientUser {
   TResult map<TResult extends Object?>({
     required TResult Function(ClientUser value) client,
     required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
     required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
   }) {
     return client(this);
@@ -506,6 +665,7 @@ class _$ClientUserImpl implements ClientUser {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(ClientUser value)? client,
     TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
     TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
   }) {
     return client?.call(this);
@@ -516,6 +676,7 @@ class _$ClientUserImpl implements ClientUser {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(ClientUser value)? client,
     TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
     TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
     required TResult orElse(),
   }) {
@@ -534,6 +695,8 @@ abstract class ClientUser implements AppUser {
     required final String phoneNumber,
     required final DateTime createdAt,
     final String? defaultAddressId,
+    final DateTime? birthDate,
+    final String? avatarPath,
   }) = _$ClientUserImpl;
 
   @override
@@ -547,6 +710,13 @@ abstract class ClientUser implements AppUser {
   @override
   DateTime get createdAt;
   String? get defaultAddressId;
+
+  /// Facultative, et lue par lui seul (`0121`).
+  DateTime? get birthDate;
+
+  /// Chemin dans le bucket privé `avatars` : la photo n'est montrée qu'à
+  /// son propriétaire. `null` = les initiales.
+  String? get avatarPath;
 
   /// Create a copy of AppUser
   /// with the given fields replaced by the non-null parameter values.
@@ -576,6 +746,10 @@ abstract class _$$SupplierTiersUserImplCopyWith<$Res>
     String city,
     double ratingAverage,
     int ratingCount,
+    SupplierLegalType legalType,
+    String? operatesSupplierId,
+    List<String> permissions,
+    bool mustChangePassword,
   });
 }
 
@@ -603,6 +777,10 @@ class __$$SupplierTiersUserImplCopyWithImpl<$Res>
     Object? city = null,
     Object? ratingAverage = null,
     Object? ratingCount = null,
+    Object? legalType = null,
+    Object? operatesSupplierId = freezed,
+    Object? permissions = null,
+    Object? mustChangePassword = null,
   }) {
     return _then(
       _$SupplierTiersUserImpl(
@@ -646,6 +824,22 @@ class __$$SupplierTiersUserImplCopyWithImpl<$Res>
             ? _value.ratingCount
             : ratingCount // ignore: cast_nullable_to_non_nullable
                   as int,
+        legalType: null == legalType
+            ? _value.legalType
+            : legalType // ignore: cast_nullable_to_non_nullable
+                  as SupplierLegalType,
+        operatesSupplierId: freezed == operatesSupplierId
+            ? _value.operatesSupplierId
+            : operatesSupplierId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        permissions: null == permissions
+            ? _value._permissions
+            : permissions // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        mustChangePassword: null == mustChangePassword
+            ? _value.mustChangePassword
+            : mustChangePassword // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -665,7 +859,11 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
     required this.city,
     required this.ratingAverage,
     required this.ratingCount,
-  });
+    required this.legalType,
+    this.operatesSupplierId,
+    final List<String> permissions = const [],
+    this.mustChangePassword = false,
+  }) : _permissions = permissions;
 
   @override
   final String id;
@@ -687,10 +885,44 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   final double ratingAverage;
   @override
   final int ratingCount;
+  @override
+  final SupplierLegalType legalType;
+
+  /// La boutique que ce compte **opère**, qui n'est pas toujours la
+  /// sienne : un collaborateur travaille dans celle de son patron
+  /// (`supplier_collaborators`, `0093`). `null` pour un propriétaire —
+  /// c'est alors [id], et le dire deux fois inviterait les deux valeurs
+  /// à diverger.
+  @override
+  final String? operatesSupplierId;
+
+  /// Ce que le patron lui a accordé : `products`, `orders`, `promotions`,
+  /// `storefront`, `messages`, `reviews`. Vide pour un propriétaire, qui
+  /// a tout sans qu'on ait à le lui donner.
+  final List<String> _permissions;
+
+  /// Ce que le patron lui a accordé : `products`, `orders`, `promotions`,
+  /// `storefront`, `messages`, `reviews`. Vide pour un propriétaire, qui
+  /// a tout sans qu'on ait à le lui donner.
+  @override
+  @JsonKey()
+  List<String> get permissions {
+    if (_permissions is EqualUnmodifiableListView) return _permissions;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_permissions);
+  }
+
+  /// Vrai tant que le collaborateur n'a pas remplacé le mot de passe à
+  /// usage unique que son patron lui a dicté (`0098`). Le routeur
+  /// l'immobilise alors sur l'écran de changement : tant que ce code
+  /// circule de vive voix, le compte n'est à personne.
+  @override
+  @JsonKey()
+  final bool mustChangePassword;
 
   @override
   String toString() {
-    return 'AppUser.supplierTiers(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, businessName: $businessName, verificationStatus: $verificationStatus, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount)';
+    return 'AppUser.supplierTiers(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, businessName: $businessName, verificationStatus: $verificationStatus, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, legalType: $legalType, operatesSupplierId: $operatesSupplierId, permissions: $permissions, mustChangePassword: $mustChangePassword)';
   }
 
   @override
@@ -715,7 +947,17 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
             (identical(other.ratingAverage, ratingAverage) ||
                 other.ratingAverage == ratingAverage) &&
             (identical(other.ratingCount, ratingCount) ||
-                other.ratingCount == ratingCount));
+                other.ratingCount == ratingCount) &&
+            (identical(other.legalType, legalType) ||
+                other.legalType == legalType) &&
+            (identical(other.operatesSupplierId, operatesSupplierId) ||
+                other.operatesSupplierId == operatesSupplierId) &&
+            const DeepCollectionEquality().equals(
+              other._permissions,
+              _permissions,
+            ) &&
+            (identical(other.mustChangePassword, mustChangePassword) ||
+                other.mustChangePassword == mustChangePassword));
   }
 
   @override
@@ -731,6 +973,10 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
     city,
     ratingAverage,
     ratingCount,
+    legalType,
+    operatesSupplierId,
+    const DeepCollectionEquality().hash(_permissions),
+    mustChangePassword,
   );
 
   /// Create a copy of AppUser
@@ -754,6 +1000,8 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -767,6 +1015,10 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -775,7 +1027,21 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) {
@@ -790,6 +1056,10 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       city,
       ratingAverage,
       ratingCount,
+      legalType,
+      operatesSupplierId,
+      permissions,
+      mustChangePassword,
     );
   }
 
@@ -803,6 +1073,8 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -816,6 +1088,10 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -824,7 +1100,21 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) {
@@ -839,6 +1129,10 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       city,
       ratingAverage,
       ratingCount,
+      legalType,
+      operatesSupplierId,
+      permissions,
+      mustChangePassword,
     );
   }
 
@@ -852,6 +1146,8 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(
@@ -865,6 +1161,10 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -873,7 +1173,21 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -890,6 +1204,10 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
         city,
         ratingAverage,
         ratingCount,
+        legalType,
+        operatesSupplierId,
+        permissions,
+        mustChangePassword,
       );
     }
     return orElse();
@@ -900,6 +1218,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   TResult map<TResult extends Object?>({
     required TResult Function(ClientUser value) client,
     required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
     required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
   }) {
     return supplierTiers(this);
@@ -910,6 +1229,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(ClientUser value)? client,
     TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
     TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
   }) {
     return supplierTiers?.call(this);
@@ -920,6 +1240,7 @@ class _$SupplierTiersUserImpl implements SupplierTiersUser {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(ClientUser value)? client,
     TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
     TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
     required TResult orElse(),
   }) {
@@ -942,6 +1263,10 @@ abstract class SupplierTiersUser implements AppUser {
     required final String city,
     required final double ratingAverage,
     required final int ratingCount,
+    required final SupplierLegalType legalType,
+    final String? operatesSupplierId,
+    final List<String> permissions,
+    final bool mustChangePassword,
   }) = _$SupplierTiersUserImpl;
 
   @override
@@ -959,12 +1284,511 @@ abstract class SupplierTiersUser implements AppUser {
   String get city;
   double get ratingAverage;
   int get ratingCount;
+  SupplierLegalType get legalType;
+
+  /// La boutique que ce compte **opère**, qui n'est pas toujours la
+  /// sienne : un collaborateur travaille dans celle de son patron
+  /// (`supplier_collaborators`, `0093`). `null` pour un propriétaire —
+  /// c'est alors [id], et le dire deux fois inviterait les deux valeurs
+  /// à diverger.
+  String? get operatesSupplierId;
+
+  /// Ce que le patron lui a accordé : `products`, `orders`, `promotions`,
+  /// `storefront`, `messages`, `reviews`. Vide pour un propriétaire, qui
+  /// a tout sans qu'on ait à le lui donner.
+  List<String> get permissions;
+
+  /// Vrai tant que le collaborateur n'a pas remplacé le mot de passe à
+  /// usage unique que son patron lui a dicté (`0098`). Le routeur
+  /// l'immobilise alors sur l'écran de changement : tant que ce code
+  /// circule de vive voix, le compte n'est à personne.
+  bool get mustChangePassword;
 
   /// Create a copy of AppUser
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SupplierTiersUserImplCopyWith<_$SupplierTiersUserImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$CourierUserImplCopyWith<$Res>
+    implements $AppUserCopyWith<$Res> {
+  factory _$$CourierUserImplCopyWith(
+    _$CourierUserImpl value,
+    $Res Function(_$CourierUserImpl) then,
+  ) = __$$CourierUserImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String id,
+    String displayName,
+    String usernameOrPhone,
+    String phoneNumber,
+    DateTime createdAt,
+    CourierStatus courierStatus,
+    String city,
+    bool isOnline,
+    String? vehicleLabel,
+    DateTime? documentsSubmittedAt,
+  });
+}
+
+/// @nodoc
+class __$$CourierUserImplCopyWithImpl<$Res>
+    extends _$AppUserCopyWithImpl<$Res, _$CourierUserImpl>
+    implements _$$CourierUserImplCopyWith<$Res> {
+  __$$CourierUserImplCopyWithImpl(
+    _$CourierUserImpl _value,
+    $Res Function(_$CourierUserImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of AppUser
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? displayName = null,
+    Object? usernameOrPhone = null,
+    Object? phoneNumber = null,
+    Object? createdAt = null,
+    Object? courierStatus = null,
+    Object? city = null,
+    Object? isOnline = null,
+    Object? vehicleLabel = freezed,
+    Object? documentsSubmittedAt = freezed,
+  }) {
+    return _then(
+      _$CourierUserImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        displayName: null == displayName
+            ? _value.displayName
+            : displayName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        usernameOrPhone: null == usernameOrPhone
+            ? _value.usernameOrPhone
+            : usernameOrPhone // ignore: cast_nullable_to_non_nullable
+                  as String,
+        phoneNumber: null == phoneNumber
+            ? _value.phoneNumber
+            : phoneNumber // ignore: cast_nullable_to_non_nullable
+                  as String,
+        createdAt: null == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+        courierStatus: null == courierStatus
+            ? _value.courierStatus
+            : courierStatus // ignore: cast_nullable_to_non_nullable
+                  as CourierStatus,
+        city: null == city
+            ? _value.city
+            : city // ignore: cast_nullable_to_non_nullable
+                  as String,
+        isOnline: null == isOnline
+            ? _value.isOnline
+            : isOnline // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        vehicleLabel: freezed == vehicleLabel
+            ? _value.vehicleLabel
+            : vehicleLabel // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        documentsSubmittedAt: freezed == documentsSubmittedAt
+            ? _value.documentsSubmittedAt
+            : documentsSubmittedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$CourierUserImpl implements CourierUser {
+  const _$CourierUserImpl({
+    required this.id,
+    required this.displayName,
+    required this.usernameOrPhone,
+    required this.phoneNumber,
+    required this.createdAt,
+    required this.courierStatus,
+    required this.city,
+    required this.isOnline,
+    this.vehicleLabel,
+    this.documentsSubmittedAt,
+  });
+
+  @override
+  final String id;
+  @override
+  final String displayName;
+  @override
+  final String usernameOrPhone;
+  @override
+  final String phoneNumber;
+  @override
+  final DateTime createdAt;
+  @override
+  final CourierStatus courierStatus;
+  @override
+  final String city;
+  @override
+  final bool isOnline;
+  @override
+  final String? vehicleLabel;
+
+  /// Date de dépôt des pièces (`0105`). Nulle = rien n'a encore été
+  /// envoyé : l'écran d'attente doit alors réclamer le dossier au lieu
+  /// d'annoncer un examen qui n'a pas commencé.
+  @override
+  final DateTime? documentsSubmittedAt;
+
+  @override
+  String toString() {
+    return 'AppUser.courier(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, courierStatus: $courierStatus, city: $city, isOnline: $isOnline, vehicleLabel: $vehicleLabel, documentsSubmittedAt: $documentsSubmittedAt)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CourierUserImpl &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.displayName, displayName) ||
+                other.displayName == displayName) &&
+            (identical(other.usernameOrPhone, usernameOrPhone) ||
+                other.usernameOrPhone == usernameOrPhone) &&
+            (identical(other.phoneNumber, phoneNumber) ||
+                other.phoneNumber == phoneNumber) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.courierStatus, courierStatus) ||
+                other.courierStatus == courierStatus) &&
+            (identical(other.city, city) || other.city == city) &&
+            (identical(other.isOnline, isOnline) ||
+                other.isOnline == isOnline) &&
+            (identical(other.vehicleLabel, vehicleLabel) ||
+                other.vehicleLabel == vehicleLabel) &&
+            (identical(other.documentsSubmittedAt, documentsSubmittedAt) ||
+                other.documentsSubmittedAt == documentsSubmittedAt));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    displayName,
+    usernameOrPhone,
+    phoneNumber,
+    createdAt,
+    courierStatus,
+    city,
+    isOnline,
+    vehicleLabel,
+    documentsSubmittedAt,
+  );
+
+  /// Create a copy of AppUser
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$CourierUserImplCopyWith<_$CourierUserImpl> get copyWith =>
+      __$$CourierUserImplCopyWithImpl<_$CourierUserImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
+    )
+    client,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String businessName,
+      VerificationStatus verificationStatus,
+      String city,
+      double ratingAverage,
+      int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
+    )
+    supplierTiers,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      StaffRole staffRole,
+      bool mfaPending,
+    )
+    supplierPrincipal,
+  }) {
+    return courier(
+      id,
+      displayName,
+      usernameOrPhone,
+      phoneNumber,
+      createdAt,
+      courierStatus,
+      city,
+      isOnline,
+      vehicleLabel,
+      documentsSubmittedAt,
+    );
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
+    )?
+    client,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String businessName,
+      VerificationStatus verificationStatus,
+      String city,
+      double ratingAverage,
+      int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
+    )?
+    supplierTiers,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      StaffRole staffRole,
+      bool mfaPending,
+    )?
+    supplierPrincipal,
+  }) {
+    return courier?.call(
+      id,
+      displayName,
+      usernameOrPhone,
+      phoneNumber,
+      createdAt,
+      courierStatus,
+      city,
+      isOnline,
+      vehicleLabel,
+      documentsSubmittedAt,
+    );
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
+    )?
+    client,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      String businessName,
+      VerificationStatus verificationStatus,
+      String city,
+      double ratingAverage,
+      int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
+    )?
+    supplierTiers,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
+      StaffRole staffRole,
+      bool mfaPending,
+    )?
+    supplierPrincipal,
+    required TResult orElse(),
+  }) {
+    if (courier != null) {
+      return courier(
+        id,
+        displayName,
+        usernameOrPhone,
+        phoneNumber,
+        createdAt,
+        courierStatus,
+        city,
+        isOnline,
+        vehicleLabel,
+        documentsSubmittedAt,
+      );
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(ClientUser value) client,
+    required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
+    required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
+  }) {
+    return courier(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(ClientUser value)? client,
+    TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
+    TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
+  }) {
+    return courier?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(ClientUser value)? client,
+    TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
+    TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
+    required TResult orElse(),
+  }) {
+    if (courier != null) {
+      return courier(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class CourierUser implements AppUser {
+  const factory CourierUser({
+    required final String id,
+    required final String displayName,
+    required final String usernameOrPhone,
+    required final String phoneNumber,
+    required final DateTime createdAt,
+    required final CourierStatus courierStatus,
+    required final String city,
+    required final bool isOnline,
+    final String? vehicleLabel,
+    final DateTime? documentsSubmittedAt,
+  }) = _$CourierUserImpl;
+
+  @override
+  String get id;
+  @override
+  String get displayName;
+  @override
+  String get usernameOrPhone;
+  @override
+  String get phoneNumber;
+  @override
+  DateTime get createdAt;
+  CourierStatus get courierStatus;
+  String get city;
+  bool get isOnline;
+  String? get vehicleLabel;
+
+  /// Date de dépôt des pièces (`0105`). Nulle = rien n'a encore été
+  /// envoyé : l'écran d'attente doit alors réclamer le dossier au lieu
+  /// d'annoncer un examen qui n'a pas commencé.
+  DateTime? get documentsSubmittedAt;
+
+  /// Create a copy of AppUser
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$CourierUserImplCopyWith<_$CourierUserImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -984,6 +1808,7 @@ abstract class _$$SupplierPrincipalUserImplCopyWith<$Res>
     String phoneNumber,
     DateTime createdAt,
     StaffRole staffRole,
+    bool mfaPending,
   });
 }
 
@@ -1007,6 +1832,7 @@ class __$$SupplierPrincipalUserImplCopyWithImpl<$Res>
     Object? phoneNumber = null,
     Object? createdAt = null,
     Object? staffRole = null,
+    Object? mfaPending = null,
   }) {
     return _then(
       _$SupplierPrincipalUserImpl(
@@ -1034,6 +1860,10 @@ class __$$SupplierPrincipalUserImplCopyWithImpl<$Res>
             ? _value.staffRole
             : staffRole // ignore: cast_nullable_to_non_nullable
                   as StaffRole,
+        mfaPending: null == mfaPending
+            ? _value.mfaPending
+            : mfaPending // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -1049,6 +1879,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
     required this.phoneNumber,
     required this.createdAt,
     required this.staffRole,
+    this.mfaPending = false,
   });
 
   @override
@@ -1064,9 +1895,17 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
   @override
   final StaffRole staffRole;
 
+  /// Vrai tant que la session n'a pas été confirmée par le code d'une
+  /// application d'authentification (`aal2`), alors que la base l'exige
+  /// (`0135`). Le serveur ne reconnaît pas encore ce compte comme staff ;
+  /// le routeur l'immobilise sur l'écran du code.
+  @override
+  @JsonKey()
+  final bool mfaPending;
+
   @override
   String toString() {
-    return 'AppUser.supplierPrincipal(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, staffRole: $staffRole)';
+    return 'AppUser.supplierPrincipal(id: $id, displayName: $displayName, usernameOrPhone: $usernameOrPhone, phoneNumber: $phoneNumber, createdAt: $createdAt, staffRole: $staffRole, mfaPending: $mfaPending)';
   }
 
   @override
@@ -1084,7 +1923,9 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.staffRole, staffRole) ||
-                other.staffRole == staffRole));
+                other.staffRole == staffRole) &&
+            (identical(other.mfaPending, mfaPending) ||
+                other.mfaPending == mfaPending));
   }
 
   @override
@@ -1096,6 +1937,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
     phoneNumber,
     createdAt,
     staffRole,
+    mfaPending,
   );
 
   /// Create a copy of AppUser
@@ -1120,6 +1962,8 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )
     client,
     required TResult Function(
@@ -1133,6 +1977,10 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )
     supplierTiers,
     required TResult Function(
@@ -1141,7 +1989,21 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )
+    courier,
+    required TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )
     supplierPrincipal,
   }) {
@@ -1152,6 +2014,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       phoneNumber,
       createdAt,
       staffRole,
+      mfaPending,
     );
   }
 
@@ -1165,6 +2028,8 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult? Function(
@@ -1178,6 +2043,10 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult? Function(
@@ -1186,7 +2055,21 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult? Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
   }) {
@@ -1197,6 +2080,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       phoneNumber,
       createdAt,
       staffRole,
+      mfaPending,
     );
   }
 
@@ -1210,6 +2094,8 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String phoneNumber,
       DateTime createdAt,
       String? defaultAddressId,
+      DateTime? birthDate,
+      String? avatarPath,
     )?
     client,
     TResult Function(
@@ -1223,6 +2109,10 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String city,
       double ratingAverage,
       int ratingCount,
+      SupplierLegalType legalType,
+      String? operatesSupplierId,
+      List<String> permissions,
+      bool mustChangePassword,
     )?
     supplierTiers,
     TResult Function(
@@ -1231,7 +2121,21 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
       String usernameOrPhone,
       String phoneNumber,
       DateTime createdAt,
+      CourierStatus courierStatus,
+      String city,
+      bool isOnline,
+      String? vehicleLabel,
+      DateTime? documentsSubmittedAt,
+    )?
+    courier,
+    TResult Function(
+      String id,
+      String displayName,
+      String usernameOrPhone,
+      String phoneNumber,
+      DateTime createdAt,
       StaffRole staffRole,
+      bool mfaPending,
     )?
     supplierPrincipal,
     required TResult orElse(),
@@ -1244,6 +2148,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
         phoneNumber,
         createdAt,
         staffRole,
+        mfaPending,
       );
     }
     return orElse();
@@ -1254,6 +2159,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
   TResult map<TResult extends Object?>({
     required TResult Function(ClientUser value) client,
     required TResult Function(SupplierTiersUser value) supplierTiers,
+    required TResult Function(CourierUser value) courier,
     required TResult Function(SupplierPrincipalUser value) supplierPrincipal,
   }) {
     return supplierPrincipal(this);
@@ -1264,6 +2170,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(ClientUser value)? client,
     TResult? Function(SupplierTiersUser value)? supplierTiers,
+    TResult? Function(CourierUser value)? courier,
     TResult? Function(SupplierPrincipalUser value)? supplierPrincipal,
   }) {
     return supplierPrincipal?.call(this);
@@ -1274,6 +2181,7 @@ class _$SupplierPrincipalUserImpl implements SupplierPrincipalUser {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(ClientUser value)? client,
     TResult Function(SupplierTiersUser value)? supplierTiers,
+    TResult Function(CourierUser value)? courier,
     TResult Function(SupplierPrincipalUser value)? supplierPrincipal,
     required TResult orElse(),
   }) {
@@ -1292,6 +2200,7 @@ abstract class SupplierPrincipalUser implements AppUser {
     required final String phoneNumber,
     required final DateTime createdAt,
     required final StaffRole staffRole,
+    final bool mfaPending,
   }) = _$SupplierPrincipalUserImpl;
 
   @override
@@ -1305,6 +2214,12 @@ abstract class SupplierPrincipalUser implements AppUser {
   @override
   DateTime get createdAt;
   StaffRole get staffRole;
+
+  /// Vrai tant que la session n'a pas été confirmée par le code d'une
+  /// application d'authentification (`aal2`), alors que la base l'exige
+  /// (`0135`). Le serveur ne reconnaît pas encore ce compte comme staff ;
+  /// le routeur l'immobilise sur l'écran du code.
+  bool get mfaPending;
 
   /// Create a copy of AppUser
   /// with the given fields replaced by the non-null parameter values.

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
+import 'package:mtc_app/core/widgets/resolved_image.dart';
 import 'package:mtc_app/core/widgets/role_badge.dart';
+import 'package:mtc_app/core/widgets/voice_note_player.dart';
 
 import '../../domain/entities/product_comment.dart';
 
@@ -16,6 +18,8 @@ class ProductCommentTile extends StatelessWidget {
     required this.replies,
     required this.isReplying,
     required this.onToggleReply,
+    required this.onToggleLike,
+    required this.currentUserId,
     required this.replyComposer,
   });
 
@@ -23,10 +27,13 @@ class ProductCommentTile extends StatelessWidget {
   final List<ProductComment> replies;
   final bool isReplying;
   final VoidCallback onToggleReply;
+  final void Function(String commentId) onToggleLike;
+  final String? currentUserId;
 
   /// Built by the parent so it can own the [TextEditingController] and
   /// submit logic while staying scoped to this one comment's reply slot.
-  final Widget replyComposer;
+  /// Null unless [isReplying] is true.
+  final Widget? replyComposer;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +42,11 @@ class ProductCommentTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CommentBubble(comment: comment),
+          _CommentBubble(
+            comment: comment,
+            isLiked: comment.isLikedBy(currentUserId),
+            onToggleLike: () => onToggleLike(comment.id),
+          ),
           Padding(
             padding: const EdgeInsets.only(left: AppSpacing.md, top: 2),
             child: TextButton(
@@ -51,9 +62,13 @@ class ProductCommentTile extends StatelessWidget {
           for (final reply in replies)
             Padding(
               padding: const EdgeInsets.only(left: AppSpacing.lg, top: 4),
-              child: _CommentBubble(comment: reply),
+              child: _CommentBubble(
+                comment: reply,
+                isLiked: reply.isLikedBy(currentUserId),
+                onToggleLike: () => onToggleLike(reply.id),
+              ),
             ),
-          if (isReplying)
+          if (isReplying && replyComposer != null)
             Padding(
               padding: const EdgeInsets.only(left: AppSpacing.lg, top: 4),
               child: replyComposer,
@@ -65,9 +80,15 @@ class ProductCommentTile extends StatelessWidget {
 }
 
 class _CommentBubble extends StatelessWidget {
-  const _CommentBubble({required this.comment});
+  const _CommentBubble({
+    required this.comment,
+    required this.isLiked,
+    required this.onToggleLike,
+  });
 
   final ProductComment comment;
+  final bool isLiked;
+  final VoidCallback onToggleLike;
 
   @override
   Widget build(BuildContext context) {
@@ -119,9 +140,144 @@ class _CommentBubble extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text(comment.text, style: Theme.of(context).textTheme.bodyMedium),
+          if (comment.attachmentType == CommentAttachmentType.image &&
+              comment.attachmentPath != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: _ImageAttachment(path: comment.attachmentPath!),
+            ),
+          if (comment.attachmentType == CommentAttachmentType.voice &&
+              comment.attachmentPath != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: VoiceNotePlayer(
+                path: comment.attachmentPath!,
+                durationSeconds: comment.voiceDurationSeconds,
+                bucket: 'comment-attachments',
+              ),
+            ),
+          if (comment.text.isNotEmpty)
+            Text(comment.text, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 2),
+          _LikeButton(
+            liked: isLiked,
+            count: comment.likeCount,
+            onTap: onToggleLike,
+          ),
         ],
       ),
     );
   }
 }
+
+class _LikeButton extends StatelessWidget {
+  const _LikeButton({
+    required this.liked,
+    required this.count,
+    required this.onTap,
+  });
+
+  final bool liked;
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = liked ? scheme.error : scheme.onSurfaceVariant;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 16,
+              color: color,
+            ),
+            if (count > 0) ...[
+              const SizedBox(width: 4),
+              Text(
+                '$count',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A photo shared in a comment — tap to view full-screen. [path] is a
+/// `comment-attachments` Storage object path (public bucket — the Q&A
+/// thread is public read, so a plain resolved URL is enough, no signing).
+class _ImageAttachment extends StatelessWidget {
+  const _ImageAttachment({required this.path});
+
+  final String path;
+
+  void _openFullscreen(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: InteractiveViewer(
+              minScale: 1,
+              maxScale: 4,
+              child: Center(
+                child: ResolvedImage(path: path, bucket: 'comment-attachments'),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: 16,
+            child: IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      onTap: () => _openFullscreen(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        child: SizedBox(
+          width: 180,
+          height: 180,
+          child: ResolvedImage(
+            path: path,
+            bucket: 'comment-attachments',
+            // Matches the fixed 180x180 SizedBox above at ~2x, comfortably
+            // covering standard device pixel ratios without decoding the
+            // original upload's full resolution for this thumbnail.
+            cacheWidth: 360,
+            cacheHeight: 360,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.black12,
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

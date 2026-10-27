@@ -32,4 +32,18 @@ abstract final class Validators {
     if (value.length < 6) return '6 caractères minimum';
     return null;
   }
+
+  static String? positiveInteger(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Ce champ est obligatoire';
+    final parsed = int.tryParse(value.trim());
+    if (parsed == null || parsed < 0) return 'Nombre invalide';
+    return null;
+  }
+
+  static String? positiveDecimal(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Ce champ est obligatoire';
+    final parsed = double.tryParse(value.trim().replaceAll(',', '.'));
+    if (parsed == null || parsed < 0) return 'Nombre invalide';
+    return null;
+  }
 }

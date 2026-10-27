@@ -43,3 +43,17 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local Claude Code skills (copied from third-party sources, not tracked)
+.claude/skills/
+
+# Clé du compte de service Firebase utilisée par l'Edge Function d'envoi
+# des push — un vrai secret (elle autorise l'envoi au nom du projet), au
+# contraire de `google-services.json`/`firebase_options.dart`, qui ne sont
+# que de la config cliente embarquée dans chaque APK. Voir `.env.example`.
+supabase/functions/.env
+
+# Journaux du CLI Firebase
+firebase-debug.log
+firestore-debug.log
+/E-commerce-Complete-Flutter-UI

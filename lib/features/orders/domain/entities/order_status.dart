@@ -1,7 +1,10 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 enum OrderStatus {
   pending,
   confirmed,
   preparing,
+  @JsonValue('in_transit')
   inTransit,
   delivered,
   cancelled;
@@ -18,4 +21,25 @@ enum OrderStatus {
 
 /// Who delivers a given supplier's part of the order — the supplier
 /// themselves, or MTC on their behalf for a fee.
-enum DeliveryMode { selfDelivery, mtcDelivery }
+enum DeliveryMode {
+  @JsonValue('self_delivery')
+  selfDelivery,
+  @JsonValue('mtc_delivery')
+  mtcDelivery,
+}
+
+/// Who cancelled a supplier group — [client] (only while the group is
+/// still `pending`, see `canClientCancel`) or [supplier] (any non-terminal
+/// status). [mtc] isn't wired to any flow yet, kept as a full enum rather
+/// than a bare flag so it's easy to add later without another migration.
+enum CancelledBy {
+  client,
+  supplier,
+  mtc;
+
+  String get label => switch (this) {
+    CancelledBy.client => 'le client',
+    CancelledBy.supplier => 'le fournisseur',
+    CancelledBy.mtc => 'MTC',
+  };
+}

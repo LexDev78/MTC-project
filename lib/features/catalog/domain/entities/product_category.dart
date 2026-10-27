@@ -1,24 +1,34 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+/// Les tris de la feuille « Trier par » du kit, dans son ordre, avec la
+/// pertinence (l'ordre de la recherche ou du catalogue) en tête.
 enum ProductSortOption {
   relevance,
   priceAsc,
   priceDesc,
+  newest,
   ratingDesc,
-  newest;
+  nameAsc,
+  nameDesc;
 
   String get label => switch (this) {
     ProductSortOption.relevance => 'Pertinence',
     ProductSortOption.priceAsc => 'Prix croissant',
     ProductSortOption.priceDesc => 'Prix décroissant',
-    ProductSortOption.ratingDesc => 'Mieux notés',
     ProductSortOption.newest => 'Plus récents',
+    ProductSortOption.ratingDesc => 'Mieux notés',
+    ProductSortOption.nameAsc => 'De A à Z',
+    ProductSortOption.nameDesc => 'De Z à A',
   };
 }
 
 enum ProductCategory {
+  @JsonValue('textiles_bogolan')
   textilesBogolan,
   artisanat,
   electronique,
   alimentation,
+  @JsonValue('materiaux_construction')
   materiauxConstruction,
   autre;
 
@@ -43,6 +53,7 @@ enum SupplierType { tiers, principal }
 enum ProductRegion {
   chine,
   europe,
+  @JsonValue('afrique_hors_mali')
   afriqueHorsMali,
   mali,
   autre;

@@ -15,15 +15,32 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+ChatConversation _$ChatConversationFromJson(Map<String, dynamic> json) {
+  return _ChatConversation.fromJson(json);
+}
+
 /// @nodoc
 mixin _$ChatConversation {
   String get id => throw _privateConstructorUsedError;
   String get clientId => throw _privateConstructorUsedError;
+
+  /// Denormalized like `Order.clientDisplayNameSnapshot` — lets the
+  /// supplier's conversation list/thread show who they're talking to
+  /// without a live join back to the client's account.
+  String get clientDisplayNameSnapshot => throw _privateConstructorUsedError;
   String get supplierId => throw _privateConstructorUsedError;
   String get supplierName => throw _privateConstructorUsedError;
   String get lastMessagePreview => throw _privateConstructorUsedError;
   DateTime get lastMessageAt => throw _privateConstructorUsedError;
-  int get unreadCount => throw _privateConstructorUsedError;
+  int get unreadCountClient => throw _privateConstructorUsedError;
+  int get unreadCountSupplier => throw _privateConstructorUsedError;
+
+  /// Posée quand le client ferme la conversation (`0122`) : la boutique ne
+  /// peut plus lui écrire. Il la rouvre en écrivant, ou d'un geste.
+  DateTime? get closedAt => throw _privateConstructorUsedError;
+
+  /// Serializes this ChatConversation to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of ChatConversation
   /// with the given fields replaced by the non-null parameter values.
@@ -42,11 +59,14 @@ abstract class $ChatConversationCopyWith<$Res> {
   $Res call({
     String id,
     String clientId,
+    String clientDisplayNameSnapshot,
     String supplierId,
     String supplierName,
     String lastMessagePreview,
     DateTime lastMessageAt,
-    int unreadCount,
+    int unreadCountClient,
+    int unreadCountSupplier,
+    DateTime? closedAt,
   });
 }
 
@@ -67,11 +87,14 @@ class _$ChatConversationCopyWithImpl<$Res, $Val extends ChatConversation>
   $Res call({
     Object? id = null,
     Object? clientId = null,
+    Object? clientDisplayNameSnapshot = null,
     Object? supplierId = null,
     Object? supplierName = null,
     Object? lastMessagePreview = null,
     Object? lastMessageAt = null,
-    Object? unreadCount = null,
+    Object? unreadCountClient = null,
+    Object? unreadCountSupplier = null,
+    Object? closedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -82,6 +105,10 @@ class _$ChatConversationCopyWithImpl<$Res, $Val extends ChatConversation>
             clientId: null == clientId
                 ? _value.clientId
                 : clientId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            clientDisplayNameSnapshot: null == clientDisplayNameSnapshot
+                ? _value.clientDisplayNameSnapshot
+                : clientDisplayNameSnapshot // ignore: cast_nullable_to_non_nullable
                       as String,
             supplierId: null == supplierId
                 ? _value.supplierId
@@ -99,10 +126,18 @@ class _$ChatConversationCopyWithImpl<$Res, $Val extends ChatConversation>
                 ? _value.lastMessageAt
                 : lastMessageAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
-            unreadCount: null == unreadCount
-                ? _value.unreadCount
-                : unreadCount // ignore: cast_nullable_to_non_nullable
+            unreadCountClient: null == unreadCountClient
+                ? _value.unreadCountClient
+                : unreadCountClient // ignore: cast_nullable_to_non_nullable
                       as int,
+            unreadCountSupplier: null == unreadCountSupplier
+                ? _value.unreadCountSupplier
+                : unreadCountSupplier // ignore: cast_nullable_to_non_nullable
+                      as int,
+            closedAt: freezed == closedAt
+                ? _value.closedAt
+                : closedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -121,11 +156,14 @@ abstract class _$$ChatConversationImplCopyWith<$Res>
   $Res call({
     String id,
     String clientId,
+    String clientDisplayNameSnapshot,
     String supplierId,
     String supplierName,
     String lastMessagePreview,
     DateTime lastMessageAt,
-    int unreadCount,
+    int unreadCountClient,
+    int unreadCountSupplier,
+    DateTime? closedAt,
   });
 }
 
@@ -145,11 +183,14 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? clientId = null,
+    Object? clientDisplayNameSnapshot = null,
     Object? supplierId = null,
     Object? supplierName = null,
     Object? lastMessagePreview = null,
     Object? lastMessageAt = null,
-    Object? unreadCount = null,
+    Object? unreadCountClient = null,
+    Object? unreadCountSupplier = null,
+    Object? closedAt = freezed,
   }) {
     return _then(
       _$ChatConversationImpl(
@@ -160,6 +201,10 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
         clientId: null == clientId
             ? _value.clientId
             : clientId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        clientDisplayNameSnapshot: null == clientDisplayNameSnapshot
+            ? _value.clientDisplayNameSnapshot
+            : clientDisplayNameSnapshot // ignore: cast_nullable_to_non_nullable
                   as String,
         supplierId: null == supplierId
             ? _value.supplierId
@@ -177,32 +222,52 @@ class __$$ChatConversationImplCopyWithImpl<$Res>
             ? _value.lastMessageAt
             : lastMessageAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
-        unreadCount: null == unreadCount
-            ? _value.unreadCount
-            : unreadCount // ignore: cast_nullable_to_non_nullable
+        unreadCountClient: null == unreadCountClient
+            ? _value.unreadCountClient
+            : unreadCountClient // ignore: cast_nullable_to_non_nullable
                   as int,
+        unreadCountSupplier: null == unreadCountSupplier
+            ? _value.unreadCountSupplier
+            : unreadCountSupplier // ignore: cast_nullable_to_non_nullable
+                  as int,
+        closedAt: freezed == closedAt
+            ? _value.closedAt
+            : closedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
 }
 
 /// @nodoc
-
-class _$ChatConversationImpl implements _ChatConversation {
+@JsonSerializable()
+class _$ChatConversationImpl extends _ChatConversation {
   const _$ChatConversationImpl({
     required this.id,
     required this.clientId,
+    required this.clientDisplayNameSnapshot,
     required this.supplierId,
     required this.supplierName,
     required this.lastMessagePreview,
     required this.lastMessageAt,
-    required this.unreadCount,
-  });
+    required this.unreadCountClient,
+    required this.unreadCountSupplier,
+    this.closedAt,
+  }) : super._();
+
+  factory _$ChatConversationImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ChatConversationImplFromJson(json);
 
   @override
   final String id;
   @override
   final String clientId;
+
+  /// Denormalized like `Order.clientDisplayNameSnapshot` — lets the
+  /// supplier's conversation list/thread show who they're talking to
+  /// without a live join back to the client's account.
+  @override
+  final String clientDisplayNameSnapshot;
   @override
   final String supplierId;
   @override
@@ -212,11 +277,18 @@ class _$ChatConversationImpl implements _ChatConversation {
   @override
   final DateTime lastMessageAt;
   @override
-  final int unreadCount;
+  final int unreadCountClient;
+  @override
+  final int unreadCountSupplier;
+
+  /// Posée quand le client ferme la conversation (`0122`) : la boutique ne
+  /// peut plus lui écrire. Il la rouvre en écrivant, ou d'un geste.
+  @override
+  final DateTime? closedAt;
 
   @override
   String toString() {
-    return 'ChatConversation(id: $id, clientId: $clientId, supplierId: $supplierId, supplierName: $supplierName, lastMessagePreview: $lastMessagePreview, lastMessageAt: $lastMessageAt, unreadCount: $unreadCount)';
+    return 'ChatConversation(id: $id, clientId: $clientId, clientDisplayNameSnapshot: $clientDisplayNameSnapshot, supplierId: $supplierId, supplierName: $supplierName, lastMessagePreview: $lastMessagePreview, lastMessageAt: $lastMessageAt, unreadCountClient: $unreadCountClient, unreadCountSupplier: $unreadCountSupplier, closedAt: $closedAt)';
   }
 
   @override
@@ -227,6 +299,11 @@ class _$ChatConversationImpl implements _ChatConversation {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.clientId, clientId) ||
                 other.clientId == clientId) &&
+            (identical(
+                  other.clientDisplayNameSnapshot,
+                  clientDisplayNameSnapshot,
+                ) ||
+                other.clientDisplayNameSnapshot == clientDisplayNameSnapshot) &&
             (identical(other.supplierId, supplierId) ||
                 other.supplierId == supplierId) &&
             (identical(other.supplierName, supplierName) ||
@@ -235,20 +312,28 @@ class _$ChatConversationImpl implements _ChatConversation {
                 other.lastMessagePreview == lastMessagePreview) &&
             (identical(other.lastMessageAt, lastMessageAt) ||
                 other.lastMessageAt == lastMessageAt) &&
-            (identical(other.unreadCount, unreadCount) ||
-                other.unreadCount == unreadCount));
+            (identical(other.unreadCountClient, unreadCountClient) ||
+                other.unreadCountClient == unreadCountClient) &&
+            (identical(other.unreadCountSupplier, unreadCountSupplier) ||
+                other.unreadCountSupplier == unreadCountSupplier) &&
+            (identical(other.closedAt, closedAt) ||
+                other.closedAt == closedAt));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
     id,
     clientId,
+    clientDisplayNameSnapshot,
     supplierId,
     supplierName,
     lastMessagePreview,
     lastMessageAt,
-    unreadCount,
+    unreadCountClient,
+    unreadCountSupplier,
+    closedAt,
   );
 
   /// Create a copy of ChatConversation
@@ -261,23 +346,41 @@ class _$ChatConversationImpl implements _ChatConversation {
         this,
         _$identity,
       );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ChatConversationImplToJson(this);
+  }
 }
 
-abstract class _ChatConversation implements ChatConversation {
+abstract class _ChatConversation extends ChatConversation {
   const factory _ChatConversation({
     required final String id,
     required final String clientId,
+    required final String clientDisplayNameSnapshot,
     required final String supplierId,
     required final String supplierName,
     required final String lastMessagePreview,
     required final DateTime lastMessageAt,
-    required final int unreadCount,
+    required final int unreadCountClient,
+    required final int unreadCountSupplier,
+    final DateTime? closedAt,
   }) = _$ChatConversationImpl;
+  const _ChatConversation._() : super._();
+
+  factory _ChatConversation.fromJson(Map<String, dynamic> json) =
+      _$ChatConversationImpl.fromJson;
 
   @override
   String get id;
   @override
   String get clientId;
+
+  /// Denormalized like `Order.clientDisplayNameSnapshot` — lets the
+  /// supplier's conversation list/thread show who they're talking to
+  /// without a live join back to the client's account.
+  @override
+  String get clientDisplayNameSnapshot;
   @override
   String get supplierId;
   @override
@@ -287,7 +390,14 @@ abstract class _ChatConversation implements ChatConversation {
   @override
   DateTime get lastMessageAt;
   @override
-  int get unreadCount;
+  int get unreadCountClient;
+  @override
+  int get unreadCountSupplier;
+
+  /// Posée quand le client ferme la conversation (`0122`) : la boutique ne
+  /// peut plus lui écrire. Il la rouvre en écrivant, ou d'un geste.
+  @override
+  DateTime? get closedAt;
 
   /// Create a copy of ChatConversation
   /// with the given fields replaced by the non-null parameter values.
@@ -295,6 +405,10 @@ abstract class _ChatConversation implements ChatConversation {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ChatConversationImplCopyWith<_$ChatConversationImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) {
+  return _ChatMessage.fromJson(json);
 }
 
 /// @nodoc
@@ -316,6 +430,12 @@ mixin _$ChatMessage {
   String? get productImageSnapshot => throw _privateConstructorUsedError;
   int? get productPriceFcfaSnapshot => throw _privateConstructorUsedError;
 
+  /// Which variant the message is about, if any — same "denormalized so
+  /// it survives the product/variant changing later" reasoning as the 4
+  /// fields above.
+  String? get productVariantId => throw _privateConstructorUsedError;
+  String? get productVariantNameSnapshot => throw _privateConstructorUsedError;
+
   /// Local file path for an image or voice-note attachment. There's no
   /// real upload backend (this whole app is an in-memory mock), so the
   /// path only stays valid for the current session — same lifetime as
@@ -326,6 +446,9 @@ mixin _$ChatMessage {
   /// Set only for [ChatAttachmentType.voice] — lets the bubble show a
   /// duration immediately without having to probe the audio file.
   int? get voiceDurationSeconds => throw _privateConstructorUsedError;
+
+  /// Serializes this ChatMessage to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of ChatMessage
   /// with the given fields replaced by the non-null parameter values.
@@ -352,6 +475,8 @@ abstract class $ChatMessageCopyWith<$Res> {
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
     ChatAttachmentType attachmentType,
     String? attachmentPath,
     int? voiceDurationSeconds,
@@ -383,6 +508,8 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
     Object? productNameSnapshot = freezed,
     Object? productImageSnapshot = freezed,
     Object? productPriceFcfaSnapshot = freezed,
+    Object? productVariantId = freezed,
+    Object? productVariantNameSnapshot = freezed,
     Object? attachmentType = null,
     Object? attachmentPath = freezed,
     Object? voiceDurationSeconds = freezed,
@@ -429,6 +556,14 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
                 ? _value.productPriceFcfaSnapshot
                 : productPriceFcfaSnapshot // ignore: cast_nullable_to_non_nullable
                       as int?,
+            productVariantId: freezed == productVariantId
+                ? _value.productVariantId
+                : productVariantId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            productVariantNameSnapshot: freezed == productVariantNameSnapshot
+                ? _value.productVariantNameSnapshot
+                : productVariantNameSnapshot // ignore: cast_nullable_to_non_nullable
+                      as String?,
             attachmentType: null == attachmentType
                 ? _value.attachmentType
                 : attachmentType // ignore: cast_nullable_to_non_nullable
@@ -467,6 +602,8 @@ abstract class _$$ChatMessageImplCopyWith<$Res>
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
     ChatAttachmentType attachmentType,
     String? attachmentPath,
     int? voiceDurationSeconds,
@@ -497,6 +634,8 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
     Object? productNameSnapshot = freezed,
     Object? productImageSnapshot = freezed,
     Object? productPriceFcfaSnapshot = freezed,
+    Object? productVariantId = freezed,
+    Object? productVariantNameSnapshot = freezed,
     Object? attachmentType = null,
     Object? attachmentPath = freezed,
     Object? voiceDurationSeconds = freezed,
@@ -543,6 +682,14 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
             ? _value.productPriceFcfaSnapshot
             : productPriceFcfaSnapshot // ignore: cast_nullable_to_non_nullable
                   as int?,
+        productVariantId: freezed == productVariantId
+            ? _value.productVariantId
+            : productVariantId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        productVariantNameSnapshot: freezed == productVariantNameSnapshot
+            ? _value.productVariantNameSnapshot
+            : productVariantNameSnapshot // ignore: cast_nullable_to_non_nullable
+                  as String?,
         attachmentType: null == attachmentType
             ? _value.attachmentType
             : attachmentType // ignore: cast_nullable_to_non_nullable
@@ -561,7 +708,7 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ChatMessageImpl implements _ChatMessage {
   const _$ChatMessageImpl({
     required this.id,
@@ -574,10 +721,15 @@ class _$ChatMessageImpl implements _ChatMessage {
     this.productNameSnapshot,
     this.productImageSnapshot,
     this.productPriceFcfaSnapshot,
+    this.productVariantId,
+    this.productVariantNameSnapshot,
     this.attachmentType = ChatAttachmentType.none,
     this.attachmentPath,
     this.voiceDurationSeconds,
   });
+
+  factory _$ChatMessageImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ChatMessageImplFromJson(json);
 
   @override
   final String id;
@@ -606,6 +758,14 @@ class _$ChatMessageImpl implements _ChatMessage {
   @override
   final int? productPriceFcfaSnapshot;
 
+  /// Which variant the message is about, if any — same "denormalized so
+  /// it survives the product/variant changing later" reasoning as the 4
+  /// fields above.
+  @override
+  final String? productVariantId;
+  @override
+  final String? productVariantNameSnapshot;
+
   /// Local file path for an image or voice-note attachment. There's no
   /// real upload backend (this whole app is an in-memory mock), so the
   /// path only stays valid for the current session — same lifetime as
@@ -623,7 +783,7 @@ class _$ChatMessageImpl implements _ChatMessage {
 
   @override
   String toString() {
-    return 'ChatMessage(id: $id, conversationId: $conversationId, senderId: $senderId, text: $text, sentAt: $sentAt, isRead: $isRead, productId: $productId, productNameSnapshot: $productNameSnapshot, productImageSnapshot: $productImageSnapshot, productPriceFcfaSnapshot: $productPriceFcfaSnapshot, attachmentType: $attachmentType, attachmentPath: $attachmentPath, voiceDurationSeconds: $voiceDurationSeconds)';
+    return 'ChatMessage(id: $id, conversationId: $conversationId, senderId: $senderId, text: $text, sentAt: $sentAt, isRead: $isRead, productId: $productId, productNameSnapshot: $productNameSnapshot, productImageSnapshot: $productImageSnapshot, productPriceFcfaSnapshot: $productPriceFcfaSnapshot, productVariantId: $productVariantId, productVariantNameSnapshot: $productVariantNameSnapshot, attachmentType: $attachmentType, attachmentPath: $attachmentPath, voiceDurationSeconds: $voiceDurationSeconds)';
   }
 
   @override
@@ -650,6 +810,14 @@ class _$ChatMessageImpl implements _ChatMessage {
                   productPriceFcfaSnapshot,
                 ) ||
                 other.productPriceFcfaSnapshot == productPriceFcfaSnapshot) &&
+            (identical(other.productVariantId, productVariantId) ||
+                other.productVariantId == productVariantId) &&
+            (identical(
+                  other.productVariantNameSnapshot,
+                  productVariantNameSnapshot,
+                ) ||
+                other.productVariantNameSnapshot ==
+                    productVariantNameSnapshot) &&
             (identical(other.attachmentType, attachmentType) ||
                 other.attachmentType == attachmentType) &&
             (identical(other.attachmentPath, attachmentPath) ||
@@ -658,6 +826,7 @@ class _$ChatMessageImpl implements _ChatMessage {
                 other.voiceDurationSeconds == voiceDurationSeconds));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -671,6 +840,8 @@ class _$ChatMessageImpl implements _ChatMessage {
     productNameSnapshot,
     productImageSnapshot,
     productPriceFcfaSnapshot,
+    productVariantId,
+    productVariantNameSnapshot,
     attachmentType,
     attachmentPath,
     voiceDurationSeconds,
@@ -683,6 +854,11 @@ class _$ChatMessageImpl implements _ChatMessage {
   @pragma('vm:prefer-inline')
   _$$ChatMessageImplCopyWith<_$ChatMessageImpl> get copyWith =>
       __$$ChatMessageImplCopyWithImpl<_$ChatMessageImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ChatMessageImplToJson(this);
+  }
 }
 
 abstract class _ChatMessage implements ChatMessage {
@@ -697,10 +873,15 @@ abstract class _ChatMessage implements ChatMessage {
     final String? productNameSnapshot,
     final String? productImageSnapshot,
     final int? productPriceFcfaSnapshot,
+    final String? productVariantId,
+    final String? productVariantNameSnapshot,
     final ChatAttachmentType attachmentType,
     final String? attachmentPath,
     final int? voiceDurationSeconds,
   }) = _$ChatMessageImpl;
+
+  factory _ChatMessage.fromJson(Map<String, dynamic> json) =
+      _$ChatMessageImpl.fromJson;
 
   @override
   String get id;
@@ -728,6 +909,14 @@ abstract class _ChatMessage implements ChatMessage {
   String? get productImageSnapshot;
   @override
   int? get productPriceFcfaSnapshot;
+
+  /// Which variant the message is about, if any — same "denormalized so
+  /// it survives the product/variant changing later" reasoning as the 4
+  /// fields above.
+  @override
+  String? get productVariantId;
+  @override
+  String? get productVariantNameSnapshot;
 
   /// Local file path for an image or voice-note attachment. There's no
   /// real upload backend (this whole app is an in-memory mock), so the

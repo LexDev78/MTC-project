@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+CartItem _$CartItemFromJson(Map<String, dynamic> json) {
+  return _CartItem.fromJson(json);
+}
+
 /// @nodoc
 mixin _$CartItem {
   String get id => throw _privateConstructorUsedError;
@@ -25,6 +29,16 @@ mixin _$CartItem {
   int get unitPriceFcfaSnapshot => throw _privateConstructorUsedError;
   int get quantity => throw _privateConstructorUsedError;
   DateTime get addedAt => throw _privateConstructorUsedError;
+
+  /// Which variant was selected, if the product has variants — `null`
+  /// for a variant-less product, or when the caller adds without
+  /// choosing one (see `CartController.addProduct`'s default-variant
+  /// fallback).
+  String? get variantId => throw _privateConstructorUsedError;
+  String? get variantNameSnapshot => throw _privateConstructorUsedError;
+
+  /// Serializes this CartItem to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of CartItem
   /// with the given fields replaced by the non-null parameter values.
@@ -47,6 +61,8 @@ abstract class $CartItemCopyWith<$Res> {
     int unitPriceFcfaSnapshot,
     int quantity,
     DateTime addedAt,
+    String? variantId,
+    String? variantNameSnapshot,
   });
 }
 
@@ -73,6 +89,8 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
     Object? unitPriceFcfaSnapshot = null,
     Object? quantity = null,
     Object? addedAt = null,
+    Object? variantId = freezed,
+    Object? variantNameSnapshot = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -108,6 +126,14 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
                 ? _value.addedAt
                 : addedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
+            variantId: freezed == variantId
+                ? _value.variantId
+                : variantId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            variantNameSnapshot: freezed == variantNameSnapshot
+                ? _value.variantNameSnapshot
+                : variantNameSnapshot // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -132,6 +158,8 @@ abstract class _$$CartItemImplCopyWith<$Res>
     int unitPriceFcfaSnapshot,
     int quantity,
     DateTime addedAt,
+    String? variantId,
+    String? variantNameSnapshot,
   });
 }
 
@@ -157,6 +185,8 @@ class __$$CartItemImplCopyWithImpl<$Res>
     Object? unitPriceFcfaSnapshot = null,
     Object? quantity = null,
     Object? addedAt = null,
+    Object? variantId = freezed,
+    Object? variantNameSnapshot = freezed,
   }) {
     return _then(
       _$CartItemImpl(
@@ -192,13 +222,21 @@ class __$$CartItemImplCopyWithImpl<$Res>
             ? _value.addedAt
             : addedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
+        variantId: freezed == variantId
+            ? _value.variantId
+            : variantId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        variantNameSnapshot: freezed == variantNameSnapshot
+            ? _value.variantNameSnapshot
+            : variantNameSnapshot // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$CartItemImpl implements _CartItem {
   const _$CartItemImpl({
     required this.id,
@@ -209,7 +247,12 @@ class _$CartItemImpl implements _CartItem {
     required this.unitPriceFcfaSnapshot,
     required this.quantity,
     required this.addedAt,
+    this.variantId,
+    this.variantNameSnapshot,
   });
+
+  factory _$CartItemImpl.fromJson(Map<String, dynamic> json) =>
+      _$$CartItemImplFromJson(json);
 
   @override
   final String id;
@@ -228,9 +271,18 @@ class _$CartItemImpl implements _CartItem {
   @override
   final DateTime addedAt;
 
+  /// Which variant was selected, if the product has variants — `null`
+  /// for a variant-less product, or when the caller adds without
+  /// choosing one (see `CartController.addProduct`'s default-variant
+  /// fallback).
+  @override
+  final String? variantId;
+  @override
+  final String? variantNameSnapshot;
+
   @override
   String toString() {
-    return 'CartItem(id: $id, userId: $userId, productId: $productId, supplierId: $supplierId, productNameSnapshot: $productNameSnapshot, unitPriceFcfaSnapshot: $unitPriceFcfaSnapshot, quantity: $quantity, addedAt: $addedAt)';
+    return 'CartItem(id: $id, userId: $userId, productId: $productId, supplierId: $supplierId, productNameSnapshot: $productNameSnapshot, unitPriceFcfaSnapshot: $unitPriceFcfaSnapshot, quantity: $quantity, addedAt: $addedAt, variantId: $variantId, variantNameSnapshot: $variantNameSnapshot)';
   }
 
   @override
@@ -250,9 +302,14 @@ class _$CartItemImpl implements _CartItem {
                 other.unitPriceFcfaSnapshot == unitPriceFcfaSnapshot) &&
             (identical(other.quantity, quantity) ||
                 other.quantity == quantity) &&
-            (identical(other.addedAt, addedAt) || other.addedAt == addedAt));
+            (identical(other.addedAt, addedAt) || other.addedAt == addedAt) &&
+            (identical(other.variantId, variantId) ||
+                other.variantId == variantId) &&
+            (identical(other.variantNameSnapshot, variantNameSnapshot) ||
+                other.variantNameSnapshot == variantNameSnapshot));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -264,6 +321,8 @@ class _$CartItemImpl implements _CartItem {
     unitPriceFcfaSnapshot,
     quantity,
     addedAt,
+    variantId,
+    variantNameSnapshot,
   );
 
   /// Create a copy of CartItem
@@ -273,6 +332,11 @@ class _$CartItemImpl implements _CartItem {
   @pragma('vm:prefer-inline')
   _$$CartItemImplCopyWith<_$CartItemImpl> get copyWith =>
       __$$CartItemImplCopyWithImpl<_$CartItemImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$CartItemImplToJson(this);
+  }
 }
 
 abstract class _CartItem implements CartItem {
@@ -285,7 +349,12 @@ abstract class _CartItem implements CartItem {
     required final int unitPriceFcfaSnapshot,
     required final int quantity,
     required final DateTime addedAt,
+    final String? variantId,
+    final String? variantNameSnapshot,
   }) = _$CartItemImpl;
+
+  factory _CartItem.fromJson(Map<String, dynamic> json) =
+      _$CartItemImpl.fromJson;
 
   @override
   String get id;
@@ -303,6 +372,15 @@ abstract class _CartItem implements CartItem {
   int get quantity;
   @override
   DateTime get addedAt;
+
+  /// Which variant was selected, if the product has variants — `null`
+  /// for a variant-less product, or when the caller adds without
+  /// choosing one (see `CartController.addProduct`'s default-variant
+  /// fallback).
+  @override
+  String? get variantId;
+  @override
+  String? get variantNameSnapshot;
 
   /// Create a copy of CartItem
   /// with the given fields replaced by the non-null parameter values.

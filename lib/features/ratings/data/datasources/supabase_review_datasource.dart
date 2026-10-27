@@ -1,0 +1,188 @@
+import 'dart:async';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+
+/// Raw `reviews` I/O — no `Review` entity knowledge here. No Realtime (out
+/// of scope, same "notify after my own write" shape as Lot 4's
+/// datasources).
+class SupabaseReviewDatasource {
+  SupabaseReviewDatasource(this._client);
+
+  final SupabaseClient _client;
+
+  final _changes = StreamController<void>.broadcast();
+
+  Stream<T> _watch<T>(Future<T> Function() fetch) {
+    return Stream<void>.multi((controller) {
+      controller.add(null);
+      final subscription = _changes.stream.listen(controller.add);
+      controller.onCancel = subscription.cancel;
+    }, isBroadcast: true).asyncMap((_) => fetch());
+  }
+
+  void _notify() => _changes.add(null);
+
+  Stream<List<Map<String, dynamic>>> watchForSupplier(String supplierId) {
+    return _watch(
+      () => _client
+          .from('reviews')
+          .select()
+          .eq('supplier_id', supplierId)
+          .order('created_at', ascending: false),
+    );
+  }
+
+  /// Dépose l'avis par `submit_review` (`0063`) et non par un `insert`.
+  ///
+  /// Trois écritures accompagnaient l'avis : la moyenne du fournisseur, sa
+  /// recopie sur ses produits, et la notification. Les faire depuis la
+  /// session du client obligeait à lui ouvrir `suppliers` et `products` en
+  /// écriture — ce qui laissait un client ayant laissé un avis renommer la
+  /// boutique, changer ses numéros, la fermer, ou fixer sa note. Tout se
+  /// fait désormais dans une transaction côté serveur.
+  Future<String> submitReview({
+    required String orderId,
+    required String supplierGroupId,
+    required int stars,
+    required String comment,
+    List<String> imagePaths = const [],
+    String? videoPath,
+    String? title,
+  }) async {
+    final id = await _client.rpc(
+      'submit_review',
+      params: {
+        'p_order_id': orderId,
+        'p_supplier_group_id': supplierGroupId,
+        'p_stars': stars,
+        'p_comment': comment,
+        'p_image_paths': imagePaths,
+        'p_video_path': videoPath,
+        'p_title': title,
+      },
+    );
+    _notify();
+    return id as String;
+  }
+
+  Future<bool> hasReview({
+    required String orderId,
+    required String supplierGroupId,
+  }) async {
+    final existing = await _client
+        .from('reviews')
+        .select('id')
+        .eq('order_id', orderId)
+        .eq('supplier_group_id', supplierGroupId)
+        .maybeSingle();
+    return existing != null;
+  }
+
+  Future<Map<String, dynamic>?> getById(String reviewId) {
+    return _client.from('reviews').select().eq('id', reviewId).maybeSingle();
+  }
+
+  Future<void> reply({
+    required String reviewId,
+    required String reply,
+  }) async {
+    await _client
+        .from('reviews')
+        .update({
+          'supplier_reply': reply,
+          'supplier_replied_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', reviewId);
+    _notify();
+  }
+
+  /// Avis des acheteurs d'un produit, commentaires compris
+  /// (`fetch_product_reviews`, `0061`), triés selon [sort] (`0114`).
+  ///
+  /// Une RPC et non un `select` : le rattachement d'un avis à un produit
+  /// passe par `order_items`, que ni un visiteur sans compte ni un autre
+  /// client ne peut lire. La fonction est `security definer` et ne renvoie
+  /// rien de la commande elle-même.
+  Future<List<Map<String, dynamic>>> fetchProductReviews({
+    required String productId,
+    int limit = 20,
+    int offset = 0,
+    String sort = 'recent',
+  }) async {
+    final rows = await _client.rpc(
+      'fetch_product_reviews',
+      params: {
+        'p_product_id': productId,
+        'p_limit': limit,
+        'p_offset': offset,
+        'p_sort': sort,
+      },
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  /// Les avis d'une boutique, pour sa vitrine publique
+  /// (`fetch_supplier_reviews`, `0134`) : ni client, ni commande. La table
+  /// elle-même ne se lit plus que par l'auteur, la boutique et le staff.
+  Future<List<Map<String, dynamic>>> fetchSupplierReviews({
+    required String supplierId,
+    int limit = 20,
+  }) async {
+    final rows = await _client.rpc(
+      'fetch_supplier_reviews',
+      params: {'p_supplier_id': supplierId, 'p_limit': limit},
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  Future<Map<String, dynamic>?> fetchProductReviewSummary(
+    String productId,
+  ) async {
+    final rows = await _client.rpc(
+      'fetch_product_review_summary',
+      params: {'p_product_id': productId},
+    );
+    final list = List<Map<String, dynamic>>.from(rows as List);
+    return list.isEmpty ? null : list.first;
+  }
+
+  /// Le nombre d'avis par note, de 1 à 5 (`0113`) — compté en base : la
+  /// liste des avis est paginée, une répartition calculée sur sa première
+  /// page serait fausse.
+  Future<List<Map<String, dynamic>>> fetchProductRatingDistribution(
+    String productId,
+  ) async {
+    final rows = await _client.rpc(
+      'fetch_product_rating_distribution',
+      params: {'p_product_id': productId},
+    );
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  /// Commente un avis.
+  ///
+  /// `author_id` n'est pas transmis : un trigger le pose depuis
+  /// `auth.uid()`, avec le nom affiché et le fait que l'auteur soit ou non
+  /// le vendeur (`stamp_review_comment_author`, `0061`). L'envoyer d'ici
+  /// laisserait croire que l'app décide de qui signe.
+  Future<void> addComment({
+    required String reviewId,
+    required String body,
+    List<String> imagePaths = const [],
+    String? videoPath,
+  }) async {
+    await _client.from('review_comments').insert({
+      'review_id': reviewId,
+      'body': body,
+      'image_paths': imagePaths,
+      'video_path': videoPath,
+    });
+    _notify();
+  }
+
+  Future<void> deleteComment(String commentId) async {
+    await _client.from('review_comments').delete().eq('id', commentId);
+    _notify();
+  }
+}

@@ -1,0 +1,461 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/features/delivery/domain/entities/courier_delivery.dart';
+import 'package:mtc_app/features/delivery/presentation/providers/delivery_providers.dart';
+import 'package:mtc_app/features/delivery/presentation/providers/courier_history_providers.dart';
+import 'package:mtc_app/features/delivery/presentation/widgets/courier_rating_sheet.dart';
+import 'package:mtc_app/features/delivery/presentation/widgets/delivery_code_qr.dart';
+import 'package:mtc_app/core/utils/date_formatter.dart';
+import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart'
+    show ChatProductAttachment;
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
+import 'package:mtc_app/core/error/user_message.dart';
+
+import '../../domain/entities/order.dart';
+import '../../domain/entities/order_status.dart';
+import '../../domain/order_status_transitions.dart';
+import '../controllers/supplier_order_controller.dart';
+import '../providers/supplier_order_providers.dart';
+import '../widgets/order_item_row.dart';
+
+/// One order, scoped to the operating supplier's own group — reached from
+/// `SupplierOrderListScreen`. Never renders another supplier's items/prices
+/// from the same order (see `SupplierOrderView`).
+class SupplierOrderDetailScreen extends ConsumerWidget {
+  const SupplierOrderDetailScreen({super.key, required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final supplierId = ref.watch(operatingSupplierIdProvider);
+    if (supplierId == null) {
+      return const Scaffold(body: MtcLoadingView());
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Détail de la commande')),
+      body: AsyncValueWidget(
+        value: ref.watch(
+          supplierOrderDetailProvider((
+            orderId: orderId,
+            supplierId: supplierId,
+          )),
+        ),
+        data: (view) => _OrderDetailBody(view: view),
+      ),
+    );
+  }
+}
+
+class _OrderDetailBody extends ConsumerWidget {
+  const _OrderDetailBody({required this.view});
+
+  final SupplierOrderView view;
+
+  Future<void> _changeStatus(
+    BuildContext context,
+    WidgetRef ref,
+    OrderStatus status,
+  ) async {
+    final success = await ref
+        .read(supplierOrderControllerProvider.notifier)
+        .updateStatus(
+          orderId: view.orderId,
+          groupId: view.myGroup.id,
+          status: status,
+        );
+    if (!success && context.mounted) {
+      final error = ref.read(supplierOrderControllerProvider).error;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
+    }
+  }
+
+  Future<void> _cancel(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Refuser cette commande ?'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Expliquez pourquoi vous refusez cette commande…',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Refuser la commande'),
+          ),
+        ],
+      ),
+    );
+    if (reason == null || reason.isEmpty || !context.mounted) return;
+
+    final success = await ref
+        .read(supplierOrderControllerProvider.notifier)
+        .cancel(
+          orderId: view.orderId,
+          groupId: view.myGroup.id,
+          reason: reason,
+        );
+    if (!success && context.mounted) {
+      final error = ref.read(supplierOrderControllerProvider).error;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
+    }
+  }
+
+  Future<void> _contactClient(BuildContext context, WidgetRef ref) async {
+    final conversationId = await ref
+        .read(supplierOrderControllerProvider.notifier)
+        .contactClient(
+          clientId: view.clientId,
+          clientDisplayNameSnapshot: view.clientDisplayNameSnapshot,
+        );
+    if (!context.mounted) return;
+    if (conversationId == null) {
+      final error = ref.read(supplierOrderControllerProvider).error;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
+      return;
+    }
+    unawaited(
+      context.push(
+        '${ref.read(supplierRoutePrefixProvider)}/messages/$conversationId',
+      ),
+    );
+  }
+
+  Future<void> _contactClientAboutItem(
+    BuildContext context,
+    WidgetRef ref,
+    OrderItem item,
+  ) async {
+    final result = await ref
+        .read(supplierOrderControllerProvider.notifier)
+        .contactClientAboutItem(
+          clientId: view.clientId,
+          clientDisplayNameSnapshot: view.clientDisplayNameSnapshot,
+          item: item,
+        );
+    if (!context.mounted) return;
+    if (result.conversationId == null) {
+      final error = ref.read(supplierOrderControllerProvider).error;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messagePourUtilisateur(error))));
+      return;
+    }
+    final product = result.product;
+    unawaited(
+      context.push(
+        '${ref.read(supplierRoutePrefixProvider)}/messages/${result.conversationId}',
+        // `product` is best-effort (see `contactClientAboutItem`'s doc
+        // comment) — `null` still opens the conversation, just without an
+        // attachment, rather than blocking navigation on it.
+        extra: product == null
+            ? null
+            : ChatProductAttachment(product: product, variant: result.variant),
+      ),
+    );
+  }
+
+  /// Sous le nom du client : son numéro quand cette boutique livre
+  /// elle-même, sinon la raison de son absence — un numéro qui manque sans
+  /// explication passe pour un bug.
+  static String _ligneContact(SupplierOrderView view) {
+    final contact = view.contact;
+    final numero = contact?.phone;
+    if (numero != null) {
+      final autre = contact?.alternatePhone;
+      return autre == null ? numero : '$numero · autre numéro : $autre';
+    }
+    if (contact == null) {
+      return 'Commande terminée : son numéro et son adresse ne sont plus '
+          'affichés. Vous pouvez lui écrire ici.';
+    }
+    return 'Son numéro n\'est visible que du livreur MTC. Vous pouvez lui '
+        'écrire ici.';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final group = view.myGroup;
+    final state = ref.watch(supplierOrderControllerProvider);
+
+    // Une livraison MTC se clôt par le scan du client, pas par un bouton :
+    // le fournisseur ne constate pas l'arrivée du colis, et la preuve existe
+    // ailleurs (`0054_mtc_delivery_closed_by_scan.sql`, qui refuse aussi
+    // l'appel direct). Il garde la remise au livreur — « En livraison » —
+    // qui est bien son geste à lui.
+    final closedByCourier = group.deliveryMode == DeliveryMode.mtcDelivery;
+    final nextStatuses = OrderStatus.values.where(
+      (s) =>
+          s != OrderStatus.cancelled &&
+          isValidTransition(group.status, s) &&
+          !(closedByCourier && s == OrderStatus.delivered),
+    );
+    final canCancel = isValidTransition(group.status, OrderStatus.cancelled);
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        if (closedByCourier && group.status == OrderStatus.inTransit)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Row(
+              children: [
+                Icon(Icons.qr_code_rounded, color: scheme.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Un livreur MTC s\'en charge. La commande passera en '
+                    '« Livrée » quand le client aura scanné son code de remise.',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                group.status.label,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            RoleBadge(label: group.status.label, color: scheme.primary),
+          ],
+        ),
+        if (group.status == OrderStatus.cancelled &&
+            group.cancellationReason != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: scheme.errorContainer.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            child: Text(
+              'Refusée par ${group.cancelledBy?.label ?? 'le fournisseur'} : '
+              '${group.cancellationReason}',
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          DateFormatter.formatDateTime(view.placedAt),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.person_outline_rounded),
+            title: Text(view.clientDisplayNameSnapshot),
+            subtitle: Text(_ligneContact(view)),
+            trailing: IconButton(
+              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              tooltip: 'Écrire au client',
+              onPressed: state.isLoading
+                  ? null
+                  : () => _contactClient(context, ref),
+            ),
+          ),
+        ),
+        if (view.contact case final contact? when contact.hasAddress) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: Text(contact.addressLabel!),
+              subtitle: Text(
+                [
+                  if (contact.addressDetails case final d? when d.isNotEmpty)
+                    d,
+                  view.deliveryCity,
+                ].join(', '),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        Text('Articles', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final item in group.items)
+                  OrderItemRow(
+                    productId: item.productId,
+                    productNameSnapshot: item.productNameSnapshot,
+                    unitPriceFcfaSnapshot: item.unitPriceFcfaSnapshot,
+                    quantity: item.quantity,
+                    variantId: item.variantId,
+                    variantNameSnapshot: item.variantNameSnapshot,
+                    trailing: IconButton(
+                      icon: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 20,
+                      ),
+                      tooltip: 'Contacter à propos de cet article',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: state.isLoading
+                          ? null
+                          : () => _contactClientAboutItem(context, ref, item),
+                    ),
+                  ),
+                const Divider(),
+                // Le libellé cède la place au montant : en grands caractères,
+                // « Sous-total » et « 15 000 FCFA » ne tiennent plus côte à
+                // côte, et c'est le montant qu'il faut lire en entier.
+                Row(
+                  children: [
+                    const Expanded(child: Text('Livraison')),
+                    CurrencyText(group.deliveryFeeFcfa),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Sous-total',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    CurrencyText(
+                      group.subtotalFcfa,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+                if (group.deliveryMode == DeliveryMode.mtcDelivery) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _PickupCode(groupId: group.id),
+                  _RateCourierButton(groupId: group.id),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (nextStatuses.isNotEmpty || canCancel) ...[
+          const SizedBox(height: AppSpacing.xl),
+          for (final status in nextStatuses)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: MtcPrimaryButton(
+                label: 'Marquer ${status.label.toLowerCase()}',
+                isLoading: state.isLoading,
+                onPressed: () => _changeStatus(context, ref, status),
+              ),
+            ),
+          if (canCancel)
+            OutlinedButton(
+              onPressed: state.isLoading ? null : () => _cancel(context, ref),
+              child: const Text('Refuser la commande'),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// QR de retrait, présenté au livreur qui vient chercher le colis.
+///
+/// N'apparaît qu'une fois la commande confiée à MTC — avant, il n'y a pas de
+/// course, donc pas de code. Disparaît une fois scanné : un QR qui reste
+/// affiché après coup laisse croire qu'il reste quelque chose à faire.
+class _PickupCode extends ConsumerWidget {
+  const _PickupCode({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final delivery = ref.watch(deliveryForGroupProvider(groupId)).valueOrNull;
+    if (delivery == null) return const SizedBox.shrink();
+    if (delivery.status == DeliveryStatus.pickedUp ||
+        delivery.status == DeliveryStatus.delivered) {
+      return const SizedBox.shrink();
+    }
+
+    return DeliveryCodeQr(
+      deliveryId: delivery.id,
+      kind: DeliveryCodeKind.pickup,
+      title: 'Code de retrait',
+      instruction:
+          'À montrer au livreur quand il vient chercher la commande. '
+          'Il ne peut pas la récupérer sans ce scan.',
+    );
+  }
+}
+
+/// Noter le livreur qui est venu chercher le colis.
+///
+/// Le fournisseur juge ce qu'il a vu — ponctualité au retrait, soin du colis
+/// — et c'est précisément ce que le client ne peut pas juger. D'où une note
+/// par côté (`rate_courier`, `0059`) plutôt qu'une note unique où l'un des
+/// deux points de vue écraserait l'autre.
+class _RateCourierButton extends ConsumerWidget {
+  const _RateCourierButton({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final delivery = ref.watch(deliveryForGroupProvider(groupId)).valueOrNull;
+    // Avant la remise au client, la course n'est pas finie : noter un livreur
+    // en chemin jugerait une prestation à moitié faite.
+    if (delivery == null || delivery.status != DeliveryStatus.delivered) {
+      return const SizedBox.shrink();
+    }
+    final existing = ref
+        .watch(myDeliveryRatingProvider(delivery.id))
+        .valueOrNull;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: OutlinedButton.icon(
+        onPressed: () =>
+            showCourierRatingSheet(context, deliveryId: delivery.id),
+        icon: Icon(
+          existing == null
+              ? Icons.delivery_dining_outlined
+              : Icons.star_rounded,
+          color: existing == null ? null : Colors.amber,
+        ),
+        label: Text(
+          existing == null
+              ? 'Noter le livreur'
+              : 'Livreur noté ${existing.stars}/5 — modifier',
+        ),
+      ),
+    );
+  }
+}

@@ -1,5 +1,8 @@
-# Uncomment this line to define a global platform for your project
-# platform :ios, '13.0'
+# iOS 15 minimum, imposé par `firebase_core` (ajouté pour les
+# notifications push) : en dessous, `pod install` refuse de résoudre les
+# dépendances. Doit rester aligné avec `IPHONEOS_DEPLOYMENT_TARGET` dans
+# `Runner.xcodeproj/project.pbxproj`.
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'

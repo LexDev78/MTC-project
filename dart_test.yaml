@@ -1,0 +1,12 @@
+# Integration tests (tag: integration) hit the real local Supabase Postgres
+# (see `test/support/supabase_test_harness.dart`). Several write to
+# overlapping tables through the products/characteristics/variants FK chain
+# (e.g. the variant-aggregation trigger touching a product row concurrently
+# with another file's characteristic/variant insert) — `flutter test`'s
+# default of running test *files* in parallel can deadlock two of them
+# against each other (Postgres error 40P01). `package:test` only exposes
+# `concurrency` as a global setting, not a per-tag override, so this
+# serializes the whole suite rather than just `integration` — an acceptable
+# trade for a project this size, and the only way to make a plain
+# `flutter test` reliably green against a shared database.
+concurrency: 1

@@ -1,6 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
+import 'package:mtc_app/core/di/providers.dart';
+import 'package:mtc_app/core/storage/image_upload.dart';
+import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:mtc_app/features/notifications/presentation/providers/notification_providers.dart';
 
 import '../../domain/entities/chat.dart';
 import '../providers/chat_providers.dart';
@@ -9,6 +14,11 @@ class ChatController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
+  // Le destinataire est prévenu par le déclencheur `chat_messages_notify`
+  // (`0064`), qui compose le même aperçu (texte, sinon pièce jointe) depuis
+  // la ligne insérée. Cette classe le faisait en un second appel, dont
+  // l'échec était avalé en silence : un message pouvait donc partir sans
+  // notification, sans que personne ne le sache.
   Future<void> sendMessage({
     required String conversationId,
     required String text,
@@ -16,9 +26,15 @@ class ChatController extends AsyncNotifier<void> {
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (userId == null || text.trim().isEmpty) return;
+    // Empty text is only a no-op when there's nothing else on the message —
+    // a tagged product with no comment (`ChatComposer.hasPendingAttachment`
+    // lets that reach here with `text` empty) is a real send, same as
+    // `sendImage`/`sendVoiceNote` already allow with their own content.
+    if (userId == null || (text.trim().isEmpty && productId == null)) return;
     await ref
         .read(chatRepositoryProvider)
         .sendMessage(
@@ -29,19 +45,29 @@ class ChatController extends AsyncNotifier<void> {
           productNameSnapshot: productNameSnapshot,
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
+          productVariantId: productVariantId,
+          productVariantNameSnapshot: productVariantNameSnapshot,
         );
   }
 
   Future<void> sendImage({
     required String conversationId,
-    required String imagePath,
+    required XFile image,
     String? productId,
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
     if (userId == null) return;
+    final path = await uploadPickedImage(
+      client: ref.read(supabaseClientProvider),
+      bucket: 'chat-attachments',
+      folder: conversationId,
+      file: image,
+    );
     await ref
         .read(chatRepositoryProvider)
         .sendMessage(
@@ -49,11 +75,13 @@ class ChatController extends AsyncNotifier<void> {
           senderId: userId,
           text: '',
           attachmentType: ChatAttachmentType.image,
-          attachmentPath: imagePath,
+          attachmentPath: path,
           productId: productId,
           productNameSnapshot: productNameSnapshot,
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
+          productVariantId: productVariantId,
+          productVariantNameSnapshot: productVariantNameSnapshot,
         );
   }
 
@@ -69,9 +97,18 @@ class ChatController extends AsyncNotifier<void> {
     String? productNameSnapshot,
     String? productImageSnapshot,
     int? productPriceFcfaSnapshot,
+    String? productVariantId,
+    String? productVariantNameSnapshot,
   }) async {
     final userId = ref.read(currentUserProvider).valueOrNull?.id;
     if (userId == null) return;
+    final path = await uploadPickedImage(
+      client: ref.read(supabaseClientProvider),
+      bucket: 'chat-attachments',
+      folder: conversationId,
+      file: XFile(voicePath),
+      contentType: 'audio/mp4',
+    );
     await ref
         .read(chatRepositoryProvider)
         .sendMessage(
@@ -79,12 +116,14 @@ class ChatController extends AsyncNotifier<void> {
           senderId: userId,
           text: '',
           attachmentType: ChatAttachmentType.voice,
-          attachmentPath: voicePath,
+          attachmentPath: path,
           voiceDurationSeconds: durationSeconds,
           productId: productId,
           productNameSnapshot: productNameSnapshot,
           productImageSnapshot: productImageSnapshot,
           productPriceFcfaSnapshot: productPriceFcfaSnapshot,
+          productVariantId: productVariantId,
+          productVariantNameSnapshot: productVariantNameSnapshot,
         );
   }
 
@@ -94,19 +133,61 @@ class ChatController extends AsyncNotifier<void> {
     required String supplierId,
     required String supplierName,
   }) async {
-    final userId = ref.read(currentUserProvider).valueOrNull?.id;
-    if (userId == null) return null;
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user is! ClientUser) return null;
     return ref
         .read(chatRepositoryProvider)
         .startOrGetConversation(
-          clientId: userId,
+          clientId: user.id,
+          clientDisplayNameSnapshot: user.displayName,
           supplierId: supplierId,
           supplierName: supplierName,
         );
   }
 
+  /// Le client ferme ou rouvre la conversation. Fermée, la boutique ne peut
+  /// plus lui écrire ; le flux des conversations en apporte l'état à l'écran,
+  /// des deux côtés. Lève l'erreur, que l'écran affiche.
+  Future<void> setConversationClosed({
+    required String conversationId,
+    required bool closed,
+  }) {
+    return ref
+        .read(chatRepositoryProvider)
+        .setConversationClosed(conversationId: conversationId, closed: closed);
+  }
+
+  /// Marks the conversation read on behalf of the current user's own side
+  /// — a client reading clears `unreadCountClient`, a supplier reading
+  /// clears `unreadCountSupplier`; the caller never has to know which. Also
+  /// clears any `newMessage` notification already sent for this
+  /// conversation, so a message that arrives while its thread is open never
+  /// surfaces as an unread badge anywhere — `ChatThreadScreen` calls this
+  /// both on mount and again every time a new message streams in while it
+  /// stays open, not just once.
   Future<void> markRead(String conversationId) async {
-    await ref.read(chatRepositoryProvider).markConversationRead(conversationId);
+    // `await ...future` et non `.valueOrNull` : pendant qu'un changement de
+    // compte est en cours, Riverpod conserve la **valeur précédente** le
+    // temps que la nouvelle arrive. Lue telle quelle, elle faisait marquer
+    // comme lu le mauvais côté de la conversation — le client au lieu du
+    // fournisseur — sans la moindre erreur, le serveur n'ayant rien à
+    // redire à une mise à jour parfaitement valide sur l'autre compteur.
+    //
+    // Se produit chaque fois qu'une action suit de près une connexion :
+    // notification ouverte au lancement de l'app, bascule entre deux comptes
+    // sur le même téléphone. Rare, silencieux, et le compteur de non-lus
+    // restait allumé sans qu'on sache pourquoi.
+    final user = await ref.read(currentUserProvider.future);
+    if (user == null) return;
+    final readBy = user is ClientUser
+        ? ChatParticipant.client
+        : ChatParticipant.supplier;
+    await ref
+        .read(chatRepositoryProvider)
+        .markConversationRead(conversationId: conversationId, readBy: readBy);
+    await ref
+        .read(notificationRepositoryProvider)
+        .markReadByReference(userId: user.id, referenceId: conversationId);
   }
 }
 
