@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir -r requirements-serve.txt
 
 COPY common.py /app/common.py
 COPY serve/app.py /app/app.py
+COPY serve/image_fetch.py /app/image_fetch.py
 
 ENV MTC_CHECKPOINT=/models/mtc-v1
 EXPOSE 8080

@@ -10,6 +10,7 @@ import 'package:mtc_app/features/delivery/presentation/providers/delivery_provid
 import 'package:mtc_app/features/delivery/presentation/providers/courier_history_providers.dart';
 import 'package:mtc_app/features/delivery/presentation/widgets/courier_rating_sheet.dart';
 import 'package:mtc_app/features/delivery/presentation/widgets/delivery_code_qr.dart';
+import 'package:mtc_app/features/delivery/presentation/screens/delivery_scan_screen.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
 import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart'
@@ -17,6 +18,7 @@ import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.da
 import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 import 'package:mtc_app/core/error/user_message.dart';
 
+import '../../data/self_delivery_handover.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/order_status.dart';
 import '../../domain/order_status_transitions.dart';
@@ -208,11 +210,18 @@ class _OrderDetailBody extends ConsumerWidget {
     // l'appel direct). Il garde la remise au livreur — « En livraison » —
     // qui est bien son geste à lui.
     final closedByCourier = group.deliveryMode == DeliveryMode.mtcDelivery;
+    // Livrée par la boutique, la commande ne se clôt plus d'un bouton non
+    // plus (`0139`) : la boutique scanne le code du client, ou le client
+    // confirme lui-même. Sans cette preuve, une vente payée d'avance
+    // devenait un versement pour un colis jamais remis.
+    final closedByHandover =
+        group.deliveryMode == DeliveryMode.selfDelivery &&
+        group.status == OrderStatus.inTransit;
     final nextStatuses = OrderStatus.values.where(
       (s) =>
           s != OrderStatus.cancelled &&
-          isValidTransition(group.status, s) &&
-          !(closedByCourier && s == OrderStatus.delivered),
+          s != OrderStatus.delivered &&
+          isValidTransition(group.status, s),
     );
     final canCancel = isValidTransition(group.status, OrderStatus.cancelled);
 
@@ -364,6 +373,28 @@ class _OrderDetailBody extends ConsumerWidget {
             ),
           ),
         ),
+        if (closedByHandover) ...[
+          const SizedBox(height: AppSpacing.xl),
+          Row(
+            children: [
+              Icon(Icons.qr_code_scanner_rounded, color: scheme.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Au moment de la remise, scannez le code que le client '
+                  'affiche dans son app. Il peut aussi confirmer lui-même '
+                  'la réception.',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          MtcPrimaryButton(
+            label: 'Scanner le code du client',
+            onPressed: () => _scanHandover(context, ref, group.id),
+          ),
+        ],
         if (nextStatuses.isNotEmpty || canCancel) ...[
           const SizedBox(height: AppSpacing.xl),
           for (final status in nextStatuses)
@@ -382,6 +413,31 @@ class _OrderDetailBody extends ConsumerWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+/// Ouvre la caméra sur le code du client et le soumet au serveur
+/// (`confirm_self_delivery_by_code`). Le flux de la commande fait le reste :
+/// elle passe « Livrée » sous les yeux de la boutique.
+Future<void> _scanHandover(
+  BuildContext context,
+  WidgetRef ref,
+  String groupId,
+) async {
+  final handover = ref.read(selfDeliveryHandoverProvider);
+  final remise = await Navigator.of(context).push<bool>(
+    MaterialPageRoute(
+      builder: (_) => DeliveryScanScreen.handover(
+        submit: (code) => handover.confirmByCode(groupId: groupId, code: code),
+        title: 'Code de remise',
+        instruction: 'Demandez au client d\'afficher son code de remise.',
+      ),
+    ),
+  );
+  if (remise == true && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Commande remise au client.')),
     );
   }
 }

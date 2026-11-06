@@ -14,6 +14,7 @@ import 'package:mtc_app/features/auth/domain/entities/user_role.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/cart/presentation/providers/cart_providers.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product.dart';
+import 'package:mtc_app/features/catalog/domain/entities/product_status.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_characteristic.dart';
 import 'package:mtc_app/features/catalog/domain/entities/product_characteristic_type.dart';
@@ -431,6 +432,19 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final product = await tester.runAsync(() => _createNoirRougeProduct(container));
+      // Le panier n'appartient qu'à un client (`0146`) : la boutique publie
+      // le produit (créé en brouillon, qu'elle seule voit) et cède la place
+      // à une cliente avant l'achat.
+      await tester.runAsync(() async {
+        await container
+            .read(productRepositoryProvider)
+            .setStatus(id: product!.id, status: ProductStatus.active);
+        await container.read(authRepositoryProvider).logout();
+        await container
+            .read(authRepositoryProvider)
+            .login(usernameOrPhone: 'client1', password: 'password123');
+        await container.read(currentUserProvider.future);
+      });
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

@@ -131,8 +131,18 @@ acceptable, et la plus fréquente au premier essai.
 # dossier parent du Dockerfile.
 docker build -f serve/Dockerfile -t mtc-embeddings .
 docker run -p 8080:8080 -v "$PWD/checkpoints:/models" \
-  -e MTC_CHECKPOINT=/models/mtc-v1 -e MTC_SERVE_TOKEN="$TOKEN" mtc-embeddings
+  -e MTC_CHECKPOINT=/models/mtc-v1 -e MTC_SERVE_TOKEN="$TOKEN" \
+  -e MTC_IMAGE_HOSTS="<ref>.supabase.co" mtc-embeddings
 ```
+
+Le service refuse de démarrer sans `MTC_SERVE_TOKEN` (32 caractères au
+moins). Il ne télécharge une image que depuis le bucket public
+`product-images` des hôtes de `MTC_IMAGE_HOSTS` (à défaut, celui de
+`SUPABASE_URL`), en HTTPS, sans redirection, 10 Mo au plus
+(`MTC_IMAGE_MAX_BYTES`) : une photo de produit ne doit pas pouvoir lui faire
+appeler une autre adresse (audit du 27/10/2026, faille 8). En local, où
+l'hôte est en HTTP, ajouter `MTC_IMAGE_HTTP_HOSTS=<hôte>`. Ces règles se
+testent sans le modèle : `python serve/test_image_fetch.py`.
 
 Puis côté Supabase :
 

@@ -144,7 +144,7 @@ begin
     raise exception 'ÉCHEC : un refus se distingue des autres';
   end if;
   -- Les règles communes du mot de passe passent avant, sans coûter d'essai.
-  perform verif.refuse('mot de passe trop court', format('select public.reset_password_with_code(''client1'', %L, ''12345'')', current_setting('verif.code')), '%au moins 6 caractères%');
+  perform verif.refuse('mot de passe trop court', format('select public.reset_password_with_code(''client1'', %L, ''1234567'')', current_setting('verif.code')), '%au moins 8 caractères%');
   perform verif.refuse('mot de passe trop long', format('select public.reset_password_with_code(''client1'', %L, %L)', current_setting('verif.code'), repeat('é', 37)), '%72 caractères%');
 end $$;
 reset role;

@@ -12,6 +12,7 @@ cette machine.
 from __future__ import annotations
 
 import os
+import re
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,6 +40,9 @@ class UnreachableImage(Exception):
     """Photo que le serveur ne peut pas atteindre."""
 
 
+OBJECT_PATH = re.compile(r"^[0-9a-f-]{36}/[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
 def resolve_product_image_url(path: str) -> str:
     """Pendant Python de `_shared/image_urls.ts`.
 
@@ -52,8 +56,10 @@ def resolve_product_image_url(path: str) -> str:
         raise UnreachableImage(
             f"Photo embarquée dans l'application : {path}"
         )
-    if path.startswith(("http://", "https://")):
-        return path
+    # Une URL n'est plus suivie (audit du 27/10/2026, faille 8) : seul un
+    # fichier envoyé par l'app, `<boutique>/<fichier>`, a une adresse.
+    if not OBJECT_PATH.match(path) or ".." in path:
+        raise UnreachableImage(f"Photo refusée : {path[:80]}")
     base = os.environ["SUPABASE_URL"].rstrip("/")
     quoted = "/".join(urllib.parse.quote(part) for part in path.split("/"))
     return f"{base}/storage/v1/object/public/{PRODUCT_IMAGE_BUCKET}/{quoted}"

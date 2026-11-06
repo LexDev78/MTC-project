@@ -187,7 +187,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             controller: _passwordController,
                             hint: 'Mot de passe',
                             icon: ShopIcons.lock,
-                            validator: Validators.password,
+                            validator: Validators.passwordEntered,
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
                             onSubmitted: enCours ? null : (_) => _submit(),

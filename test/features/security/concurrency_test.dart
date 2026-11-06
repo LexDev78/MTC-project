@@ -161,11 +161,22 @@ void main() {
       // Le décrément de stock est conditionnel
       // (`where stock_quantity >= quantité`) : c'est lui qu'on met à
       // l'épreuve, pas la disponibilité affichée.
-      // Le helper applique un delta : on descend le stock à exactement 1.
-      final actuel = await _stockOf('d9d25e13-71ac-51c4-93f7-ed042a996500');
-      await adjustStockAsAdmin(
-        productId: 'd9d25e13-71ac-51c4-93f7-ed042a996500',
-        quantityDelta: 1 - actuel,
+      // Le helper applique un delta : on descend le stock à exactement 1 —
+      // celui de la variante par défaut, le vrai stock du riz, dont
+      // `products.stock_quantity` n'est que la somme. La commande ne nomme
+      // pas la variante : la base prend celle par défaut (`0147`). Descendre
+      // le produit seul, comme avant, laissait la variante pleine.
+      final client0 = createTestSupabaseClient();
+      final variante = await client0
+          .from('product_variants')
+          .select('id, stock_quantity')
+          .eq('product_id', 'd9d25e13-71ac-51c4-93f7-ed042a996500')
+          .eq('is_default', true)
+          .single();
+      await client0.dispose();
+      await adjustVariantStockAsAdmin(
+        variantId: variante['id'] as String,
+        quantityDelta: 1 - (variante['stock_quantity'] as num).toInt(),
       );
 
       final client = await _signIn('client2');

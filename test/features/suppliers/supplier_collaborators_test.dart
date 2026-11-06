@@ -448,6 +448,10 @@ void main() {
       );
       final collaborateur = await _connecte('vendeur_t');
 
+      // Ce que fait l'écran du changement imposé : le changement, puis l'appel
+      // que les versions installées font encore. C'est le changement qui lève
+      // l'obligation (`0149`) ; l'appel seul ne lève plus rien.
+      await collaborateur.auth.updateUser(UserAttributes(password: 'NouveauMdp1'));
       await collaborateur.rpc('mark_password_changed');
 
       final profil = await collaborateur
@@ -465,6 +469,7 @@ void main() {
         permissions: const {'products'},
       );
       final collaborateur = await _connecte('vendeur_u');
+      await collaborateur.auth.updateUser(UserAttributes(password: 'NouveauMdp1'));
       await collaborateur.rpc('mark_password_changed');
 
       final patron = await _connecte('fournisseur1');

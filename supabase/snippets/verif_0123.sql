@@ -18,7 +18,7 @@
 begin;
 
 select public.listed_product_count(s) as avant
-  from public.suppliers s where s.id = 'b7eb8585-4091-5b6f-83f7-5d70724e97a3' \gset
+  from public.supplier_storefronts s where s.id = 'b7eb8585-4091-5b6f-83f7-5d70724e97a3' \gset
 
 -- Un produit mis en pause sort du compte.
 update public.products set status = 'paused'
@@ -29,7 +29,8 @@ update public.products set status = 'paused'
  );
 
 -- La boutique gonfle son compteur de travail elle-même : le nombre montré
--- aux clients n'en dépend pas.
+-- aux clients n'en dépend pas. (L'app tient ce compteur elle-même,
+-- `adjustProductCount` : la boutique a le droit de l'écrire.)
 set local role authenticated;
 set local request.jwt.claims to '{"sub":"b7eb8585-4091-5b6f-83f7-5d70724e97a3","role":"authenticated"}';
 update public.suppliers set product_count = 9999 where id = 'b7eb8585-4091-5b6f-83f7-5d70724e97a3';
@@ -37,17 +38,17 @@ update public.suppliers set product_count = 9999 where id = 'b7eb8585-4091-5b6f-
 -- Lu par un client.
 set local request.jwt.claims to '{"sub":"04060d99-e34d-520e-8b75-631ff4d3c10c","role":"authenticated"}';
 select public.listed_product_count(s) as apres
-  from public.suppliers s where s.id = 'b7eb8585-4091-5b6f-83f7-5d70724e97a3' \gset
+  from public.supplier_storefronts s where s.id = 'b7eb8585-4091-5b6f-83f7-5d70724e97a3' \gset
 select public.listed_product_count(s) as en_attente
-  from public.suppliers s where s.business_name = 'Artisanat Sikasso' \gset
+  from public.supplier_storefronts s where s.business_name = 'Artisanat Sikasso' \gset
 
 -- Lu par chaque boutique, qui voit ses propres produits en pause.
 set local request.jwt.claims to '{"sub":"b7eb8585-4091-5b6f-83f7-5d70724e97a3","role":"authenticated"}';
 select public.listed_product_count(s) as apres_par_la_boutique
-  from public.suppliers s where s.id = 'b7eb8585-4091-5b6f-83f7-5d70724e97a3' \gset
+  from public.supplier_storefronts s where s.id = 'b7eb8585-4091-5b6f-83f7-5d70724e97a3' \gset
 set local request.jwt.claims to '{"sub":"b6b1daf0-1c8e-583f-939f-687991d429ca","role":"authenticated"}';
 select public.listed_product_count(s) as en_attente_par_la_boutique
-  from public.suppliers s where s.business_name = 'Artisanat Sikasso' \gset
+  from public.supplier_storefronts s where s.business_name = 'Artisanat Sikasso' \gset
 reset role;
 
 -- Le jeu d'essai tient-il encore ? Sans produit actif chez Artisanat

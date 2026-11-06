@@ -25,6 +25,26 @@ interface WebhookPayload {
   } | null;
 }
 
+interface StoredNotification {
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  reference_id: string | null;
+}
+
+/// Constant-time comparison: a plain `!==` returns as soon as a character
+/// differs, which leaks the secret's prefix to a patient caller.
+function timingSafeEqual(a: string, b: string): boolean {
+  const left = new TextEncoder().encode(a);
+  const right = new TextEncoder().encode(b);
+  let diff = left.length ^ right.length;
+  for (let i = 0; i < Math.max(left.length, right.length); i++) {
+    diff |= (left[i] ?? 0) ^ (right[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -58,7 +78,18 @@ Deno.serve(async (request) => {
       500,
     );
   }
-  if (request.headers.get("Authorization") !== `Bearer ${expectedSecret}`) {
+  // The local-dev value is committed in `.env.example`: anyone who read the
+  // repo knows it. On a hosted project it would open this endpoint to all
+  // of them, so it is refused outright there, as is any short secret
+  // (`0149`).
+  const hosted = (Deno.env.get("SUPABASE_URL") ?? "").includes(".supabase.co");
+  if (hosted && (expectedSecret === "local-dev-push-secret" || expectedSecret.length < 32)) {
+    return jsonResponse(
+      { error: "PUSH_WEBHOOK_SECRET is the public dev value or too short — set a real one" },
+      500,
+    );
+  }
+  if (!timingSafeEqual(request.headers.get("Authorization") ?? "", `Bearer ${expectedSecret}`)) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
 
@@ -74,7 +105,7 @@ Deno.serve(async (request) => {
   if (payload.type !== "INSERT" || !payload.record) {
     return jsonResponse({ skipped: "not an insert" });
   }
-  const record = payload.record;
+  const posted = payload.record;
 
   // Distinct from the webhook secret above: this one is the actual database
   // credential, needed to reach the `security definer` RPCs below. Both are
@@ -88,6 +119,23 @@ Deno.serve(async (request) => {
     );
   }
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  // What gets pushed is the notification as stored, re-read by id — never
+  // the user_id/title/body of the request body, which whoever holds the
+  // secret could fill with anything — and only if it was just created, so
+  // an old one can't be replayed (`notification_for_push`, `0149`).
+  const { data: storedRows, error: storedError } = await supabase.rpc(
+    "notification_for_push",
+    { p_id: posted.id },
+  );
+  if (storedError) {
+    return jsonResponse({ error: `Notification lookup failed: ${storedError.message}` }, 500);
+  }
+  const stored = ((storedRows ?? []) as StoredNotification[])[0];
+  if (!stored) {
+    return jsonResponse({ skipped: "unknown or stale notification" });
+  }
+  const record = { ...stored, id: posted.id };
 
   // `service_role` has no direct table grants in this schema (see
   // `0001_initial_schema.sql`, section 6) — reads go through a

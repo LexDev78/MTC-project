@@ -133,12 +133,17 @@ end $$;
 -- et passe la commande à livrée d'un geste : avant 0131, son solde montait
 -- de 90 % du prix.
 select (public.supplier_ledger('b7eb8585-4091-5b6f-83f7-5d70724e97a3') ->> 'available_fcfa') as avant \gset
+-- Les identifiants de variantes sont tirés au semis : on le lit.
+select id as boubou_v from public.product_variants
+ where product_id = '62599202-a3f0-5adc-ae1c-fe2a691adf92' order by id limit 1 \gset
 select set_config('verif.avant', :'avant', true);
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"3355adef-385d-5eee-a565-815c8cf8e4d3","role":"authenticated","app_metadata":{}}', true);
 select public.place_order('Moussa', '+22370000002',
-  '[{"supplier_id":"b7eb8585-4091-5b6f-83f7-5d70724e97a3","delivery_mode":"self_delivery","items":[
-     {"product_id":"62599202-a3f0-5adc-ae1c-fe2a691adf92","variant_id":"bf018c0c-bc89-4a35-be63-fefee9faeceb","quantity":1}]}]',
+  jsonb_build_array(jsonb_build_object(
+    'supplier_id', 'b7eb8585-4091-5b6f-83f7-5d70724e97a3', 'delivery_mode', 'self_delivery',
+    'items', jsonb_build_array(jsonb_build_object(
+      'product_id', '62599202-a3f0-5adc-ae1c-fe2a691adf92', 'variant_id', :'boubou_v', 'quantity', 1)))),
   'Maison', 'Bamako', 'Rue 1', 12.6, -8.0) as fausse \gset
 select set_config('verif.fausse', :'fausse', true);
 select set_config('request.jwt.claims', '{"sub":"b7eb8585-4091-5b6f-83f7-5d70724e97a3","role":"authenticated","app_metadata":{}}', true);
@@ -149,9 +154,15 @@ declare
   v_prix integer := (select subtotal_fcfa from public.order_supplier_groups where order_id = current_setting('verif.fausse'));
   v_apres integer;
 begin
-  foreach v_statut in array array['confirmed', 'preparing', 'in_transit', 'delivered'] loop
+  foreach v_statut in array array['confirmed', 'preparing', 'in_transit'] loop
     perform public.update_order_group_status(current_setting('verif.fausse'), v_groupe, v_statut);
   end loop;
+  -- Depuis 0139, la boutique ne se déclare plus livrée seule : c'est le
+  -- client — ici le complice — qui confirme la réception. La règle du
+  -- grand livre doit tenir quand même.
+  perform set_config('request.jwt.claims', '{"sub":"3355adef-385d-5eee-a565-815c8cf8e4d3","role":"authenticated","app_metadata":{}}', true);
+  perform public.confirm_self_delivery_received(v_groupe);
+  perform set_config('request.jwt.claims', '{"sub":"b7eb8585-4091-5b6f-83f7-5d70724e97a3","role":"authenticated","app_metadata":{}}', true);
   v_apres := (public.fetch_my_finance_summary() ->> 'available_fcfa')::integer;
   if v_apres <> current_setting('verif.avant')::integer - round(v_prix * 0.10) then
     raise exception 'ÉCHEC : la fausse vente a rapporté au lieu de coûter sa commission (avant %, après %, prix %)',

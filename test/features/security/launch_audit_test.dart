@@ -395,12 +395,7 @@ void main() {
             .select('id, subtotal_fcfa')
             .eq('order_id', commande)
             .single();
-        for (final statut in [
-          'confirmed',
-          'preparing',
-          'in_transit',
-          'delivered',
-        ]) {
+        for (final statut in ['confirmed', 'preparing', 'in_transit']) {
           await patron.rpc(
             'update_order_group_status',
             params: {
@@ -410,6 +405,13 @@ void main() {
             },
           );
         }
+        // Depuis `0139`, la boutique ne se déclare plus livrée seule : c'est
+        // le « client » — le complice — qui confirme la réception. La règle
+        // du grand livre doit tenir quand même.
+        await faux.rpc(
+          'confirm_self_delivery_received',
+          params: {'p_group_id': groupe['id']},
+        );
 
         final prix = (groupe['subtotal_fcfa'] as num).toInt();
         final apres = await _grandLivre(patron);

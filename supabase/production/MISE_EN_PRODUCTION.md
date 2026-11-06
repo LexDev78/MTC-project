@@ -44,7 +44,7 @@ select count(*) from pg_proc
 | Inscription par e-mail | Authentication → Providers → Email | activée |
 | Confirmer l'e-mail | même écran | **désactivé** — les comptes portent une pseudo-adresse `…@mtc.local` qui ne reçoit rien |
 | Connexions anonymes | Authentication → Settings | désactivées |
-| Longueur minimale du mot de passe | Authentication → Settings | 6 au moins (le staff : 10, imposé par l'app et `reset_password_with_code`) ; 8 conseillé pour tous, à décider |
+| Longueur minimale du mot de passe | Authentication → Settings | **8** (décidé le 05/11/2026, `0151` ; le staff : 10, imposé par l'app et `reset_password_with_code`) |
 | Protection des mots de passe divulgués | Authentication → Settings | à activer si votre plan la propose |
 | Durée du jeton | Authentication → Settings | 3600 s |
 | Limites de débit | Authentication → Rate Limits | inscriptions et connexions : 30 / 5 min par IP ; vérifications de jeton : 30 |
@@ -130,8 +130,55 @@ sur iOS.
 
 ## 9. Ce qui reste à décider
 
-- La longueur minimale du mot de passe pour tous les comptes (6 aujourd'hui).
 - Une adresse exacte publique, sur option, pour une boutique **vérifiée** qui
   reçoit des clients (`0133` ne montre que la ville).
-- Les commentaires de produits (`product_comments_with_likes`) montrent
-  encore l'identifiant de leur auteur et de ceux qui les ont aimés.
+
+Réglé depuis : la longueur minimale (8, `0151`), et les identifiants des
+commentaires de produits, que la vue ne montre plus (`0140`).
+
+## 10. Après l'audit du 27/10/2026 (`0136`–`0152`)
+
+À faire une fois, sur le projet hébergé, après `supabase db push` :
+
+- **Avis forgés** (faille 1) : la requête de
+  `supabase/snippets/audit_avis_forges.sql` liste les avis qui ne
+  correspondent pas à une vraie commande livrée du client chez cette boutique.
+  Les supprimer est une décision humaine ; la même requête dit ensuite comment
+  recalculer la note des boutiques touchées.
+- **Edge Functions** : redéployer `send-push-notification`, `visual-search`
+  et `index-product-embeddings` (`supabase functions deploy …`). La première
+  refuse désormais de tourner avec le secret de développement
+  (`local-dev-push-secret`) ou un secret de moins de 32 caractères : vérifier
+  `PUSH_WEBHOOK_SECRET` et, dans le Vault, `push_function_url` **et**
+  `push_function_secret` (sans le second, les notifications push ne partent
+  plus — c'est voulu).
+- **Modèle auto-hébergé** (`ml/serve`), s'il sert : il ne démarre plus sans
+  `MTC_SERVE_TOKEN` (32 caractères au moins) et ne télécharge que depuis
+  `MTC_IMAGE_HOSTS` (à défaut l'hôte de `SUPABASE_URL`).
+- **Noms réservés** : la migration `0144` signale (sans les changer) les
+  boutiques et les comptes qui portent déjà un nom contenant « MTC » ; les
+  traiter à la main.
+- **Photos de produit en URL** : `0145` signale celles qui en sont ; une
+  boutique concernée doit renvoyer ses photos depuis l'app.
+- **Commandes livrées par la boutique en cours** au moment du déploiement :
+  elles se terminent désormais par le code du client ou sa confirmation
+  (`0139`), une fois la commande « en cours de livraison ». Prévenir les
+  boutiques que le bouton « Marquer livrée » est remplacé par « Scanner le
+  code du client ».
+- **Droits du schéma `storage`** : `0150` retire TRUNCATE, TRIGGER,
+  REFERENCES et MAINTAIN à `anon`/`authenticated` sur le schéma `public`
+  seulement. Les tables `storage.objects` et `storage.buckets` appartiennent
+  à `supabase_storage_admin`, qu'une migration ne peut pas réviser : à faire
+  depuis l'éditeur SQL du tableau de bord, en tant que ce rôle, si Supabase
+  le permet (`revoke truncate, maintain on storage.objects, storage.buckets
+  from anon, authenticated;`).
+- **Ville d'une boutique vérifiée** : elle ne se change plus depuis l'app
+  (`0152`) — c'est d'elle que part le prix d'une course MTC. Une boutique qui
+  déménage écrit à MTC ; le staff fait le changement en SQL après
+  vérification.
+- **« Payer maintenant »** : aucune passerelle de paiement réelle n'est
+  branchée. Tant que le staff n'a pas constaté le paiement
+  (`mark_order_paid`), une telle commande s'encaisse à la remise : le
+  livreur MTC le voit désormais (`courier_order`, `0146`). Une boutique qui
+  livre elle-même doit faire de même — son écran n'affiche pas encore l'état
+  du paiement.

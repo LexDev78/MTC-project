@@ -26,16 +26,18 @@ class SupabaseDeliveryDatasource {
   /// (`0120`) : l'adresse dès que la course est proposée, le numéro une fois
   /// acceptée, plus rien une fois livrée.
   ///
+  /// La commande elle-même se lit par `courier_order` (`0146`), qui n'en rend
+  /// que les champs de cet écran : le livreur ne lit plus la ligne entière
+  /// de `orders`, où se trouve aussi le message privé du client à la
+  /// boutique.
+  ///
   /// L'adresse de retrait de la boutique vient de `pickup_point` (`0133`),
   /// pour la même raison : elle n'est plus publique, et le livreur ne la lit
   /// que tant que la course lui est proposée ou confiée.
   static const _nestedSelect = '''
     *,
     pickup_point,
-    order_data:orders (
-      id, client_display_name_snapshot, delivery_city, payment_method,
-      client_contact
-    ),
+    courier_order,
     group_data:order_supplier_groups (
       id, supplier_name, delivery_fee_fcfa, subtotal_fcfa,
       supplier:suppliers (city, public_phone_numbers),

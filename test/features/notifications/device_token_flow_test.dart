@@ -37,43 +37,38 @@ void main() {
   }
 
   test(
-    'a signed-in user can upsert and delete their own device token; RLS '
-    'rejects a token for another user_id',
+    'a signed-in user registers and deletes their own device token; direct '
+    'writes to the table are refused',
     () async {
       await login('client1');
       final selfId = container.read(currentUserProvider).value!.id;
       final client = container.read(supabaseClientProvider);
 
-      await client.from('device_tokens').insert({
-        'user_id': selfId,
-        'fcm_token': 'fcm-token-self-1',
-      });
-
+      // L'enregistrement passe par `register_device_token` (`0149`), comme
+      // dans l'app : le compte est celui de la session, jamais un paramètre.
+      await client.rpc('register_device_token', params: {'p_token': 'fcm-token-self-1'});
       final own = await fetchDeviceTokensForUserAsAdmin(selfId);
       expect(own.single['fcm_token'], 'fcm-token-self-1');
 
-      // Upsert on conflict (fcm_token) — token rotation/re-registration
-      // updates the same row rather than duplicating it.
-      await client
-          .from('device_tokens')
-          .upsert({
-            'user_id': selfId,
-            'fcm_token': 'fcm-token-self-1',
-            'platform': 'android',
-          }, onConflict: 'fcm_token');
-      final afterUpsert = await fetchDeviceTokensForUserAsAdmin(selfId);
-      expect(afterUpsert.length, 1);
+      // Le réenregistrer (rotation, relance de l'app) met à jour la même
+      // ligne au lieu d'en créer une seconde.
+      await client.rpc('register_device_token', params: {'p_token': 'fcm-token-self-1'});
+      final afterAgain = await fetchDeviceTokensForUserAsAdmin(selfId);
+      expect(afterAgain.length, 1);
 
-      // A token row claiming to belong to someone else is rejected by
-      // `device_tokens_insert_own` (`with check (user_id = auth.uid())`).
-      await expectLater(
-        client.from('device_tokens').insert({
-          'user_id': DemoIds.clientMoussa,
-          'fcm_token': 'fcm-token-spoofed',
-        }),
-        throwsA(isA<PostgrestException>()),
-      );
+      // Écrire la table directement ne passe plus, pour soi comme pour un
+      // autre.
+      for (final userId in [selfId, DemoIds.clientMoussa]) {
+        await expectLater(
+          client.from('device_tokens').insert({
+            'user_id': userId,
+            'fcm_token': 'fcm-token-direct',
+          }),
+          throwsA(isA<PostgrestException>()),
+        );
+      }
 
+      // Effacer le sien, à la déconnexion, reste permis.
       await client.from('device_tokens').delete().eq('fcm_token', 'fcm-token-self-1');
       final afterDelete = await fetchDeviceTokensForUserAsAdmin(selfId);
       expect(afterDelete, isEmpty);
@@ -85,32 +80,23 @@ void main() {
     'just their own tokens, and the shared MTC storefront id to every '
     'staff device',
     () async {
-      // Each row is inserted from its own owner's session — RLS
-      // (`device_tokens_insert_own`) requires `user_id = auth.uid()`, so
-      // Awa's token can only land while Awa herself is signed in, same for
-      // each staff account.
+      // Each token is registered from its own owner's session —
+      // `register_device_token` (`0149`) gives it to whoever is signed in,
+      // so Awa's token can only land while Awa herself is signed in, same
+      // for each staff account.
       await login('client1');
       final clientClient = container.read(supabaseClientProvider);
-      await clientClient.from('device_tokens').insert({
-        'user_id': DemoIds.clientAwa,
-        'fcm_token': 'fcm-token-awa',
-      });
+      await clientClient.rpc('register_device_token', params: {'p_token': 'fcm-token-awa'});
 
       await container.read(authRepositoryProvider).logout();
       await login('agent1');
       final agentClient = container.read(supabaseClientProvider);
-      await agentClient.from('device_tokens').insert({
-        'user_id': DemoIds.staffAgent,
-        'fcm_token': 'fcm-token-agent',
-      });
+      await agentClient.rpc('register_device_token', params: {'p_token': 'fcm-token-agent'});
 
       await container.read(authRepositoryProvider).logout();
       await login('admin1');
       final adminClient = container.read(supabaseClientProvider);
-      await adminClient.from('device_tokens').insert({
-        'user_id': DemoIds.staffAdmin,
-        'fcm_token': 'fcm-token-admin',
-      });
+      await adminClient.rpc('register_device_token', params: {'p_token': 'fcm-token-admin'});
 
       final clientTokens = await tokensForNotificationUserAsAdmin(DemoIds.clientAwa);
       expect(clientTokens, ['fcm-token-awa']);

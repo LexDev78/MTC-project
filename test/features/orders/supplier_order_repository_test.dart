@@ -89,10 +89,30 @@ void main() {
       );
 
       final repository = await _repositoryAs('fournisseur7');
-      await repository.updateGroupStatus(
-        orderId: DemoIds.orderMoussaIntransit,
-        groupId: DemoIds.groupMoussaIntransit1,
-        status: OrderStatus.delivered,
+      // Depuis `0139`, la boutique ne passe plus seule à « livrée » une
+      // commande qu'elle livre elle-même : la remise se prouve, par le code
+      // du client ou par sa confirmation.
+      await expectLater(
+        repository.updateGroupStatus(
+          orderId: DemoIds.orderMoussaIntransit,
+          groupId: DemoIds.groupMoussaIntransit1,
+          status: OrderStatus.delivered,
+        ),
+        throwsA(anything),
+      );
+      expect(await adminFetchGroupStatus(DemoIds.groupMoussaIntransit1), 'in_transit');
+
+      // Le client confirme la réception : le groupe passe livré, et la
+      // commande le suit.
+      final moussa = createTestSupabaseClient();
+      addTearDown(moussa.dispose);
+      await moussa.auth.signInWithPassword(
+        email: pseudoEmail('client2'),
+        password: 'password123',
+      );
+      await moussa.rpc(
+        'confirm_self_delivery_received',
+        params: {'p_group_id': DemoIds.groupMoussaIntransit1},
       );
 
       final order = await repository.watchOrderById(DemoIds.orderMoussaIntransit).first;

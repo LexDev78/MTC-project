@@ -379,7 +379,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               maxLength: 60,
               validator: (v) => (v ?? '').trim().length < 2
                   ? 'Votre nom doit compter au moins 2 caractères.'
-                  : null,
+                  : Validators.publicName(v),
               decoration: InputDecoration(
                 labelText: 'Nom',
                 prefixIcon: const ShopFieldIcon(ShopIcons.profile),

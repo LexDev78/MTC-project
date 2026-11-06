@@ -205,22 +205,46 @@ void main() {
 
   test(
     'updateSupplierVerification flips isSupplierVerified on every one of '
-    "the supplier's products",
+    "the supplier's products — and never verifies those of a supplier MTC "
+    'has not verified',
     () async {
-      const supplierId = DemoIds.supplierArtisanatSikasso;
-      final asFournisseur2 = await _repositoryAs('fournisseur2');
       final asAdmin = await _repositoryAs('admin1');
 
-      final before = await asFournisseur2.watchMyProducts(supplierId).first;
-      expect(before.every((p) => !p.isSupplierVerified), isTrue);
-
+      // Bogolan, vérifiée : la vérification de ses produits se retire, puis
+      // se rend.
+      final asFournisseur1 = await _repositoryAs('fournisseur1');
       await asAdmin.updateSupplierVerification(
-        supplierId: supplierId,
+        supplierId: DemoIds.supplierBogolanBamako,
+        isVerified: false,
+      );
+      final retires = await asFournisseur1
+          .watchMyProducts(DemoIds.supplierBogolanBamako)
+          .first;
+      expect(retires.every((p) => !p.isSupplierVerified), isTrue);
+      await asAdmin.updateSupplierVerification(
+        supplierId: DemoIds.supplierBogolanBamako,
         isVerified: true,
       );
+      final rendus = await asFournisseur1
+          .watchMyProducts(DemoIds.supplierBogolanBamako)
+          .first;
+      expect(rendus.every((p) => p.isSupplierVerified), isTrue);
 
-      final after = await asFournisseur2.watchMyProducts(supplierId).first;
-      expect(after.every((p) => p.isSupplierVerified), isTrue);
+      // Artisanat Sikasso, en attente : ses produits ne deviennent pas
+      // vérifiés d'un geste (`0152`) — la décision passe par le dossier,
+      // `review_supplier_kyc`, qui en garde la trace.
+      await expectLater(
+        asAdmin.updateSupplierVerification(
+          supplierId: DemoIds.supplierArtisanatSikasso,
+          isVerified: true,
+        ),
+        throwsA(anything),
+      );
+      final asFournisseur2 = await _repositoryAs('fournisseur2');
+      final enAttente = await asFournisseur2
+          .watchMyProducts(DemoIds.supplierArtisanatSikasso)
+          .first;
+      expect(enAttente.every((p) => !p.isSupplierVerified), isTrue);
     },
   );
 
@@ -268,7 +292,13 @@ void main() {
           name: 'Rouge',
           priceFcfa: 10000,
           stockQuantity: 3,
-          imageUrls: const ['photo-1.jpg', 'photo-2.jpg', 'photo-3.jpg'],
+          // Des fichiers du dossier de la boutique, comme les envoie l'app
+          // (`uploadPickedImage`) : la base n'accepte rien d'autre (`0145`).
+          imageUrls: const [
+            '${DemoIds.supplierBogolanBamako}/photo-1.jpg',
+            '${DemoIds.supplierBogolanBamako}/photo-2.jpg',
+            '${DemoIds.supplierBogolanBamako}/photo-3.jpg',
+          ],
           videoPath: videoPath,
           isDefault: true,
           optionRefs: const [
@@ -286,6 +316,10 @@ void main() {
     expect(variant.videoPath, videoPath);
     // Plusieurs photos d'un coup : la sélection multiple ne sert à rien si
     // seule la première survit.
-    expect(variant.imageUrls, ['photo-1.jpg', 'photo-2.jpg', 'photo-3.jpg']);
+    expect(variant.imageUrls, [
+      '${DemoIds.supplierBogolanBamako}/photo-1.jpg',
+      '${DemoIds.supplierBogolanBamako}/photo-2.jpg',
+      '${DemoIds.supplierBogolanBamako}/photo-3.jpg',
+    ]);
   });
 }

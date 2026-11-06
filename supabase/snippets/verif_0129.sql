@@ -56,6 +56,24 @@ grant execute on all functions in schema verif to anon, authenticated;
 \set sac_v '4f7636da-2e02-4a7f-87b7-281ca1b78872'
 \set tissu 'b0fe527e-1f73-55e6-b24e-4d985576d473'
 \set tissu_v '10402247-9d2f-465c-a690-363488af673f'
+
+-- Les identifiants des variantes sont tirés au hasard à chaque semis : ceux
+-- que ce fichier cite n'existent que sur la base où il a été écrit. Dans la
+-- transaction, on recrée donc ces variantes à l'identique de la
+-- première de chaque produit, sous ces identifiants — sans toucher aux
+-- autres (05/11/2026, pour que le fichier passe sur une base neuve).
+insert into public.product_variants (id, product_id, name, price_fcfa, stock_quantity,
+                                     image_urls, is_default, display_order)
+select v.nouvel_id, src.product_id, src.name, src.price_fcfa, src.stock_quantity,
+       src.image_urls, false, 99
+  from (values (:'boubou_v', :'boubou'), (:'sac_v', :'sac'), (:'tissu_v', :'tissu'),
+               -- le chargeur d'Electro Bamako, plus bas (livraison MTC)
+               ('df3873c6-f5af-4d32-9db4-5bbf3d8d6946', '7a383e7f-0bd1-5d70-9cf7-b17f561f89ef')) v(nouvel_id, produit)
+  cross join lateral (
+    select * from public.product_variants pv
+     where pv.product_id = v.produit order by pv.id limit 1
+  ) src
+ where not exists (select 1 from public.product_variants where id = v.nouvel_id);
 \set bogolan 'b7eb8585-4091-5b6f-83f7-5d70724e97a3'
 \set artisanat 'b6b1daf0-1c8e-583f-939f-687991d429ca'
 

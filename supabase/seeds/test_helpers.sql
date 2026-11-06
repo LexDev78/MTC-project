@@ -45,6 +45,34 @@ $function$
 revoke all on function public.test_adjust_stock(text,integer) from public, anon, authenticated;
 grant execute on function public.test_adjust_stock(text,integer) to service_role;
 
+-- Le stock d'une variante (05/11/2026). Tous les produits du jeu de
+-- démonstration ont des variantes : leur stock réel est celui de la
+-- variante, et `products.stock_quantity` n'en est que la somme, recalculée
+-- par `recompute_product_variant_aggregates`. Descendre le produit seul
+-- (`test_adjust_stock`) laissait la variante pleine — et c'est elle que la
+-- commande décrémente depuis `0147`.
+CREATE OR REPLACE FUNCTION public.test_adjust_variant_stock(p_variant_id text, p_quantity_delta integer)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_product_id text;
+begin
+  update public.product_variants
+     set stock_quantity = stock_quantity + p_quantity_delta
+   where id = p_variant_id
+  returning product_id into v_product_id;
+  insert into public.stock_movements (id, product_id, variant_id, quantity_delta, reason)
+  values (gen_random_uuid()::text, v_product_id, p_variant_id, p_quantity_delta, 'correction');
+end;
+$function$
+
+;
+revoke all on function public.test_adjust_variant_stock(text,integer) from public, anon, authenticated;
+grant execute on function public.test_adjust_variant_stock(text,integer) to service_role;
+
 CREATE OR REPLACE FUNCTION public.test_assert_mail_sandbox()
  RETURNS void
  LANGUAGE plpgsql

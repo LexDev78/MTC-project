@@ -1,3 +1,8 @@
+-- REMPLACÉ PAR `verif_0132.sql`. Depuis `0132`, la demande de
+-- réinitialisation répond pareil qu'un compte existe ou non (« Aucun compte
+-- ne correspond » n'est plus jamais dit) : ce fichier-ci échoue donc sur son
+-- premier cas, à dessein. Gardé pour l'historique ; ne plus le lancer.
+--
 -- **Remplacé par `verif_0132.sql`** : depuis `0132`, la récupération ne dit
 -- plus « Aucun compte ne correspond », ni l'adresse masquée, ni les essais
 -- restants — ce que ce fichier vérifiait. Gardé pour l'historique.

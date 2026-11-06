@@ -15,11 +15,9 @@ aucune raison d'imiter la forme d'une API qu'on quitte.
 
 from __future__ import annotations
 
-import base64
-import binascii
+import hmac
 import json
 import os
-import re
 import tempfile
 from pathlib import Path
 
@@ -28,12 +26,12 @@ from pydantic import BaseModel
 
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from common import load_encoder  # noqa: E402
+from image_fetch import RejectedImage, read_image as fetch_image  # noqa: E402
 
 app = FastAPI(title="MTC embeddings")
-
-DATA_URL = re.compile(r"^data:([^;,]+);base64,(.*)$", re.S)
 
 _encoder = None
 _text_weight = 0.5
@@ -52,6 +50,12 @@ def load() -> None:
     checkpoint = os.environ.get("MTC_CHECKPOINT")
     if not checkpoint:
         raise RuntimeError("MTC_CHECKPOINT est requis.")
+    # Sans jeton, n'importe qui joignant le port consommait le modèle et lui
+    # faisait télécharger des images : le service ne démarre plus sans.
+    if len(os.environ.get("MTC_SERVE_TOKEN", "")) < 32:
+        raise RuntimeError(
+            "MTC_SERVE_TOKEN est requis (32 caractères au moins : openssl rand -hex 32)."
+        )
     _encoder = load_encoder(checkpoint)
 
     metadata = Path(checkpoint) / "metadata.json"
@@ -79,10 +83,11 @@ def health() -> dict:
 
 @app.post("/embed")
 def embed(request: EmbedRequest, authorization: str | None = Header(default=None)) -> dict:
-    expected = os.environ.get("MTC_SERVE_TOKEN")
-    # Le jeton est exigé dès qu'il est configuré. Sans lui, n'importe qui
-    # pouvant joindre le port consomme le GPU.
-    if expected and authorization != f"Bearer {expected}":
+    expected = os.environ.get("MTC_SERVE_TOKEN", "")
+    # Comparaison à temps constant ; `load` refuse déjà de démarrer sans jeton.
+    if not expected or not hmac.compare_digest(
+        (authorization or "").encode(), f"Bearer {expected}".encode()
+    ):
         raise HTTPException(status_code=401, detail="Non autorisé.")
     if _encoder is None:
         raise HTTPException(status_code=503, detail="Modèle pas encore chargé.")
@@ -105,17 +110,9 @@ def embed(request: EmbedRequest, authorization: str | None = Header(default=None
 
 
 def read_image(image: str) -> bytes:
-    match = DATA_URL.match(image)
-    if match:
-        try:
-            return base64.b64decode(match.group(2), validate=True)
-        except (binascii.Error, ValueError) as invalid:
-            raise HTTPException(status_code=400, detail="Base64 illisible.") from invalid
-
-    if image.startswith(("http://", "https://")):
-        import urllib.request
-
-        with urllib.request.urlopen(image, timeout=20) as response:
-            return response.read()
-
-    raise HTTPException(status_code=400, detail="Image non reconnue.")
+    """Une data URL, ou une photo du bucket `product-images` de l'hôte
+    autorisé — rien d'autre (`image_fetch.py`)."""
+    try:
+        return fetch_image(image)
+    except RejectedImage as refused:
+        raise HTTPException(status_code=400, detail=str(refused)) from refused

@@ -35,13 +35,13 @@ class _PasswordChangeScreenState extends ConsumerState<PasswordChangeScreen> {
   String? _erreur;
 
   /// 10 caractères pour un compte du staff MTC, qui voit les commandes, les
-  /// pièces d'identité et les versements (`0135`) ; 6 pour les autres, le
-  /// minimum de Supabase Auth. La règle du staff vaut aussi pour le mot de
+  /// pièces d'identité et les versements (`0135`) ; 8 pour les autres, le
+  /// minimum réglé dans Supabase Auth (`config.toml`, `0151`). La règle du staff vaut aussi pour le mot de
   /// passe oublié (`reset_password_with_code`, `0132`).
   int get _longueurMinimale =>
       ref.read(currentUserProvider).valueOrNull is SupplierPrincipalUser
       ? 10
-      : 6;
+      : 8;
 
   @override
   void initState() {
@@ -145,7 +145,7 @@ class _PasswordChangeScreenState extends ConsumerState<PasswordChangeScreen> {
             ),
             const SizedBox(height: AppSpacing.xs),
             // La règle est dite avant l'erreur, pas seulement après : on
-            // n'apprend pas qu'il faut six caractères en se faisant refuser.
+            // n'apprend pas qu'il faut huit caractères en se faisant refuser.
             _Regle(
               respectee: _nouveau.text.length >= _longueurMinimale,
               texte: '$_longueurMinimale caractères minimum',

@@ -52,6 +52,12 @@ security definer set search_path = public as $$
    limit 1;
 $$;
 
+-- Combien d'e-mails sont partis en file.
+create function verif.nb_mails() returns bigint language sql
+security definer set search_path = public as $$
+  select count(*) from net.http_request_queue;
+$$;
+
 -- Le code, tel qu'on le lirait dans l'e-mail.
 create function verif.code_recu() returns text language sql as $$
   select substring(verif.dernier_mail() ->> 'Subject' from '([0-9]{6})$');
@@ -103,7 +109,6 @@ select verif.qui('04060d99-e34d-520e-8b75-631ff4d3c10c');
 do $$ begin
   perform verif.refuse('adresse invalide', 'select public.request_contact_email_code(''awa@'')', 'Adresse e-mail invalide.');
   perform verif.refuse('pseudo-adresse', 'select public.request_contact_email_code(''awa@mtc.local'')', '%vraie boîte%');
-  perform verif.refuse('adresse d''un autre', 'select public.request_contact_email_code(''Moussa@Exemple.ml'')', '%déjà utilisée par un autre compte%');
   perform verif.refuse('lire les codes', 'select * from public.contact_email_verifications', '%permission denied%');
   perform verif.refuse('envoyer soi-même', 'select public.send_mail(''x@y.ml'', ''s'', ''t'')', '%permission denied%');
   perform verif.refuse('enregistrer sans code', 'select public.set_my_contact_email(''awa@exemple.ml'')', '%code%');
@@ -255,6 +260,43 @@ update public.contact_email_verifications set expires_at = now() - interval '1 s
  where user_id = '04060d99-e34d-520e-8b75-631ff4d3c10c';
 set local role authenticated;
 select verif.qui('04060d99-e34d-520e-8b75-631ff4d3c10c');
+-- L'adresse d'un autre compte : depuis `0149`, la même réponse qu'un envoi
+-- réussi (ne pas dire à qui est une adresse), mais aucun e-mail ne part. Les
+-- limites d'envoi jouent d'abord : on lève l'attente de 60 s le temps de
+-- l'essai, puis on la remet ; l'essai lui-même est annulé (sous-bloc), pour
+-- ne pas compter dans les cinq envois de l'heure.
+reset role;
+select set_config('verif.dernier_envoi', coalesce((select last_sent_at::text
+  from public.contact_email_verifications where user_id = '04060d99-e34d-520e-8b75-631ff4d3c10c'), ''), true);
+update public.contact_email_verifications set last_sent_at = now() - interval '2 minutes'
+ where user_id = '04060d99-e34d-520e-8b75-631ff4d3c10c';
+set local role authenticated;
+select verif.qui('04060d99-e34d-520e-8b75-631ff4d3c10c');
+do $$
+declare
+  v_avant bigint := verif.nb_mails();
+begin
+  begin
+    perform public.request_contact_email_code('Moussa@Exemple.ml');
+    if verif.nb_mails() <> v_avant then
+      raise exception 'ÉCHEC : un code part vers l''adresse d''un autre compte';
+    end if;
+    raise exception 'annuler';
+  exception when raise_exception then
+    if sqlerrm like 'ÉCHEC%' then raise; end if;
+    if sqlerrm <> 'annuler' then
+      raise exception 'ÉCHEC : l''adresse d''un autre compte est signalée (%)', sqlerrm;
+    end if;
+  end;
+end $$;
+reset role;
+update public.contact_email_verifications
+   set last_sent_at = nullif(current_setting('verif.dernier_envoi'), '')::timestamptz
+ where user_id = '04060d99-e34d-520e-8b75-631ff4d3c10c'
+   and current_setting('verif.dernier_envoi') <> '';
+set local role authenticated;
+select verif.qui('04060d99-e34d-520e-8b75-631ff4d3c10c');
+
 do $$ begin
   perform verif.refuse('code expiré', format('select public.confirm_contact_email(%L)', verif.code_recu()), 'Ce code a expiré : demandez-en un nouveau.');
 end $$;
@@ -310,7 +352,10 @@ do $$ begin
         from public.profiles where id = '04060d99-e34d-520e-8b75-631ff4d3c10c') then
     raise exception 'ÉCHEC : retrait incomplet';
   end if;
-  if exists (select 1 from public.contact_email_verifications where user_id = '04060d99-e34d-520e-8b75-631ff4d3c10c') then
+  -- Depuis `0152`, la ligne reste — elle porte les limites d'envoi, que
+  -- l'effacer remettait à zéro — mais son code a expiré.
+  if exists (select 1 from public.contact_email_verifications
+              where user_id = '04060d99-e34d-520e-8b75-631ff4d3c10c' and expires_at > now()) then
     raise exception 'ÉCHEC : un code reste en attente après le retrait';
   end if;
 end $$;

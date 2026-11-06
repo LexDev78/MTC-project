@@ -1,3 +1,5 @@
+import 'reserved_names.dart';
+
 /// Form validators shared across auth/profile/checkout forms. Malian mobile
 /// numbers are 8 digits, optionally prefixed with the +223 country code.
 abstract final class Validators {
@@ -25,11 +27,34 @@ abstract final class Validators {
     return null;
   }
 
+  /// Un nom public — le nom affiché d'un compte, celui d'une boutique :
+  /// obligatoire, et pas un nom réservé à MTC (`reserved_names.dart`,
+  /// miroir de `0144`).
+  static String? publicName(String? value) {
+    final requis = required(value);
+    if (requis != null) return requis;
+    if (isReservedPublicName(value!)) {
+      return 'Ce nom est réservé à MTC : choisissez-en un autre.';
+    }
+    return null;
+  }
+
+  /// À la connexion : un mot de passe saisi, rien de plus. La longueur
+  /// minimale ne vaut que pour en choisir un — un compte créé quand elle
+  /// était de 6 doit pouvoir se connecter avec le sien (`0151`).
+  static String? passwordEntered(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Le mot de passe est obligatoire';
+    }
+    return null;
+  }
+
+  /// Pour choisir un mot de passe : 8 caractères au moins (`0151`).
   static String? password(String? value) {
     if (value == null || value.isEmpty) {
       return 'Le mot de passe est obligatoire';
     }
-    if (value.length < 6) return '6 caractères minimum';
+    if (value.length < 8) return '8 caractères minimum';
     return null;
   }
 

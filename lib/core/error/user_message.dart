@@ -103,7 +103,7 @@ String _depuisAuth(AuthException e) {
   if (e is AuthWeakPasswordException ||
       message.contains('at least') ||
       message.contains('weak')) {
-    return 'Mot de passe trop faible : 6 caractères minimum.';
+    return 'Mot de passe trop faible : 8 caractères minimum.';
   }
   if (message.contains('jwt') ||
       message.contains('expired') ||

@@ -416,7 +416,7 @@ class SupabaseAuthRepository implements AuthRepository {
     if (e is AuthWeakPasswordException ||
         message.contains('at least') ||
         message.contains('weak')) {
-      return 'Le nouveau mot de passe est trop faible : 6 caractères minimum.';
+      return 'Le nouveau mot de passe est trop faible : 8 caractères minimum.';
     }
     return 'Impossible de changer le mot de passe pour le moment. Réessayez.';
   }

@@ -1,24 +1,24 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Raw `device_tokens` I/O — see `0034_device_tokens.sql`. `id` is never
-/// sent: it defaults server-side (`gen_random_uuid()::text`) precisely so
-/// this upsert-by-`fcm_token` leaves an existing row's `id` alone instead of
-/// rotating it on every token refresh.
+/// Raw `device_tokens` I/O — see `0034_device_tokens.sql`.
+///
+/// L'enregistrement passe par `register_device_token` (`0149`) et non plus
+/// par un upsert : la policy refusait l'upsert dès que le jeton appartenait
+/// à un autre compte, et ce refus était avalé. Après une déconnexion dont
+/// le nettoyage n'avait pas atteint le serveur, le téléphone recevait pour
+/// toujours les notifications du compte précédent. Détenir le jeton prouve
+/// qu'on est sur l'appareil : la fonction le donne au compte connecté.
 class SupabaseDeviceTokenDatasource {
   SupabaseDeviceTokenDatasource(this._client);
 
   final SupabaseClient _client;
 
+  /// [userId] n'est plus envoyé : le serveur prend le compte de la session.
   Future<void> upsert({required String userId, required String fcmToken}) async {
-    final now = DateTime.now().toUtc().toIso8601String();
-    await _client
-        .from('device_tokens')
-        .upsert({
-          'user_id': userId,
-          'fcm_token': fcmToken,
-          'updated_at': now,
-          'last_seen_at': now,
-        }, onConflict: 'fcm_token');
+    await _client.rpc(
+      'register_device_token',
+      params: {'p_token': fcmToken},
+    );
   }
 
   Future<void> delete(String fcmToken) async {

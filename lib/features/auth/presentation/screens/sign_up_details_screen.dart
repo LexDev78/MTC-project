@@ -113,14 +113,14 @@ class _SignUpDetailsScreenState extends ConsumerState<SignUpDetailsScreen> {
                 MtcTextField(
                   label: 'Nom complet',
                   controller: _displayNameController,
-                  validator: Validators.required,
+                  validator: Validators.publicName,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (_isSupplier) ...[
                   MtcTextField(
                     label: _isCompany ? 'Nom de la société' : 'Nom de la boutique',
                     controller: _businessNameController,
-                    validator: Validators.required,
+                    validator: Validators.publicName,
                   ),
                   const SizedBox(height: AppSpacing.md),
                 ],

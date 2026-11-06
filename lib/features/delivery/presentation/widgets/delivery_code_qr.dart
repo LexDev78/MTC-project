@@ -34,10 +34,35 @@ class DeliveryCodeQr extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    final codeAsync = ref.watch(
-      deliveryCodeProvider((deliveryId: deliveryId, kind: kind)),
+    return CodeQrCard(
+      code: ref.watch(
+        deliveryCodeProvider((deliveryId: deliveryId, kind: kind)),
+      ),
+      title: title,
+      instruction: instruction,
     );
+  }
+}
+
+/// Le rendu du QR seul, quelle que soit l'origine du code : la course MTC
+/// ([DeliveryCodeQr]) ou la remise par la boutique elle-même
+/// (`SelfDeliveryCodeQr`, `0139`). `null` : le code a servi.
+class CodeQrCard extends StatelessWidget {
+  const CodeQrCard({
+    super.key,
+    required this.code,
+    required this.title,
+    required this.instruction,
+  });
+
+  final AsyncValue<String?> code;
+  final String title;
+  final String instruction;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final codeAsync = code;
 
     return Card(
       child: Padding(

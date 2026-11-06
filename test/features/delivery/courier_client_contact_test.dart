@@ -26,7 +26,7 @@ Map<String, dynamic> _ligne({
   'offer_expires_at': null,
   // L'adresse de retrait, rendue à part (`pickup_point`, `0133`).
   'pickup_point': {'full_address': 'Marché Rose'},
-  'order_data': {
+  'courier_order': {
     'id': 'cmd-1',
     'client_display_name_snapshot': 'Awa Traoré',
     'delivery_city': 'Bamako',

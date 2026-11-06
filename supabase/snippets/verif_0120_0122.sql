@@ -33,11 +33,24 @@ set local client_min_messages = warning;
 create schema verif;
 grant usage on schema verif to authenticated, anon;
 
--- Change l'utilisateur simulé, sans changer de rôle Postgres.
-create function verif.qui(p_uid uuid) returns void language sql as $$
+-- La collaboratrice « labati » de Bogolan n'existe que sur la base où ce
+-- fichier a été écrit : sur une base neuve (pile de vérification), elle est
+-- créée ici, comme `create-collaborator` le fait, avec les mêmes cases.
+insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
+select :'labati', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+       'labati@mtc.local',
+       jsonb_build_object('collaborator_of', :'bogolan',
+                          'permissions', jsonb_build_array('messages', 'reviews', 'orders')),
+       '{"username_or_phone": "labati", "display_name": "Labati", "phone_number": "+22370000120"}'
+ where not exists (select 1 from auth.users where id = :'labati');
+
+-- Change l'utilisateur simulé, sans changer de rôle Postgres. Le jeton porte
+-- `app_metadata`, d'où se lisent les rôles staff et collaborateur (`0128`).
+create function verif.qui(p_uid uuid) returns void language sql security definer as $$
   select set_config(
     'request.jwt.claims',
-    json_build_object('sub', p_uid, 'role', 'authenticated')::text,
+    json_build_object('sub', p_uid, 'role', 'authenticated',
+      'app_metadata', (select raw_app_meta_data from auth.users where id = p_uid))::text,
     true
   );
 $$;
@@ -73,7 +86,17 @@ end $$;
 -- Les coordonnées telles que PostgREST les sert (`select=*,client_contact`) :
 -- seulement sur une commande que l'appelant voit.
 create function verif.contact(p_commande text) returns jsonb language sql as $$
-  select public.client_contact(o) from public.orders o where o.id = p_commande;
+  select coalesce(
+    (select public.client_contact(o) from public.orders o where o.id = p_commande),
+    -- Le livreur ne lit plus la ligne de la commande (`0146`) : son écran
+    -- passe par la course, `courier_order(deliveries)`, qui rend le même
+    -- `client_contact`.
+    (select nullif(public.courier_order(d) -> 'client_contact', 'null'::jsonb)
+       from public.deliveries d
+      where d.order_id = p_commande
+        and (d.courier_id = auth.uid() or d.offered_to_courier_id = auth.uid())
+      order by d.created_at desc
+      limit 1));
 $$;
 
 -- La même fonction appelée sur une ligne fabriquée, qui ne porte que
@@ -281,7 +304,11 @@ do $$ begin
 end $$;
 
 -- ---- la boutique : sa part livrée, puis l'autre annulée ----
+-- Le décor, hors de toute session : la remise d'une commande livrée par la
+-- boutique se prouve depuis `0139`, et un jeton encore posé ferait passer
+-- cette mise à jour pour celle d'un utilisateur.
 reset role;
+select set_config('request.jwt.claims', '{}', true);
 update public.order_supplier_groups set status = 'delivered' where id = 't-g-1a';
 set local role authenticated;
 select verif.qui(:'bogolan');
@@ -617,11 +644,14 @@ do $$ begin
 end $$;
 set local role authenticated;
 select verif.qui(:'bogolan');
-insert into public.chat_messages (id, conversation_id, sender_id, text, product_name_snapshot)
-values ('t-msg-b2', :'conv', :'bogolan', '', 'Tissu Bogolan');
+-- Une carte produit décrit un vrai produit de la boutique, tel qu'il est en
+-- base (`0148`) : le nom envoyé par l'appelant est remplacé par le sien.
+insert into public.chat_messages (id, conversation_id, sender_id, text, product_id, product_name_snapshot)
+values ('t-msg-b2', :'conv', :'bogolan', '', 'b0fe527e-1f73-55e6-b24e-4d985576d473', 'Nom inventé');
 reset role;
 do $$ begin
-  if (select last_message_preview from public.chat_conversations where id = '41889195-7cbf-5b45-8d95-de49a8b47cd0') <> '📦 Tissu Bogolan' then
+  if (select last_message_preview from public.chat_conversations where id = '41889195-7cbf-5b45-8d95-de49a8b47cd0')
+     <> '📦 ' || (select name from public.products where id = 'b0fe527e-1f73-55e6-b24e-4d985576d473') then
     raise exception 'ÉCHEC : aperçu produit';
   end if;
 end $$;

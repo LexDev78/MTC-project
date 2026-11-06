@@ -211,6 +211,18 @@ Future<void> adjustStockAsAdmin({
   );
 }
 
+/// Le stock d'une variante — le vrai stock d'un produit à variantes, dont
+/// `products.stock_quantity` n'est que la somme (`test_adjust_variant_stock`).
+Future<void> adjustVariantStockAsAdmin({
+  required String variantId,
+  required int quantityDelta,
+}) async {
+  await _adminClient.rpc(
+    'test_adjust_variant_stock',
+    params: {'p_variant_id': variantId, 'p_quantity_delta': quantityDelta},
+  );
+}
+
 /// Force le statut d'un groupe fournisseur via `test_set_group_status`
 /// (`0047_test_seed_couriers.sql`) — pour remonter un décor que le jeu de
 /// démo livre déjà joué, pas pour remplacer une vraie transition de statut.

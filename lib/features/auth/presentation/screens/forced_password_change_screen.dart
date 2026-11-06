@@ -50,7 +50,7 @@ class _ForcedPasswordChangeScreenState
   }
 
   bool get _peutValider =>
-      _nouveau.text.length >= 6 && _nouveau.text == _confirmation.text;
+      _nouveau.text.length >= 8 && _nouveau.text == _confirmation.text;
 
   Future<void> _changer() async {
     setState(() {
@@ -110,7 +110,7 @@ class _ForcedPasswordChangeScreenState
               ),
               const SizedBox(height: AppSpacing.lg),
               MtcTextField(
-                label: 'Nouveau mot de passe (6 caractères minimum)',
+                label: 'Nouveau mot de passe (8 caractères minimum)',
                 controller: _nouveau,
                 obscureText: true,
               ),

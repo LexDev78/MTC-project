@@ -176,9 +176,18 @@ begin
      or position(v_code in v_corps ->> 'htmlContent') = 0 then
     raise exception 'ÉCHEC : le code manque au texte ou au HTML (%)', v_corps;
   end if;
-  -- Le nom du client est échappé dans le HTML : pas de balise injectée.
-  if position('Awa &lt;Traoré&gt;' in v_corps ->> 'htmlContent') = 0
-     or position('<Traoré>' in v_corps ->> 'htmlContent') > 0 then
+  -- Depuis `0149`, ce courriel ne reprend plus le nom affiché : l'adresse
+  -- n'est pas encore celle du compte, et un texte libre en ferait un
+  -- message de MTC à la teneur choisie par n'importe qui.
+  if position('Traoré' in v_corps ->> 'htmlContent') > 0
+     or position('Traoré' in v_corps ->> 'textContent') > 0
+     or position('Bonjour,' in v_corps ->> 'htmlContent') = 0 then
+    raise exception 'ÉCHEC : le courriel de vérification reprend le nom du demandeur (%)', v_corps;
+  end if;
+  -- Là où le nom figure encore (réinitialisation du mot de passe), il est
+  -- échappé : pas de balise injectée.
+  if position('Awa &lt;Traoré&gt;' in public.mail_html('Awa <Traoré>', 'x')) = 0
+     or position('<Traoré>' in public.mail_html('Awa <Traoré>', 'x')) > 0 then
     raise exception 'ÉCHEC : nom non échappé dans le HTML';
   end if;
   if v_corps -> 'to' <> '[{"email": "awa.verif@exemple.ml"}]'::jsonb then
@@ -196,7 +205,8 @@ end $$;
 
 -- ---- le rapport des envois : l'administration seule ------------------------------------------
 set local role authenticated;
-set local request.jwt.claims to '{"sub":"2358888a-b13d-56f8-858b-a0c63831b512","role":"authenticated"}';
+-- Le rôle staff se lit dans `app_metadata` depuis `0128` : le jeton le porte.
+set local request.jwt.claims to '{"sub":"2358888a-b13d-56f8-858b-a0c63831b512","role":"authenticated","app_metadata":{"staff_role":"admin"}}';
 do $$
 declare
   r record;
@@ -206,7 +216,7 @@ begin
     raise exception 'ÉCHEC : rapport de l''admin (%)', r;
   end if;
 end $$;
-set local request.jwt.claims to '{"sub":"0354c601-5e09-57b6-a23c-affaa5acf0d0","role":"authenticated"}';
+set local request.jwt.claims to '{"sub":"0354c601-5e09-57b6-a23c-affaa5acf0d0","role":"authenticated","app_metadata":{"staff_role":"agent"}}';
 do $$ begin
   perform verif.refuse('agent', 'select * from public.recent_mail_deliveries(5)', 'Réservé à l''administration MTC.');
 end $$;

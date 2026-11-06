@@ -23,7 +23,6 @@ class ProductComment with _$ProductComment {
     /// supplier's comment inbox filter across all of their products
     /// without a live join back to the catalog.
     required String supplierId,
-    required String authorId,
     required String authorName,
     required DateTime createdAt,
     required String text,
@@ -44,10 +43,15 @@ class ProductComment with _$ProductComment {
     /// duration immediately without probing the audio file.
     int? voiceDurationSeconds,
 
-    /// User ids who liked this comment — a set rather than a bare count so
-    /// "did the current user already like this" is a cheap lookup instead
-    /// of needing a separate per-user query.
-    @Default(<String>{}) Set<String> likedByUserIds,
+    /// Le nombre de « j'aime », et si l'appelant en fait partie — calculés
+    /// par la vue `product_comments_with_likes` (`0140`). Elle rendait la
+    /// liste des identifiants de tous ceux qui avaient aimé, et l'auteur de
+    /// chaque commentaire : plus maintenant.
+    @Default(0) int likeCount,
+    @Default(false) bool likedByMe,
+
+    /// Écrit par l'appelant (ou par la boutique qu'il opère).
+    @Default(false) bool isMine,
   }) = _ProductComment;
 
   factory ProductComment.fromJson(Map<String, dynamic> json) =>
@@ -56,7 +60,4 @@ class ProductComment with _$ProductComment {
 
 extension ProductCommentX on ProductComment {
   bool get isReply => parentId != null;
-  int get likeCount => likedByUserIds.length;
-  bool isLikedBy(String? userId) =>
-      userId != null && likedByUserIds.contains(userId);
 }

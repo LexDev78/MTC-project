@@ -146,7 +146,7 @@ void main() {
           isA<ValidationException>().having(
             (e) => e.message,
             'message',
-            contains('6 caractères'),
+            contains('8 caractères'),
           ),
         ),
       );
@@ -274,7 +274,10 @@ void main() {
 
     test('une adresse ne sert qu\'à un seul compte', () async {
       // Elle servira à récupérer un mot de passe oublié : partagée par deux
-      // comptes, elle ne saurait pas lequel débloquer.
+      // comptes, elle ne saurait pas lequel débloquer. Depuis `0149`, la
+      // demande d'un second compte reçoit la même réponse qu'un envoi
+      // réussi — « cette adresse est déjà utilisée » apprenait à n'importe
+      // qui quelles adresses ont un compte MTC —, mais aucun code ne part.
       await connecter('client1');
       await ajouter(container, 'famille@example.com');
 
@@ -288,18 +291,14 @@ void main() {
           .read(authRepositoryProvider)
           .login(usernameOrPhone: 'client2', password: 'password123');
 
+      // La casse ne trompe pas le contrôle.
+      await autre
+          .read(authRepositoryProvider)
+          .requestContactEmailCode('FAMILLE@example.com');
       await expectLater(
-        // La casse ne trompe pas le contrôle.
-        autre
-            .read(authRepositoryProvider)
-            .requestContactEmailCode('FAMILLE@example.com'),
-        throwsA(
-          isA<ValidationException>().having(
-            (e) => e.message,
-            'message',
-            contains('déjà utilisée'),
-          ),
-        ),
+        codeRecuPar('famille@example.com', delai: const Duration(seconds: 4)),
+        throwsA(isA<StateError>()),
+        reason: 'aucun code ne part vers l\'adresse d\'un autre compte',
       );
     });
 

@@ -288,7 +288,7 @@ void main() {
 
     await _saisirMotsDePasse(tester, '12345');
     await _toucher(tester, find.text('Changer le mot de passe'));
-    expect(find.text('6 caractères minimum'), findsOneWidget);
+    expect(find.text('8 caractères minimum'), findsOneWidget);
 
     expect(_compte.changements, isEmpty);
   });

@@ -16,6 +16,7 @@ import 'package:mtc_app/features/delivery/presentation/widgets/delivery_code_qr.
 import 'package:mtc_app/features/promo_codes/presentation/providers/promo_code_providers.dart';
 import 'package:mtc_app/features/ratings/presentation/widgets/review_entry.dart';
 
+import '../../data/self_delivery_handover.dart';
 import '../../domain/entities/fulfillment.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/order_status.dart';
@@ -322,6 +323,9 @@ class _PartDUneBoutique extends StatelessWidget {
             ),
           if (groupe.deliveryMode == DeliveryMode.mtcDelivery)
             _CodeDeRemise(groupId: groupe.id),
+          if (groupe.deliveryMode == DeliveryMode.selfDelivery &&
+              groupe.status == OrderStatus.inTransit)
+            _RemiseParLaBoutique(groupe: groupe),
           if (groupe.status == OrderStatus.delivered)
             Padding(
               padding: const EdgeInsets.only(top: ShopSizes.padding),
@@ -368,6 +372,99 @@ class _LigneDuCode extends ConsumerWidget {
       label: 'Code ${applique.code}',
       value: '-${CurrencyFormatter.formatFcfa(applique.discountFcfa)}',
       valueColor: ShopColors.success,
+    );
+  }
+}
+
+/// La remise d'une commande que la boutique livre elle-même (`0139`).
+///
+/// La boutique ne peut plus la passer seule à « livrée » : soit elle scanne
+/// ce code au moment de la remise, soit le client confirme ici l'avoir
+/// reçue. L'un comme l'autre, seulement la commande en route : une commande
+/// que la boutique vient d'accepter n'a rien à remettre, et la confirmer
+/// reçue la clôturait sans rien recevoir (contre-vérification du
+/// 06/11/2026).
+class _RemiseParLaBoutique extends ConsumerStatefulWidget {
+  const _RemiseParLaBoutique({required this.groupe});
+
+  final OrderSupplierGroup groupe;
+
+  @override
+  ConsumerState<_RemiseParLaBoutique> createState() =>
+      _RemiseParLaBoutiqueState();
+}
+
+class _RemiseParLaBoutiqueState extends ConsumerState<_RemiseParLaBoutique> {
+  bool _enCours = false;
+
+  Future<void> _confirmer() async {
+    final oui = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Commande reçue ?'),
+        content: Text(
+          'Confirmez seulement si ${widget.groupe.supplierName} vous a bien '
+          'remis votre commande : elle sera alors close.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Pas encore'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Je l\'ai reçue'),
+          ),
+        ],
+      ),
+    );
+    if (oui != true || !mounted) return;
+    setState(() => _enCours = true);
+    try {
+      await ref
+          .read(selfDeliveryHandoverProvider)
+          .confirmReceived(widget.groupe.id);
+      ref.invalidate(selfDeliveryCodeProvider(widget.groupe.id));
+    } catch (erreur) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              messagePourUtilisateur(
+                erreur,
+                repli: 'La confirmation n\'est pas passée. Réessayez.',
+              ),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: ShopSizes.padding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          CodeQrCard(
+            code: ref.watch(selfDeliveryCodeProvider(widget.groupe.id)),
+            title: 'Code de remise',
+            instruction:
+                'À montrer à la boutique au moment où elle vous remet votre '
+                'commande. Ne le communiquez à personne d\'autre.',
+          ),
+          const SizedBox(height: ShopSizes.padding / 2),
+          OutlinedButton.icon(
+            onPressed: _enCours ? null : _confirmer,
+            icon: const ShopIcon(ShopIcons.doublecheck, size: 20),
+            label: Text(_enCours ? 'Confirmation…' : 'J\'ai reçu ma commande'),
+          ),
+        ],
+      ),
     );
   }
 }

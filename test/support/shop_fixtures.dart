@@ -384,7 +384,6 @@ List<ProductComment> commentairesDemo() => [
       id: 'q-$i',
       productId: 'bogolan',
       supplierId: 'f-Bogolan Bamako',
-      authorId: 'client-$i',
       authorName: 'Client $i',
       createdAt: maintenant.subtract(Duration(days: i + 1)),
       text: 'Question $i',

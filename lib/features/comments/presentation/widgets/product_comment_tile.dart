@@ -44,7 +44,7 @@ class ProductCommentTile extends StatelessWidget {
         children: [
           _CommentBubble(
             comment: comment,
-            isLiked: comment.isLikedBy(currentUserId),
+            isLiked: comment.likedByMe,
             onToggleLike: () => onToggleLike(comment.id),
           ),
           Padding(
@@ -64,7 +64,7 @@ class ProductCommentTile extends StatelessWidget {
               padding: const EdgeInsets.only(left: AppSpacing.lg, top: 4),
               child: _CommentBubble(
                 comment: reply,
-                isLiked: reply.isLikedBy(currentUserId),
+                isLiked: reply.likedByMe,
                 onToggleLike: () => onToggleLike(reply.id),
               ),
             ),

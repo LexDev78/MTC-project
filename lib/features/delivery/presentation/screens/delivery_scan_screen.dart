@@ -18,14 +18,32 @@ import '../controllers/courier_controller.dart';
 class DeliveryScanScreen extends ConsumerStatefulWidget {
   const DeliveryScanScreen({
     super.key,
-    required this.deliveryId,
-    required this.expected,
-  });
+    required String this.deliveryId,
+    required DeliveryCodeKind this.expected,
+  })  : submit = null,
+        title = null,
+        instruction = null;
 
-  final String deliveryId;
+  /// La boutique qui livre elle-même scanne le code du client
+  /// (`confirm_self_delivery_by_code`, `0139`) : le même geste que le
+  /// livreur, une autre fonction serveur. [submit] lève l'exception du
+  /// serveur si le code est refusé.
+  const DeliveryScanScreen.handover({
+    super.key,
+    required Future<void> Function(String code) this.submit,
+    required String this.title,
+    required String this.instruction,
+  })  : deliveryId = null,
+        expected = null;
+
+  final String? deliveryId;
 
   /// Ce que le livreur *croit* scanner, pour le libellé seulement.
-  final DeliveryCodeKind expected;
+  final DeliveryCodeKind? expected;
+
+  final Future<void> Function(String code)? submit;
+  final String? title;
+  final String? instruction;
 
   @override
   ConsumerState<DeliveryScanScreen> createState() => _DeliveryScanScreenState();
@@ -76,27 +94,45 @@ class _DeliveryScanScreenState extends ConsumerState<DeliveryScanScreen> {
     if (code == null || _vientDEtreRefuse(code)) return;
 
     setState(() => _handling = true);
+    if (widget.submit case final submit?) {
+      Object? refus;
+      try {
+        await submit(code);
+      } catch (error) {
+        refus = error;
+      }
+      if (!mounted) return;
+      if (refus == null) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      _refuser(code, refus);
+      return;
+    }
     final status = await ref
         .read(courierControllerProvider.notifier)
-        .scan(deliveryId: widget.deliveryId, code: code);
+        .scan(deliveryId: widget.deliveryId!, code: code);
 
     if (!mounted) return;
     if (status == null) {
-      final error = ref.read(courierControllerProvider).error;
-      _dernierRefuse = code;
-      _refuseA = DateTime.now();
-      // Une alerte à la fois : la nouvelle remplace la précédente au lieu
-      // d'attendre son tour.
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_message(error))));
-      // Réarmé après coup : un code refusé peut l'être pour une raison que
-      // le livreur corrige sur place (mauvais QR présenté, mauvaise étape).
-      setState(() => _handling = false);
+      _refuser(code, ref.read(courierControllerProvider).error);
       return;
     }
 
     Navigator.of(context).pop(status);
+  }
+
+  void _refuser(String code, Object? error) {
+    _dernierRefuse = code;
+    _refuseA = DateTime.now();
+    // Une alerte à la fois : la nouvelle remplace la précédente au lieu
+    // d'attendre son tour.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(_message(error))));
+    // Réarmé après coup : un code refusé peut l'être pour une raison que
+    // le livreur corrige sur place (mauvais QR présenté, mauvaise étape).
+    setState(() => _handling = false);
   }
 
   /// Le motif vient du serveur, rédigé pour le livreur.
@@ -110,12 +146,14 @@ class _DeliveryScanScreenState extends ConsumerState<DeliveryScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final titre = widget.expected == DeliveryCodeKind.pickup
-        ? 'Code de retrait'
-        : 'Code de remise';
-    final consigne = widget.expected == DeliveryCodeKind.pickup
-        ? 'Demandez au fournisseur d\'afficher le code de retrait.'
-        : 'Demandez au client d\'afficher le code de remise.';
+    final titre = widget.title ??
+        (widget.expected == DeliveryCodeKind.pickup
+            ? 'Code de retrait'
+            : 'Code de remise');
+    final consigne = widget.instruction ??
+        (widget.expected == DeliveryCodeKind.pickup
+            ? 'Demandez au fournisseur d\'afficher le code de retrait.'
+            : 'Demandez au client d\'afficher le code de remise.');
 
     return Scaffold(
       appBar: AppBar(title: Text(titre)),

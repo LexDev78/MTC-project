@@ -64,6 +64,30 @@ function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; contentType: strin
   return { bytes, contentType: match[1] };
 }
 
+/// Une data URL d'un des trois types acceptés, dont les premiers octets sont
+/// bien ceux de ce type — le préfixe seul se déclare, la signature non.
+function isPhoto(image: string): boolean {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(image);
+  if (!match) return false;
+  let head: Uint8Array;
+  try {
+    const binary = atob(match[2].slice(0, 24));
+    head = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  } catch {
+    return false;
+  }
+  const starts = (...bytes: number[]) => bytes.every((b, i) => head[i] === b);
+  switch (match[1]) {
+    case "image/jpeg":
+      return starts(0xff, 0xd8, 0xff);
+    case "image/png":
+      return starts(0x89, 0x50, 0x4e, 0x47);
+    default: // image/webp : « RIFF » … « WEBP »
+      return starts(0x52, 0x49, 0x46, 0x46) &&
+        head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50;
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
@@ -115,6 +139,13 @@ Deno.serve(async (request) => {
   // La base64 pèse environ 4/3 de l'original : on mesure la charge réelle.
   if (image.length * 0.75 > MAX_IMAGE_BYTES) {
     return jsonResponse({ error: "Photo trop lourde (4 Mo maximum)." }, 413);
+  }
+  // Une photo, et rien d'autre : ce texte part tel quel au service
+  // d'empreintes, qui téléchargeait une URL qu'on lui donnait. Une URL ici
+  // lui faisait appeler l'adresse choisie par le client (`0149`, même
+  // défaut que la faille 8 de l'audit, par l'autre porte).
+  if (!isPhoto(image)) {
+    return jsonResponse({ error: "Envoyez une photo JPEG, PNG ou WebP." }, 400);
   }
 
   // Le quota est consommé **avant** l'appel au modèle, et volontairement :

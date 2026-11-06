@@ -10,7 +10,7 @@
 // d'entraînement : passer `image_urls[1]` tel quel au modèle lui donne un
 // chemin, pas une image. Aucun produit réel ne s'indexait.
 //
-// Deux cas, et le second n'a pas de solution :
+// Deux cas acceptés, et le second n'a pas de solution :
 //
 //  * chemin d'objet → URL publique du bucket `product-images`, qui est
 //    public en lecture (`0001`) ;
@@ -24,6 +24,10 @@ export const PRODUCT_IMAGE_BUCKET = "product-images";
 
 export class UnreachableImage extends Error {}
 
+// La seule forme d'un fichier envoyé par l'app : `<boutique>/<fichier>`, un
+// seul niveau, sans `..` (la base l'impose depuis `0145`).
+const OBJECT_PATH = /^[0-9a-f-]{36}\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
 export function resolveProductImageUrl(path: string, supabaseUrl: string): string {
   if (path.startsWith("assets/")) {
     throw new UnreachableImage(
@@ -31,8 +35,11 @@ export function resolveProductImageUrl(path: string, supabaseUrl: string): strin
         "inaccessible depuis le serveur.",
     );
   }
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
+  // Une URL n'est plus suivie : une boutique qui en écrivait une dans ses
+  // photos faisait appeler au service d'empreintes l'adresse de son choix
+  // (audit du 27/10/2026, faille 8).
+  if (!OBJECT_PATH.test(path) || path.includes("..")) {
+    throw new UnreachableImage(`Photo refusée : ${path.slice(0, 80)}`);
   }
   return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/` +
     `${PRODUCT_IMAGE_BUCKET}/${path.split("/").map(encodeURIComponent).join("/")}`;

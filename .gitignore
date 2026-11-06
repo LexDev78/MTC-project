@@ -46,6 +46,8 @@ app.*.map.json
 
 # Local Claude Code skills (copied from third-party sources, not tracked)
 .claude/skills/
+# Réglages Claude Code propres à cette machine (chemins, commandes autorisées)
+.claude/settings.local.json
 
 # Clé du compte de service Firebase utilisée par l'Edge Function d'envoi
 # des push — un vrai secret (elle autorise l'envoi au nom du projet), au

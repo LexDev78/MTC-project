@@ -288,12 +288,12 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
 
   /// Remet à plat les quatre tables de la requête imbriquée.
   ///
-  /// Écrit à la main plutôt que généré : les alias (`order_data`,
+  /// Écrit à la main plutôt que généré : les alias (`courier_order`,
   /// `group_data`, `supplier`, `items`) n'existent que dans cette requête, et une
   /// désérialisation automatique obligerait à créer quatre entités
   /// intermédiaires qui ne servent nulle part ailleurs.
   static CourierDelivery _fromRow(Map<String, dynamic> row) {
-    final order = row['order_data'] as Map<String, dynamic>;
+    final order = row['courier_order'] as Map<String, dynamic>;
     final contact = order['client_contact'] as Map<String, dynamic>?;
     final group = row['group_data'] as Map<String, dynamic>;
     final supplier = group['supplier'] as Map<String, dynamic>?;
@@ -336,7 +336,10 @@ class SupabaseDeliveryRepository implements DeliveryRepository {
       ],
       deliveryFeeFcfa: group['delivery_fee_fcfa'] as int,
       subtotalFcfa: group['subtotal_fcfa'] as int,
-      collectOnDelivery: order['payment_method'] == 'on_delivery',
+      // Décidé par la base (`courier_order`, `0146`) : une commande « payer
+      // maintenant » que MTC n'a pas vue payée s'encaisse aussi à la remise.
+      collectOnDelivery: order['collect_on_delivery'] as bool? ??
+          order['payment_method'] == 'on_delivery',
     );
   }
 }

@@ -89,6 +89,18 @@ Future<int> _lignesDeCommande(String productId) async {
 }
 
 /// Le stock d'un produit, lu hors session (le catalogue est public).
+Future<({String id, int stock})> _varianteParDefaut(String productId) async {
+  final client = createTestSupabaseClient();
+  addTearDown(client.dispose);
+  final row = await client
+      .from('product_variants')
+      .select('id, stock_quantity')
+      .eq('product_id', productId)
+      .eq('is_default', true)
+      .single();
+  return (id: row['id'] as String, stock: (row['stock_quantity'] as num).toInt());
+}
+
 Future<int> _stockProduit(String productId) async {
   final client = createTestSupabaseClient();
   addTearDown(client.dispose);
@@ -227,23 +239,31 @@ void main() {
       expect((equipe.single as Map)['permissions'], ['products', 'orders']);
     });
 
-    test('lever deux fois le drapeau de mot de passe est sans effet', () async {
+    // Avant `0149`, `mark_password_changed()` levait le drapeau sans aucun
+    // changement : le changement « imposé » n'était qu'indicatif. Le drapeau
+    // ne tombe plus qu'avec un vrai changement de mot de passe ; la fonction,
+    // que les versions installées de l'app appellent encore, ne fait plus
+    // rien — l'appeler deux fois reste sans effet.
+    test('le drapeau ne tombe qu\'avec un vrai changement de mot de passe', () async {
       await createCollaboratorAsAdmin(
         supplierId: DemoIds.supplierBogolanBamako,
         username: 'rejoue2',
         permissions: const {'products'},
       );
       final collaborateur = await _connecte('rejoue2');
+      Future<bool> drapeau() async => (await collaborateur
+              .from('profiles')
+              .select('must_change_password')
+              .eq('username_or_phone', 'rejoue2')
+              .single())['must_change_password'] as bool;
 
       await collaborateur.rpc('mark_password_changed');
       await collaborateur.rpc('mark_password_changed');
+      expect(await drapeau(), isTrue, reason: 'aucun mot de passe n\'a changé');
 
-      final profil = await collaborateur
-          .from('profiles')
-          .select('must_change_password')
-          .eq('username_or_phone', 'rejoue2')
-          .single();
-      expect(profil['must_change_password'], isFalse);
+      await collaborateur.auth.updateUser(UserAttributes(password: 'NouveauMdp1'));
+      await collaborateur.rpc('mark_password_changed');
+      expect(await drapeau(), isFalse);
     });
 
     test('retirer deux fois un collaborateur échoue la seconde', () async {
@@ -460,14 +480,19 @@ void main() {
 
     test('douze acheteurs sur la dernière unité : un seul repart avec',
         () async {
-      // Le produit du jeu de démonstration qui n'a pas de variante, descendu
-      // à exactement une unité.
+      // Le riz du jeu de démonstration n'a qu'une variante, par défaut :
+      // c'est son stock qui est le vrai (`products.stock_quantity` n'en est
+      // que la somme), et c'est lui qu'on descend à exactement une unité.
+      // La commande, elle, ne nomme pas la variante : la base prend celle
+      // par défaut (`0147`), ce qui se vérifie ici sous concurrence aussi.
+      // Descendre le produit seul, comme avant, laissait la variante pleine :
+      // la vente baissait un total que le prochain recalcul effaçait.
       const produit = 'd9d25e13-71ac-51c4-93f7-ed042a996500'; // Riz local 25kg
-      final stockActuel = await _stockProduit(produit);
+      final variante = await _varianteParDefaut(produit);
       final lignesAvant = await _lignesDeCommande(produit);
-      await adjustStockAsAdmin(
-        productId: produit,
-        quantityDelta: 1 - stockActuel,
+      await adjustVariantStockAsAdmin(
+        variantId: variante.id,
+        quantityDelta: 1 - variante.stock,
       );
 
       // Douze sessions distinctes du même client : la forme que prend un
@@ -518,6 +543,7 @@ void main() {
         reason: 'une seule unité ne peut pas être vendue douze fois',
       );
       expect(await _stockProduit(produit), 1 - reussis);
+      expect((await _varianteParDefaut(produit)).stock, 1 - reussis);
       // Le stock décrémenté ne suffit pas : il faut aussi qu'il n'existe pas
       // de ligne de commande sans stock derrière elle. On compte l'écart —
       // le jeu de démonstration porte déjà une commande sur ce produit.
