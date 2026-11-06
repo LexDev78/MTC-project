@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 import 'package:mtc_app/features/auth/domain/entities/app_user.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
@@ -69,26 +70,49 @@ class _ProductCommentsModalState extends ConsumerState<ProductCommentsModal> {
     });
   }
 
+  /// Un commentaire refusé — trop de commentaires d'affilée (`0153`),
+  /// produit retiré de la vente — le dit : le champ est déjà vidé, sans ce
+  /// message il disparaîtrait sans un mot.
+  void _signalerSiRefuse(bool publie) {
+    if (publie || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          messagePourUtilisateur(
+            ref.read(commentControllerProvider).error,
+            repli: 'Le commentaire n\'a pas pu être publié.',
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _submit(String text) async {
-    await ref
-        .read(commentControllerProvider.notifier)
-        .addComment(productId: widget.productId, text: text);
+    _signalerSiRefuse(
+      await ref
+          .read(commentControllerProvider.notifier)
+          .addComment(productId: widget.productId, text: text),
+    );
   }
 
   Future<void> _submitImage(XFile image) async {
-    await ref
-        .read(commentControllerProvider.notifier)
-        .addImageComment(productId: widget.productId, image: image);
+    _signalerSiRefuse(
+      await ref
+          .read(commentControllerProvider.notifier)
+          .addImageComment(productId: widget.productId, image: image),
+    );
   }
 
   Future<void> _submitVoice(String voicePath, int duration) async {
-    await ref
-        .read(commentControllerProvider.notifier)
-        .addVoiceComment(
-          productId: widget.productId,
-          voicePath: voicePath,
-          durationSeconds: duration,
-        );
+    _signalerSiRefuse(
+      await ref
+          .read(commentControllerProvider.notifier)
+          .addVoiceComment(
+            productId: widget.productId,
+            voicePath: voicePath,
+            durationSeconds: duration,
+          ),
+    );
   }
 
   @override

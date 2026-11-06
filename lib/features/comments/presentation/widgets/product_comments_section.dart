@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:mtc_app/app/theme/app_spacing.dart';
+import 'package:mtc_app/core/error/user_message.dart';
 import 'package:mtc_app/features/auth/presentation/providers/auth_providers.dart';
 
 import '../../domain/entities/product_comment.dart';
@@ -34,21 +35,56 @@ class ProductCommentsSection extends ConsumerWidget {
   final String? replyingToId;
   final ValueChanged<String?> onReplyingChanged;
 
-  Future<void> _submitReply(WidgetRef ref, String parentId, String text) async {
+  /// Une réponse refusée — trop de commentaires d'affilée (`0153`), produit
+  /// retiré de la vente — le dit, au lieu de disparaître sans un mot.
+  void _signalerEchec(BuildContext context, WidgetRef ref) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          messagePourUtilisateur(
+            ref.read(commentControllerProvider).error,
+            repli: 'La réponse n\'a pas pu être publiée.',
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitReply(
+    BuildContext context,
+    WidgetRef ref,
+    String parentId,
+    String text,
+  ) async {
     final ok = await ref
         .read(commentControllerProvider.notifier)
         .addComment(productId: productId, text: text, parentId: parentId);
-    if (ok) onReplyingChanged(null);
+    if (ok) {
+      onReplyingChanged(null);
+    } else if (context.mounted) {
+      _signalerEchec(context, ref);
+    }
   }
 
-  Future<void> _submitReplyImage(WidgetRef ref, String parentId, XFile image) async {
+  Future<void> _submitReplyImage(
+    BuildContext context,
+    WidgetRef ref,
+    String parentId,
+    XFile image,
+  ) async {
     final ok = await ref
         .read(commentControllerProvider.notifier)
         .addImageComment(productId: productId, image: image, parentId: parentId);
-    if (ok) onReplyingChanged(null);
+    if (ok) {
+      onReplyingChanged(null);
+    } else if (context.mounted) {
+      _signalerEchec(context, ref);
+    }
   }
 
   Future<void> _submitReplyVoice(
+    BuildContext context,
     WidgetRef ref,
     String parentId,
     String voicePath,
@@ -62,7 +98,11 @@ class ProductCommentsSection extends ConsumerWidget {
           durationSeconds: duration,
           parentId: parentId,
         );
-    if (ok) onReplyingChanged(null);
+    if (ok) {
+      onReplyingChanged(null);
+    } else if (context.mounted) {
+      _signalerEchec(context, ref);
+    }
   }
 
   void _toggleReply(String commentId) {
@@ -135,11 +175,17 @@ class ProductCommentsSection extends ConsumerWidget {
                         key: ValueKey('reply-${comment.id}'),
                         hintText: 'Répondre...',
                         autofocus: true,
-                        onSend: (text) => _submitReply(ref, comment.id, text),
+                        onSend: (text) =>
+                            _submitReply(context, ref, comment.id, text),
                         onSendImage: (path) =>
-                            _submitReplyImage(ref, comment.id, path),
-                        onSendVoice: (path, duration) =>
-                            _submitReplyVoice(ref, comment.id, path, duration),
+                            _submitReplyImage(context, ref, comment.id, path),
+                        onSendVoice: (path, duration) => _submitReplyVoice(
+                          context,
+                          ref,
+                          comment.id,
+                          path,
+                          duration,
+                        ),
                       ),
               ),
           ],

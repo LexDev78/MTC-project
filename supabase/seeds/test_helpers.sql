@@ -307,11 +307,14 @@ AS $function$
 begin
   -- Un seul TRUNCATE ... CASCADE suffit : chaque autre table applicative
   -- référence (directement ou transitivement) `auth.users` ou `suppliers`,
-  -- sauf `notifications` (aucune FK entrante), listée ici explicitement.
+  -- sauf `notifications` (aucune FK entrante), listée ici explicitement — et
+  -- `post_rate_events` (`0153`), le compte des envois : sans elle, les
+  -- messages d'un test entamaient le quota du suivant.
   -- `pickup_points` faisait partie de cette liste avant d'être supprimée
   -- (`0023_drop_dead_columns.sql` — table jamais réellement utilisée, le
   -- picker de retrait lit une liste statique en dur côté Dart).
-  truncate table auth.users, public.suppliers, public.notifications cascade;
+  truncate table auth.users, public.suppliers, public.notifications,
+    public.post_rate_events cascade;
 
   -- ------------------------------------------------------------------------
   -- 1. Comptes (auth.users + auth.identities -> handle_new_user() en cascade)
@@ -1116,3 +1119,33 @@ $function$
 ;
 revoke all on function public.test_set_staff_mfa_required(boolean) from public, anon, authenticated;
 grant execute on function public.test_set_staff_mfa_required(boolean) to service_role;
+
+-- Vieillir une commande (`0153`) : l'annulation automatique ne prend que les
+-- commandes que la boutique n'a pas confirmées depuis 24 h, et un test ne
+-- les attend pas.
+CREATE OR REPLACE FUNCTION public.test_age_order(p_order_id text, p_hours integer)
+ RETURNS void
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  update public.orders
+     set placed_at = now() - make_interval(hours => p_hours)
+   where id = p_order_id;
+$function$
+;
+revoke all on function public.test_age_order(text,integer) from public, anon, authenticated;
+grant execute on function public.test_age_order(text,integer) to service_role;
+
+-- La tâche planifiée de `0153`, lancée à la demande.
+CREATE OR REPLACE FUNCTION public.test_cancel_unconfirmed_orders()
+ RETURNS integer
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select public.cancel_unconfirmed_orders();
+$function$
+;
+revoke all on function public.test_cancel_unconfirmed_orders() from public, anon, authenticated;
+grant execute on function public.test_cancel_unconfirmed_orders() to service_role;

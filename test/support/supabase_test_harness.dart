@@ -223,6 +223,26 @@ Future<void> adjustVariantStockAsAdmin({
   );
 }
 
+/// Vieillit une commande de [hours] heures (`test_age_order`) : l'annulation
+/// des commandes que la boutique ne confirme pas (`0153`) ne prend que
+/// celles d'il y a plus de 24 h, et un test ne les attend pas.
+Future<void> ageOrderAsAdmin({
+  required String orderId,
+  required int hours,
+}) async {
+  await _adminClient.rpc(
+    'test_age_order',
+    params: {'p_order_id': orderId, 'p_hours': hours},
+  );
+}
+
+/// La tâche planifiée qui annule ces commandes (`0153`), lancée à la
+/// demande : rend le nombre de commandes annulées.
+Future<int> cancelUnconfirmedOrdersAsAdmin() async {
+  final annulees = await _adminClient.rpc('test_cancel_unconfirmed_orders');
+  return annulees as int;
+}
+
 /// Force le statut d'un groupe fournisseur via `test_set_group_status`
 /// (`0047_test_seed_couriers.sql`) — pour remonter un décor que le jeu de
 /// démo livre déjà joué, pas pour remplacer une vraie transition de statut.
