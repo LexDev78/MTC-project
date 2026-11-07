@@ -1,0 +1,15 @@
+# Minimums, pas un verrou. Après le premier entraînement réussi, figer
+# l'ensemble exact avec `pip freeze > requirements.lock.txt` : la
+# reproductibilité d'un entraînement dépend de la version de torch et de
+# celle des poids, pas de ce fichier.
+
+torch>=2.5
+torchvision>=0.20
+open_clip_torch>=2.29
+Pillow>=11.0
+supabase>=2.10
+python-dotenv>=1.0
+
+# Seulement pour `serve/`.
+fastapi>=0.115
+uvicorn[standard]>=0.32

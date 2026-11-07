@@ -1,0 +1,30 @@
+# Copier en `android/key.properties` (ignoré par git) et remplir.
+#
+# La clé de signature de MTC. Elle est à créer une fois, à garder hors du
+# dépôt, et à sauvegarder deux fois ailleurs : la perdre, c'est ne plus
+# pouvoir publier de mise à jour de l'application sous le même nom.
+#
+# 1. Créer la clé (une seule fois) :
+#
+#      keytool -genkey -v -keystore ~/mtc-release.jks -keyalg RSA \
+#        -keysize 2048 -validity 10000 -alias mtc
+#
+#    Le fichier `.jks` ne va jamais dans le dépôt (`android/.gitignore`
+#    ignore déjà `*.jks` et `*.keystore`).
+#
+# 2. Remplir ce fichier, renommé `key.properties` :
+#
+#    storeFile : chemin du .jks, absolu, ou relatif à `android/app/`.
+#
+# 3. Sur Google Play, activer « Play App Signing » : Google garde la clé de
+#    publication, et celle-ci devient la clé d'importation — perdue, elle se
+#    remplace.
+#
+# Sans `key.properties`, `flutter build apk --release` et
+# `flutter build appbundle` échouent exprès (`android/app/build.gradle.kts`)
+# : une release signée avec la clé de debug se re-signe et se republie par
+# n'importe qui.
+storePassword=
+keyPassword=
+keyAlias=mtc
+storeFile=/chemin/vers/mtc-release.jks

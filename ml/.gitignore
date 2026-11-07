@@ -1,0 +1,7 @@
+# Les photos des clients ne sont pas dans le dépôt. Jamais.
+data/
+checkpoints/
+.venv/
+.env
+requirements.lock.txt
+__pycache__/

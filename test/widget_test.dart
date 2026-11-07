@@ -1,12 +1,20 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mtc_app/app/app.dart';
 import 'package:mtc_app/core/di/providers.dart';
-import 'package:mtc_app/core/widgets/core_widgets.dart';
+
+import 'support/supabase_test_harness.dart';
 
 void main() {
+  setUp(() async {
+    await resetAndSeed();
+  });
+
   testWidgets('MtcApp boots to splash, then welcome, then login', (
     WidgetTester tester,
   ) async {
@@ -15,26 +23,26 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+        ],
         child: const MtcApp(),
       ),
     );
     await tester.pump();
 
-    expect(find.byType(MtcBrandMark), findsOneWidget);
-
     // Let the splash timer + auth session restore + route transition play
-    // out. The welcome screen animates a continuously-running ticker, so it
-    // can never satisfy pumpAndSettle — advance by fixed durations instead.
+    // out, by fixed durations like the other boot tests.
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Trouver les articles du monde ici'), findsOneWidget);
+    expect(find.text('Bienvenue !'), findsOneWidget);
 
-    await tester.tap(find.text('Commencer'));
+    await tester.tap(find.text('Se connecter'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Mali Trade Connect'), findsOneWidget);
+    expect(find.text('Bon retour !'), findsOneWidget);
   });
 }

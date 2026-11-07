@@ -15,11 +15,20 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+ProductComment _$ProductCommentFromJson(Map<String, dynamic> json) {
+  return _ProductComment.fromJson(json);
+}
+
 /// @nodoc
 mixin _$ProductComment {
   String get id => throw _privateConstructorUsedError;
   String get productId => throw _privateConstructorUsedError;
-  String get authorId => throw _privateConstructorUsedError;
+
+  /// Resolved from `Product.supplierId` at creation time (denormalized,
+  /// same reasoning as every other snapshot in this app) — lets the
+  /// supplier's comment inbox filter across all of their products
+  /// without a live join back to the catalog.
+  String get supplierId => throw _privateConstructorUsedError;
   String get authorName => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   String get text => throw _privateConstructorUsedError;
@@ -30,6 +39,29 @@ mixin _$ProductComment {
 
   /// Null for a top-level comment; the top-level comment's id for a reply.
   String? get parentId => throw _privateConstructorUsedError;
+
+  /// Local file path for an image or voice-note attachment — same
+  /// no-upload-backend caveat as `ChatMessage.attachmentPath`.
+  CommentAttachmentType get attachmentType =>
+      throw _privateConstructorUsedError;
+  String? get attachmentPath => throw _privateConstructorUsedError;
+
+  /// Set only for [CommentAttachmentType.voice], so the bubble can show a
+  /// duration immediately without probing the audio file.
+  int? get voiceDurationSeconds => throw _privateConstructorUsedError;
+
+  /// Le nombre de « j'aime », et si l'appelant en fait partie — calculés
+  /// par la vue `product_comments_with_likes` (`0140`). Elle rendait la
+  /// liste des identifiants de tous ceux qui avaient aimé, et l'auteur de
+  /// chaque commentaire : plus maintenant.
+  int get likeCount => throw _privateConstructorUsedError;
+  bool get likedByMe => throw _privateConstructorUsedError;
+
+  /// Écrit par l'appelant (ou par la boutique qu'il opère).
+  bool get isMine => throw _privateConstructorUsedError;
+
+  /// Serializes this ProductComment to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of ProductComment
   /// with the given fields replaced by the non-null parameter values.
@@ -48,12 +80,18 @@ abstract class $ProductCommentCopyWith<$Res> {
   $Res call({
     String id,
     String productId,
-    String authorId,
+    String supplierId,
     String authorName,
     DateTime createdAt,
     String text,
     bool isSupplier,
     String? parentId,
+    CommentAttachmentType attachmentType,
+    String? attachmentPath,
+    int? voiceDurationSeconds,
+    int likeCount,
+    bool likedByMe,
+    bool isMine,
   });
 }
 
@@ -74,12 +112,18 @@ class _$ProductCommentCopyWithImpl<$Res, $Val extends ProductComment>
   $Res call({
     Object? id = null,
     Object? productId = null,
-    Object? authorId = null,
+    Object? supplierId = null,
     Object? authorName = null,
     Object? createdAt = null,
     Object? text = null,
     Object? isSupplier = null,
     Object? parentId = freezed,
+    Object? attachmentType = null,
+    Object? attachmentPath = freezed,
+    Object? voiceDurationSeconds = freezed,
+    Object? likeCount = null,
+    Object? likedByMe = null,
+    Object? isMine = null,
   }) {
     return _then(
       _value.copyWith(
@@ -91,9 +135,9 @@ class _$ProductCommentCopyWithImpl<$Res, $Val extends ProductComment>
                 ? _value.productId
                 : productId // ignore: cast_nullable_to_non_nullable
                       as String,
-            authorId: null == authorId
-                ? _value.authorId
-                : authorId // ignore: cast_nullable_to_non_nullable
+            supplierId: null == supplierId
+                ? _value.supplierId
+                : supplierId // ignore: cast_nullable_to_non_nullable
                       as String,
             authorName: null == authorName
                 ? _value.authorName
@@ -115,6 +159,30 @@ class _$ProductCommentCopyWithImpl<$Res, $Val extends ProductComment>
                 ? _value.parentId
                 : parentId // ignore: cast_nullable_to_non_nullable
                       as String?,
+            attachmentType: null == attachmentType
+                ? _value.attachmentType
+                : attachmentType // ignore: cast_nullable_to_non_nullable
+                      as CommentAttachmentType,
+            attachmentPath: freezed == attachmentPath
+                ? _value.attachmentPath
+                : attachmentPath // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            voiceDurationSeconds: freezed == voiceDurationSeconds
+                ? _value.voiceDurationSeconds
+                : voiceDurationSeconds // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            likeCount: null == likeCount
+                ? _value.likeCount
+                : likeCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+            likedByMe: null == likedByMe
+                ? _value.likedByMe
+                : likedByMe // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            isMine: null == isMine
+                ? _value.isMine
+                : isMine // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -133,12 +201,18 @@ abstract class _$$ProductCommentImplCopyWith<$Res>
   $Res call({
     String id,
     String productId,
-    String authorId,
+    String supplierId,
     String authorName,
     DateTime createdAt,
     String text,
     bool isSupplier,
     String? parentId,
+    CommentAttachmentType attachmentType,
+    String? attachmentPath,
+    int? voiceDurationSeconds,
+    int likeCount,
+    bool likedByMe,
+    bool isMine,
   });
 }
 
@@ -158,12 +232,18 @@ class __$$ProductCommentImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? productId = null,
-    Object? authorId = null,
+    Object? supplierId = null,
     Object? authorName = null,
     Object? createdAt = null,
     Object? text = null,
     Object? isSupplier = null,
     Object? parentId = freezed,
+    Object? attachmentType = null,
+    Object? attachmentPath = freezed,
+    Object? voiceDurationSeconds = freezed,
+    Object? likeCount = null,
+    Object? likedByMe = null,
+    Object? isMine = null,
   }) {
     return _then(
       _$ProductCommentImpl(
@@ -175,9 +255,9 @@ class __$$ProductCommentImplCopyWithImpl<$Res>
             ? _value.productId
             : productId // ignore: cast_nullable_to_non_nullable
                   as String,
-        authorId: null == authorId
-            ? _value.authorId
-            : authorId // ignore: cast_nullable_to_non_nullable
+        supplierId: null == supplierId
+            ? _value.supplierId
+            : supplierId // ignore: cast_nullable_to_non_nullable
                   as String,
         authorName: null == authorName
             ? _value.authorName
@@ -199,31 +279,69 @@ class __$$ProductCommentImplCopyWithImpl<$Res>
             ? _value.parentId
             : parentId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        attachmentType: null == attachmentType
+            ? _value.attachmentType
+            : attachmentType // ignore: cast_nullable_to_non_nullable
+                  as CommentAttachmentType,
+        attachmentPath: freezed == attachmentPath
+            ? _value.attachmentPath
+            : attachmentPath // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        voiceDurationSeconds: freezed == voiceDurationSeconds
+            ? _value.voiceDurationSeconds
+            : voiceDurationSeconds // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        likeCount: null == likeCount
+            ? _value.likeCount
+            : likeCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+        likedByMe: null == likedByMe
+            ? _value.likedByMe
+            : likedByMe // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        isMine: null == isMine
+            ? _value.isMine
+            : isMine // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ProductCommentImpl implements _ProductComment {
   const _$ProductCommentImpl({
     required this.id,
     required this.productId,
-    required this.authorId,
+    required this.supplierId,
     required this.authorName,
     required this.createdAt,
     required this.text,
     this.isSupplier = false,
     this.parentId,
+    this.attachmentType = CommentAttachmentType.none,
+    this.attachmentPath,
+    this.voiceDurationSeconds,
+    this.likeCount = 0,
+    this.likedByMe = false,
+    this.isMine = false,
   });
+
+  factory _$ProductCommentImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ProductCommentImplFromJson(json);
 
   @override
   final String id;
   @override
   final String productId;
+
+  /// Resolved from `Product.supplierId` at creation time (denormalized,
+  /// same reasoning as every other snapshot in this app) — lets the
+  /// supplier's comment inbox filter across all of their products
+  /// without a live join back to the catalog.
   @override
-  final String authorId;
+  final String supplierId;
   @override
   final String authorName;
   @override
@@ -241,9 +359,38 @@ class _$ProductCommentImpl implements _ProductComment {
   @override
   final String? parentId;
 
+  /// Local file path for an image or voice-note attachment — same
+  /// no-upload-backend caveat as `ChatMessage.attachmentPath`.
+  @override
+  @JsonKey()
+  final CommentAttachmentType attachmentType;
+  @override
+  final String? attachmentPath;
+
+  /// Set only for [CommentAttachmentType.voice], so the bubble can show a
+  /// duration immediately without probing the audio file.
+  @override
+  final int? voiceDurationSeconds;
+
+  /// Le nombre de « j'aime », et si l'appelant en fait partie — calculés
+  /// par la vue `product_comments_with_likes` (`0140`). Elle rendait la
+  /// liste des identifiants de tous ceux qui avaient aimé, et l'auteur de
+  /// chaque commentaire : plus maintenant.
+  @override
+  @JsonKey()
+  final int likeCount;
+  @override
+  @JsonKey()
+  final bool likedByMe;
+
+  /// Écrit par l'appelant (ou par la boutique qu'il opère).
+  @override
+  @JsonKey()
+  final bool isMine;
+
   @override
   String toString() {
-    return 'ProductComment(id: $id, productId: $productId, authorId: $authorId, authorName: $authorName, createdAt: $createdAt, text: $text, isSupplier: $isSupplier, parentId: $parentId)';
+    return 'ProductComment(id: $id, productId: $productId, supplierId: $supplierId, authorName: $authorName, createdAt: $createdAt, text: $text, isSupplier: $isSupplier, parentId: $parentId, attachmentType: $attachmentType, attachmentPath: $attachmentPath, voiceDurationSeconds: $voiceDurationSeconds, likeCount: $likeCount, likedByMe: $likedByMe, isMine: $isMine)';
   }
 
   @override
@@ -254,8 +401,8 @@ class _$ProductCommentImpl implements _ProductComment {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.productId, productId) ||
                 other.productId == productId) &&
-            (identical(other.authorId, authorId) ||
-                other.authorId == authorId) &&
+            (identical(other.supplierId, supplierId) ||
+                other.supplierId == supplierId) &&
             (identical(other.authorName, authorName) ||
                 other.authorName == authorName) &&
             (identical(other.createdAt, createdAt) ||
@@ -264,20 +411,38 @@ class _$ProductCommentImpl implements _ProductComment {
             (identical(other.isSupplier, isSupplier) ||
                 other.isSupplier == isSupplier) &&
             (identical(other.parentId, parentId) ||
-                other.parentId == parentId));
+                other.parentId == parentId) &&
+            (identical(other.attachmentType, attachmentType) ||
+                other.attachmentType == attachmentType) &&
+            (identical(other.attachmentPath, attachmentPath) ||
+                other.attachmentPath == attachmentPath) &&
+            (identical(other.voiceDurationSeconds, voiceDurationSeconds) ||
+                other.voiceDurationSeconds == voiceDurationSeconds) &&
+            (identical(other.likeCount, likeCount) ||
+                other.likeCount == likeCount) &&
+            (identical(other.likedByMe, likedByMe) ||
+                other.likedByMe == likedByMe) &&
+            (identical(other.isMine, isMine) || other.isMine == isMine));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
     id,
     productId,
-    authorId,
+    supplierId,
     authorName,
     createdAt,
     text,
     isSupplier,
     parentId,
+    attachmentType,
+    attachmentPath,
+    voiceDurationSeconds,
+    likeCount,
+    likedByMe,
+    isMine,
   );
 
   /// Create a copy of ProductComment
@@ -290,26 +455,45 @@ class _$ProductCommentImpl implements _ProductComment {
         this,
         _$identity,
       );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ProductCommentImplToJson(this);
+  }
 }
 
 abstract class _ProductComment implements ProductComment {
   const factory _ProductComment({
     required final String id,
     required final String productId,
-    required final String authorId,
+    required final String supplierId,
     required final String authorName,
     required final DateTime createdAt,
     required final String text,
     final bool isSupplier,
     final String? parentId,
+    final CommentAttachmentType attachmentType,
+    final String? attachmentPath,
+    final int? voiceDurationSeconds,
+    final int likeCount,
+    final bool likedByMe,
+    final bool isMine,
   }) = _$ProductCommentImpl;
+
+  factory _ProductComment.fromJson(Map<String, dynamic> json) =
+      _$ProductCommentImpl.fromJson;
 
   @override
   String get id;
   @override
   String get productId;
+
+  /// Resolved from `Product.supplierId` at creation time (denormalized,
+  /// same reasoning as every other snapshot in this app) — lets the
+  /// supplier's comment inbox filter across all of their products
+  /// without a live join back to the catalog.
   @override
-  String get authorId;
+  String get supplierId;
   @override
   String get authorName;
   @override
@@ -325,6 +509,31 @@ abstract class _ProductComment implements ProductComment {
   /// Null for a top-level comment; the top-level comment's id for a reply.
   @override
   String? get parentId;
+
+  /// Local file path for an image or voice-note attachment — same
+  /// no-upload-backend caveat as `ChatMessage.attachmentPath`.
+  @override
+  CommentAttachmentType get attachmentType;
+  @override
+  String? get attachmentPath;
+
+  /// Set only for [CommentAttachmentType.voice], so the bubble can show a
+  /// duration immediately without probing the audio file.
+  @override
+  int? get voiceDurationSeconds;
+
+  /// Le nombre de « j'aime », et si l'appelant en fait partie — calculés
+  /// par la vue `product_comments_with_likes` (`0140`). Elle rendait la
+  /// liste des identifiants de tous ceux qui avaient aimé, et l'auteur de
+  /// chaque commentaire : plus maintenant.
+  @override
+  int get likeCount;
+  @override
+  bool get likedByMe;
+
+  /// Écrit par l'appelant (ou par la boutique qu'il opère).
+  @override
+  bool get isMine;
 
   /// Create a copy of ProductComment
   /// with the given fields replaced by the non-null parameter values.

@@ -1,0 +1,111 @@
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:mtc_app/app/app.dart';
+import 'package:mtc_app/core/di/providers.dart';
+
+import '../../../test/support/supabase_test_harness.dart';
+
+Future<void> _pumpApp(WidgetTester tester) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
+      child: const MtcApp(),
+    ),
+  );
+  // Settle splash timer + session restore, landing on the welcome screen.
+  // Fixed durations rather than pumpAndSettle, like the rest of these
+  // tests: loading skeletons elsewhere animate in a loop.
+  await tester.pump(const Duration(milliseconds: 500));
+  await tester.pump(const Duration(milliseconds: 400));
+
+  await tester.tap(find.text('Se connecter')); // l'accueil
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+Future<void> _login(WidgetTester tester, String usernameOrPhone) async {
+  final fields = find.byType(TextFormField);
+  await tester.enterText(fields.at(0), usernameOrPhone);
+  await tester.enterText(fields.at(1), 'password123');
+  await tester.tap(find.text('Se connecter'));
+  await tester.pump();
+  await tester.pumpAndSettle(const Duration(seconds: 1));
+}
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    await resetAndSeed();
+  });
+
+  // L'accueil client suit le kit FlutterShop : plus d'onglets par type de
+  // fournisseur, mais les catégories en tête de page.
+  testWidgets('client1 logs in and lands on the kit client home', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _login(tester, 'client1');
+
+    expect(find.text('Catégories'), findsOneWidget);
+    // Bottom nav present -> we're inside the client shell.
+    expect(find.byTooltip('Profil'), findsOneWidget);
+  });
+
+  testWidgets(
+    'fournisseur1 (verified) logs in and lands on the supplier dashboard, '
+    'inside the 6-tab supplier shell',
+    (tester) async {
+      await _pumpApp(tester);
+      await _login(tester, 'fournisseur1');
+
+      expect(find.text('Tableau de bord'), findsOneWidget);
+      expect(find.text('Bienvenue, Bogolan Bamako'), findsOneWidget);
+      expect(find.text('Identité vérifiée'), findsOneWidget);
+      // Bottom nav present -> we're inside the supplier shell.
+      expect(find.byTooltip('Produits'), findsOneWidget);
+      expect(find.byTooltip('Finances'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'agent1 (MTC staff) logs in and lands on the MTC staff console, inside '
+    'the same shell shape as a fournisseur tiers',
+    (tester) async {
+      await _pumpApp(tester);
+      await _login(tester, 'agent1');
+
+      expect(find.text('Tableau de bord'), findsOneWidget);
+      expect(find.text('Bienvenue, Agent MTC'), findsOneWidget);
+      expect(find.text('Agent'), findsOneWidget);
+      expect(find.byTooltip('Produits'), findsOneWidget);
+    },
+  );
+
+  testWidgets('wrong password shows an error and stays on the login screen', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'client1');
+    await tester.enterText(fields.at(1), 'wrong-password');
+    await tester.tap(find.text('Se connecter'));
+    await tester.pump();
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    expect(find.text('Identifiants incorrects'), findsOneWidget);
+  });
+}

@@ -11,8 +11,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
-
   # State management
   flutter_riverpod: ^2.6.1
 
@@ -37,13 +35,32 @@ dependencies:
   audioplayers: ^6.1.0
   path_provider: ^2.1.5
 
+  # Backend: Postgres + Auth/sessions + Realtime + Storage
+  supabase_flutter: ^2.17.1
+  json_annotation: ^4.9.0
+
+  collection: ^1.19.1
+  flutter_secure_storage: ^10.3.1
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
+  video_player: ^2.10.1
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.2
+  geolocator: ^14.0.2
+  http: ^1.6.0
+  flutter_svg: ^2.3.0
+
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 
   build_runner: ^2.4.13
   freezed: ^2.5.7
+  json_serializable: ^6.9.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -54,3 +71,93 @@ flutter:
     - assets/images/products/electronique/
     - assets/images/products/alimentation/
     - assets/images/products/materiaux/
+    # Côté client : icônes et illustrations du kit FlutterShop
+    # (`E-commerce-Complete-Flutter-UI`), voir `lib/core/shop/`.
+    - assets/shop/icons/
+    - assets/shop/illustrations/
+    # Le logo MTC de la charte (dauphin et vagues), tracé en vectoriel.
+    - assets/brand/
+    - assets/fonts/plus_jakarta_sans/OFL.txt
+    - assets/fonts/archivo/OFL.txt
+
+  # Polices du côté client, sous licence SIL OFL 1.1 (licences jointes et
+  # inscrites au registre des licences de l'app, `bootstrap.dart`).
+  # Plus Jakarta Sans est la police de la charte MTC (fichiers statiques du
+  # dépôt officiel, tokotype/PlusJakartaSans 2.7.1) ; l'ExtraBold sert aux
+  # titres de l'accueil et de la connexion.
+  # Archivo, en largeur étendue, remplace la Grandis Extended du kit : cette
+  # dernière est une police commerciale (« All rights reserved »).
+  fonts:
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Regular.ttf
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-ExtraBold.ttf
+          weight: 800
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/archivo/Archivo-Variable.ttf
+
+# Icônes de lancement, générées depuis `assets/branding/` par
+# `dart run flutter_launcher_icons`.
+#
+# Piste « Pastille » de la charte MTC (« Logo, couleurs et police ») : le
+# logo de l'app (`assets/brand/logo_mtc.svg`) dans sa pastille blanche, sur
+# le dégradé violet-bleu à 135°. Les SVG sont composés depuis ce logo ; les
+# PNG à côté en sont le rendu (Chrome, 1024 px) et sont ce que l'outil
+# consomme. Les trois variantes ne sont pas redondantes :
+#
+#   icon.png             carré plein, sans coins arrondis — iOS, web, macOS,
+#                        Windows ; la pastille à 56 % du côté. iOS applique
+#                        son propre masque : des coins arrondis dans l'image
+#                        seraient rognés deux fois et laisseraient des angles
+#                        transparents. L'App Store refuse par ailleurs toute
+#                        couche alpha, d'où `remove_alpha_ios`.
+#   icon-background.png  le dégradé seul
+#   icon-foreground.png  la pastille et le logo (70 % du côté), sur
+#                        transparent
+#
+# Les deux derniers forment l'icône adaptative Android, que le lanceur masque
+# en cercle ou en « squircle » selon le téléphone sans garantir plus que les
+# 66 % centraux. L'outil s'en charge : il applique lui-même un retrait de 16 %
+# à l'avant-plan, ce qui l'amène pile dans cette zone. En ajouter un second
+# dans le SVG — ce qu'un premier jet faisait — rend la marque minuscule, et
+# cela ne se voit sur aucune des images produites : il faut simuler le masque
+# circulaire pour le constater.
+#
+# `assets/branding/` n'est **pas** déclaré dans `assets:` plus haut : ces
+# fichiers sont la source de la charte, pas des ressources que l'application
+# charge. Les déclarer embarquerait deux mégaoctets d'images dans le binaire
+# pour rien.
+flutter_launcher_icons:
+  image_path: "assets/branding/icon.png"
+
+  android: true
+  adaptive_icon_background: "assets/branding/icon-background.png"
+  adaptive_icon_foreground: "assets/branding/icon-foreground.png"
+  min_sdk_android: 21
+
+  ios: true
+  # Obligatoire : une icône iOS avec canal alpha est refusée à la
+  # soumission, et le rendu du SVG en porte un même quand il est opaque.
+  remove_alpha_ios: true
+
+  web:
+    generate: true
+    image_path: "assets/branding/icon.png"
+    background_color: "#7762F6"
+    theme_color: "#7762F6"
+
+  macos:
+    generate: true
+    image_path: "assets/branding/icon.png"
+
+  windows:
+    generate: true
+    image_path: "assets/branding/icon.png"
+    icon_size: 256

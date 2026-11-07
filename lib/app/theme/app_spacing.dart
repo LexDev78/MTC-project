@@ -12,4 +12,8 @@ abstract final class AppSpacing {
   static const double radiusMd = 16;
   static const double radiusLg = 24;
   static const double radiusPill = 999;
+
+  /// Below this screen width, action bars swap text buttons for icon-only
+  /// ones to avoid overflow (e.g. small phones like the iPhone SE).
+  static const double compactScreenWidth = 380;
 }

@@ -115,7 +115,12 @@ class _CurvedIconNavBarState extends State<CurvedIconNavBar>
                 child: AnimatedBuilder(
                   animation: _position,
                   builder: (context, _) => CustomPaint(
-                    painter: _NotchBarPainter(bumpFraction: _position.value),
+                    painter: _NotchBarPainter(
+                      bumpFraction: _position.value,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.navBarDark
+                          : AppColors.navBarLight,
+                    ),
                     child: _iconRow(),
                   ),
                 ),
@@ -209,15 +214,23 @@ class _Bubble extends StatelessWidget {
       height: CurvedIconNavBar.bubbleDiameter,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          center: const Alignment(-0.3, -0.3),
+        // Fond opaque : la bulle dépasse largement au-dessus de la barre,
+        // donc sur une page claire un dégradé translucide laissait l'icône
+        // blanche quasi invisible — l'onglet sélectionné se lisait moins
+        // bien que les autres, l'inverse de ce qu'il doit faire. Le dégradé
+        // (clair en haut à gauche) et l'anneau blanc sont conservés.
+        gradient: const RadialGradient(
+          center: Alignment(-0.3, -0.3),
           radius: 0.9,
-          colors: [
-            Colors.white.withValues(alpha: 0.32),
-            AppColors.brandPrimary.withValues(alpha: 0.22),
-          ],
+          colors: [AppColors.brandPrimary, AppColors.brandPrimaryDeep],
         ),
-        border: Border.all(color: Colors.white, width: 3),
+        // L'anneau reprend le fond de la page (quasi blanc en clair, donc
+        // identique à avant) : la bulle a l'air découpée dans l'écran. En
+        // dur, ce blanc traçait un cerceau éclatant sur un fond presque noir.
+        border: Border.all(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          width: 3,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.brandPrimaryDeep.withValues(alpha: 0.35),
@@ -238,9 +251,13 @@ class _Bubble extends StatelessWidget {
 /// [bumpFraction] (0..1 across the bar's width), so the selected icon's
 /// bubble nests into the bar instead of just sitting on top of it.
 class _NotchBarPainter extends CustomPainter {
-  _NotchBarPainter({required this.bumpFraction});
+  _NotchBarPainter({required this.bumpFraction, required this.color});
 
   final double bumpFraction;
+
+  /// Le violet de marque en clair, sa version profonde en sombre — voir
+  /// [AppColors.navBarDark] pour le pourquoi.
+  final Color color;
 
   static const double topRadius = 28;
   static const double notchHalfWidth = 34;
@@ -249,9 +266,28 @@ class _NotchBarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final bumpX = bumpFraction * size.width;
-    final path = Path()
-      ..moveTo(0, topRadius)
-      ..quadraticBezierTo(0, 0, topRadius, 0)
+
+    // L'encoche est *soustraite* de la barre arrondie plutôt que tracée
+    // dans la même ligne de contour. Dessiner les deux d'un seul trait
+    // (coin arrondi, puis `lineTo` vers le début de l'encoche) suppose que
+    // l'encoche commence après le coin : sur le premier et le dernier
+    // onglet elle commence *avant*, le tracé repartait en arrière et
+    // peignait un éperon en pointe à côté de la bulle. Une différence de
+    // chemins n'a pas cette hypothèse : où qu'elle tombe, l'encoche creuse
+    // simplement la silhouette, y compris dans l'épaule d'un coin.
+    final bar = Path()
+      ..addRRect(
+        RRect.fromRectAndCorners(
+          Offset.zero & size,
+          topLeft: const Radius.circular(topRadius),
+          topRight: const Radius.circular(topRadius),
+        ),
+      );
+
+    // Refermée bien au-dessus de la barre pour que la soustraction porte
+    // sur toute la hauteur du creux, même quand il mord dans un coin.
+    final notch = Path()
+      ..moveTo(bumpX - notchHalfWidth, -notchDepth)
       ..lineTo(bumpX - notchHalfWidth, 0)
       ..cubicTo(
         bumpX - notchHalfWidth * 0.45,
@@ -269,16 +305,16 @@ class _NotchBarPainter extends CustomPainter {
         bumpX + notchHalfWidth,
         0,
       )
-      ..lineTo(size.width - topRadius, 0)
-      ..quadraticBezierTo(size.width, 0, size.width, topRadius)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
+      ..lineTo(bumpX + notchHalfWidth, -notchDepth)
       ..close();
 
-    canvas.drawPath(path, Paint()..color = AppColors.brandPrimary);
+    canvas.drawPath(
+      Path.combine(PathOperation.difference, bar, notch),
+      Paint()..color = color,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _NotchBarPainter oldDelegate) =>
-      oldDelegate.bumpFraction != bumpFraction;
+      oldDelegate.bumpFraction != bumpFraction || oldDelegate.color != color;
 }

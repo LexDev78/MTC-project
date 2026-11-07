@@ -1,0 +1,13 @@
+-- `SupabaseOrderDatasource.watchOrdersForSupplier` now subscribes to
+-- `order_supplier_groups` (filtered `.eq('supplier_id', ...)`) instead of
+-- the unfiltered `orders` table, so an unrelated client's order elsewhere
+-- on the platform no longer re-triggers every supplier's full nested
+-- refetch (see the comment above that method). `order_supplier_groups` was
+-- never added to the realtime publication itself though — only `orders`
+-- was (0003_orders_rpc.sql), on the reasoning that `update_order_group_status`
+-- always also touches the parent `orders` row, so listening there alone
+-- was *complete*. That reasoning still holds for `watchOrdersForUser`/
+-- `watchAllOrders` (unchanged, still watch `orders`) — but a subscription
+-- on `order_supplier_groups` needs the table in the publication to receive
+-- anything at all, or it silently never fires past its first fetch.
+alter publication supabase_realtime add table public.order_supplier_groups;

@@ -1,23 +1,37 @@
-import 'dart:io';
+import 'dart:async';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
 import 'package:mtc_app/app/theme/app_spacing.dart';
 import 'package:mtc_app/core/utils/date_formatter.dart';
 import 'package:mtc_app/core/widgets/core_widgets.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
+import 'package:mtc_app/core/widgets/resolved_image.dart';
+import 'package:mtc_app/core/widgets/voice_note_player.dart';
+import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:mtc_app/features/catalog/presentation/widgets/product_image.dart'
     show ProductImage;
+import 'package:mtc_app/features/suppliers/presentation/providers/operating_supplier_providers.dart';
 
 import '../../domain/entities/chat.dart';
 
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.message, required this.isMine});
+  const MessageBubble({
+    super.key,
+    required this.message,
+    required this.isMine,
+    required this.isClient,
+  });
 
   final ChatMessage message;
   final bool isMine;
+
+  /// Which side is reading this thread — a client taps a product
+  /// attachment into the public listing page, a supplier into their own
+  /// product-management form (see `_ProductAttachment`).
+  final bool isClient;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +68,11 @@ class MessageBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (message.productNameSnapshot != null)
-              _ProductAttachment(message: message, onBubble: onBubble),
+              _ProductAttachment(
+                message: message,
+                onBubble: onBubble,
+                isClient: isClient,
+              ),
             if (message.attachmentType == ChatAttachmentType.image &&
                 message.attachmentPath != null)
               _ImageAttachment(path: message.attachmentPath!),
@@ -65,10 +83,12 @@ class MessageBubble extends StatelessWidget {
                   horizontal: AppSpacing.sm,
                   vertical: 2,
                 ),
-                child: _VoiceMessage(
+                child: VoiceNotePlayer(
                   path: message.attachmentPath!,
                   durationSeconds: message.voiceDurationSeconds,
-                  onBubble: onBubble,
+                  bucket: 'chat-attachments',
+                  signed: true,
+                  color: onBubble,
                 ),
               ),
             if (message.text.isNotEmpty)
@@ -104,21 +124,51 @@ class MessageBubble extends StatelessWidget {
 }
 
 /// The product "card" a message carries when the client started (or
-/// continued) the conversation from a product page — tapping it jumps back
-/// to that product so the supplier-side context is one tap away too.
-class _ProductAttachment extends StatelessWidget {
-  const _ProductAttachment({required this.message, required this.onBubble});
+/// continued) the conversation from a product page, or the supplier
+/// attached the item an order was about — tapping it jumps back to that
+/// product so the other side's context is one tap away too. A client goes
+/// to the public listing page; a supplier (who can't reach `/client/...`,
+/// see `route_guards.dart`) goes to their own product-management form for
+/// it instead, which doubles as its detail view.
+class _ProductAttachment extends ConsumerWidget {
+  const _ProductAttachment({
+    required this.message,
+    required this.onBubble,
+    required this.isClient,
+  });
 
   final ChatMessage message;
   final Color onBubble;
+  final bool isClient;
+
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    final productId = message.productId;
+    if (productId == null) return;
+
+    if (isClient) {
+      unawaited(context.push(AppRoutes.productDetail(productId)));
+      return;
+    }
+
+    final router = GoRouter.of(context);
+    final prefix = ref.read(supplierRoutePrefixProvider);
+    try {
+      final product = await ref.read(productRepositoryProvider).getById(productId);
+      unawaited(router.push('$prefix/products/form', extra: product));
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Ce produit n'est plus disponible.")),
+        );
+      }
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return InkWell(
       borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-      onTap: message.productId == null
-          ? null
-          : () => context.push(AppRoutes.productDetail(message.productId!)),
+      onTap: message.productId == null ? null : () => _open(context, ref),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.xs),
         decoration: BoxDecoration(
@@ -155,6 +205,16 @@ class _ProductAttachment extends StatelessWidget {
                       fontSize: 13,
                     ),
                   ),
+                  if (message.productVariantNameSnapshot != null)
+                    Text(
+                      message.productVariantNameSnapshot!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: onBubble.withValues(alpha: 0.85),
+                        fontSize: 11,
+                      ),
+                    ),
                   if (message.productPriceFcfaSnapshot != null)
                     CurrencyText(
                       message.productPriceFcfaSnapshot!,
@@ -174,9 +234,9 @@ class _ProductAttachment extends StatelessWidget {
   }
 }
 
-/// A gallery photo attached to a message — tap to view full-screen. Local
-/// file only (no upload backend), so it disappears if the app's temp/cache
-/// storage is cleared, same lifetime as every other mock record here.
+/// A gallery photo attached to a message — tap to view full-screen. [path]
+/// is a `chat-attachments` Storage object path (private bucket, signed URL
+/// resolved at display time — see `ResolvedImage`), not a local file.
 class _ImageAttachment extends StatelessWidget {
   const _ImageAttachment({required this.path});
 
@@ -192,7 +252,13 @@ class _ImageAttachment extends StatelessWidget {
             child: InteractiveViewer(
               minScale: 1,
               maxScale: 4,
-              child: Center(child: Image.file(File(path))),
+              child: Center(
+                child: ResolvedImage(
+                  path: path,
+                  bucket: 'chat-attachments',
+                  signed: true,
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -215,17 +281,23 @@ class _ImageAttachment extends StatelessWidget {
       onTap: () => _openFullscreen(context),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        child: Image.file(
-          File(path),
+        child: SizedBox(
           width: 200,
           height: 200,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            width: 200,
-            height: 200,
-            color: Colors.black12,
-            alignment: Alignment.center,
-            child: const Icon(Icons.broken_image_outlined),
+          child: ResolvedImage(
+            path: path,
+            bucket: 'chat-attachments',
+            signed: true,
+            // Matches the fixed 200x200 SizedBox above at ~2x — avoids
+            // decoding the original upload's full resolution for this
+            // bubble thumbnail, on every message in a scrolling thread.
+            cacheWidth: 400,
+            cacheHeight: 400,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.black12,
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined),
+            ),
           ),
         ),
       ),
@@ -233,105 +305,3 @@ class _ImageAttachment extends StatelessWidget {
   }
 }
 
-/// A voice-note bubble — play/pause plus an elapsed/total duration label.
-/// Local file only, same caveat as [_ImageAttachment].
-class _VoiceMessage extends StatefulWidget {
-  const _VoiceMessage({
-    required this.path,
-    required this.durationSeconds,
-    required this.onBubble,
-  });
-
-  final String path;
-  final int? durationSeconds;
-  final Color onBubble;
-
-  @override
-  State<_VoiceMessage> createState() => _VoiceMessageState();
-}
-
-class _VoiceMessageState extends State<_VoiceMessage> {
-  final _player = AudioPlayer();
-  bool _isPlaying = false;
-  Duration _position = Duration.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    _player.onPlayerStateChanged.listen((state) {
-      if (mounted) setState(() => _isPlaying = state == PlayerState.playing);
-    });
-    _player.onPositionChanged.listen((position) {
-      if (mounted) setState(() => _position = position);
-    });
-    _player.onPlayerComplete.listen((_) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-          _position = Duration.zero;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-
-  Future<void> _toggle() async {
-    if (_isPlaying) {
-      await _player.pause();
-    } else {
-      await _player.play(DeviceFileSource(widget.path));
-    }
-  }
-
-  String _format(Duration d) {
-    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final total = widget.durationSeconds != null
-        ? Duration(seconds: widget.durationSeconds!)
-        : _position;
-    final label = _position > Duration.zero ? _position : total;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          icon: Icon(
-            _isPlaying
-                ? Icons.pause_circle_filled_rounded
-                : Icons.play_circle_fill_rounded,
-            color: widget.onBubble,
-            size: 32,
-          ),
-          onPressed: _toggle,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Icon(
-          Icons.graphic_eq_rounded,
-          color: widget.onBubble.withValues(alpha: 0.7),
-          size: 18,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          _format(label),
-          style: TextStyle(
-            color: widget.onBubble,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}

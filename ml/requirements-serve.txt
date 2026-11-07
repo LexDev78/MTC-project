@@ -1,0 +1,9 @@
+# Le service n'entraîne pas : ni optimiseur, ni chargeur de données.
+# `torch` et `torchvision` sont installés à part dans le Dockerfile, en
+# version CPU.
+open_clip_torch>=2.29
+Pillow>=11.0
+fastapi>=0.115
+uvicorn[standard]>=0.32
+python-dotenv>=1.0
+supabase>=2.10

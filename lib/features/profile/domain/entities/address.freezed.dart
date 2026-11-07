@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+Address _$AddressFromJson(Map<String, dynamic> json) {
+  return _Address.fromJson(json);
+}
+
 /// @nodoc
 mixin _$Address {
   String get id => throw _privateConstructorUsedError;
@@ -22,8 +26,15 @@ mixin _$Address {
   String get label => throw _privateConstructorUsedError;
   String get city => throw _privateConstructorUsedError;
   String get details => throw _privateConstructorUsedError;
+
+  /// Quand la position a été réellement pointée sur la carte — `null`
+  /// pour une adresse antérieure au sélecteur (`0079`).
+  DateTime? get positionConfirmedAt => throw _privateConstructorUsedError;
   double get latitude => throw _privateConstructorUsedError;
   double get longitude => throw _privateConstructorUsedError;
+
+  /// Serializes this Address to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Address
   /// with the given fields replaced by the non-null parameter values.
@@ -42,6 +53,7 @@ abstract class $AddressCopyWith<$Res> {
     String label,
     String city,
     String details,
+    DateTime? positionConfirmedAt,
     double latitude,
     double longitude,
   });
@@ -67,6 +79,7 @@ class _$AddressCopyWithImpl<$Res, $Val extends Address>
     Object? label = null,
     Object? city = null,
     Object? details = null,
+    Object? positionConfirmedAt = freezed,
     Object? latitude = null,
     Object? longitude = null,
   }) {
@@ -92,6 +105,10 @@ class _$AddressCopyWithImpl<$Res, $Val extends Address>
                 ? _value.details
                 : details // ignore: cast_nullable_to_non_nullable
                       as String,
+            positionConfirmedAt: freezed == positionConfirmedAt
+                ? _value.positionConfirmedAt
+                : positionConfirmedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
             latitude: null == latitude
                 ? _value.latitude
                 : latitude // ignore: cast_nullable_to_non_nullable
@@ -120,6 +137,7 @@ abstract class _$$AddressImplCopyWith<$Res> implements $AddressCopyWith<$Res> {
     String label,
     String city,
     String details,
+    DateTime? positionConfirmedAt,
     double latitude,
     double longitude,
   });
@@ -144,6 +162,7 @@ class __$$AddressImplCopyWithImpl<$Res>
     Object? label = null,
     Object? city = null,
     Object? details = null,
+    Object? positionConfirmedAt = freezed,
     Object? latitude = null,
     Object? longitude = null,
   }) {
@@ -169,6 +188,10 @@ class __$$AddressImplCopyWithImpl<$Res>
             ? _value.details
             : details // ignore: cast_nullable_to_non_nullable
                   as String,
+        positionConfirmedAt: freezed == positionConfirmedAt
+            ? _value.positionConfirmedAt
+            : positionConfirmedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
         latitude: null == latitude
             ? _value.latitude
             : latitude // ignore: cast_nullable_to_non_nullable
@@ -183,7 +206,7 @@ class __$$AddressImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$AddressImpl implements _Address {
   const _$AddressImpl({
     required this.id,
@@ -191,9 +214,13 @@ class _$AddressImpl implements _Address {
     required this.label,
     required this.city,
     required this.details,
+    this.positionConfirmedAt,
     required this.latitude,
     required this.longitude,
   });
+
+  factory _$AddressImpl.fromJson(Map<String, dynamic> json) =>
+      _$$AddressImplFromJson(json);
 
   @override
   final String id;
@@ -205,6 +232,11 @@ class _$AddressImpl implements _Address {
   final String city;
   @override
   final String details;
+
+  /// Quand la position a été réellement pointée sur la carte — `null`
+  /// pour une adresse antérieure au sélecteur (`0079`).
+  @override
+  final DateTime? positionConfirmedAt;
   @override
   final double latitude;
   @override
@@ -212,7 +244,7 @@ class _$AddressImpl implements _Address {
 
   @override
   String toString() {
-    return 'Address(id: $id, userId: $userId, label: $label, city: $city, details: $details, latitude: $latitude, longitude: $longitude)';
+    return 'Address(id: $id, userId: $userId, label: $label, city: $city, details: $details, positionConfirmedAt: $positionConfirmedAt, latitude: $latitude, longitude: $longitude)';
   }
 
   @override
@@ -225,12 +257,15 @@ class _$AddressImpl implements _Address {
             (identical(other.label, label) || other.label == label) &&
             (identical(other.city, city) || other.city == city) &&
             (identical(other.details, details) || other.details == details) &&
+            (identical(other.positionConfirmedAt, positionConfirmedAt) ||
+                other.positionConfirmedAt == positionConfirmedAt) &&
             (identical(other.latitude, latitude) ||
                 other.latitude == latitude) &&
             (identical(other.longitude, longitude) ||
                 other.longitude == longitude));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -239,6 +274,7 @@ class _$AddressImpl implements _Address {
     label,
     city,
     details,
+    positionConfirmedAt,
     latitude,
     longitude,
   );
@@ -250,6 +286,11 @@ class _$AddressImpl implements _Address {
   @pragma('vm:prefer-inline')
   _$$AddressImplCopyWith<_$AddressImpl> get copyWith =>
       __$$AddressImplCopyWithImpl<_$AddressImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$AddressImplToJson(this);
+  }
 }
 
 abstract class _Address implements Address {
@@ -259,9 +300,12 @@ abstract class _Address implements Address {
     required final String label,
     required final String city,
     required final String details,
+    final DateTime? positionConfirmedAt,
     required final double latitude,
     required final double longitude,
   }) = _$AddressImpl;
+
+  factory _Address.fromJson(Map<String, dynamic> json) = _$AddressImpl.fromJson;
 
   @override
   String get id;
@@ -273,6 +317,11 @@ abstract class _Address implements Address {
   String get city;
   @override
   String get details;
+
+  /// Quand la position a été réellement pointée sur la carte — `null`
+  /// pour une adresse antérieure au sélecteur (`0079`).
+  @override
+  DateTime? get positionConfirmedAt;
   @override
   double get latitude;
   @override

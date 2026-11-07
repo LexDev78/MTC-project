@@ -1,11 +1,12 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:mtc_app/features/auth/domain/entities/user_role.dart'
-    show VerificationStatus;
+    show VerificationStatus, SupplierLegalType;
 import 'package:mtc_app/features/catalog/domain/entities/product_category.dart'
     show SupplierType;
 
 part 'supplier_profile.freezed.dart';
+part 'supplier_profile.g.dart';
 
 /// Public-facing supplier entity — distinct from `AppUser`, which is "who is
 /// logged in". A client browsing the catalog only ever needs this, never
@@ -19,8 +20,44 @@ class SupplierProfile with _$SupplierProfile {
     required String city,
     required double ratingAverage,
     required int ratingCount,
+    /// Le compteur de travail de la boutique, tenu par son application :
+    /// brouillons et pauses compris. Pas pour les clients — voir
+    /// [listedProductCount].
     required int productCount,
+
+    /// Ce que le client voit vraiment : les produits actifs d'une boutique
+    /// vérifiée, comptés par la base (`listed_product_count`, `0123`).
+    /// N'arrive que des lectures qui le demandent.
+    @Default(0) int listedProductCount,
     VerificationStatus? verificationStatus,
-    String? avatarUrl,
+    // Null for `SupplierType.principal` (MTC itself has no legal form to
+    // register) — only ever set for `SupplierType.tiers`.
+    SupplierLegalType? legalType,
+
+    // Extended storefront fields (Lot 11) — edited from
+    // `SupplierAccountController.updateStorefront`, shown on the public
+    // `SupplierProfileScreen`.
+    String? description,
+    String? bannerUrl,
+    String? fullAddress,
+
+    /// Derived from `city` via `MalianCity` (same lookup
+    /// `ManageAddressesScreen` uses for a client address) rather than typed
+    /// in by hand — no map picker in this app, and every seeded city
+    /// already has known coordinates. Usable with `GeoDistance`.
+    /// Quand le point de retrait a été réellement pointé sur la carte.
+    /// `null` sur les fiches antérieures au sélecteur : leurs coordonnées
+    /// valent le centre de la ville, pas l'adresse — et c'est là que les
+    /// livreurs se rendent (`0079`).
+    DateTime? positionConfirmedAt,
+    double? addressLatitude,
+    double? addressLongitude,
+    @Default(<String>[]) List<String> publicPhoneNumbers,
+    @Default(<String>[]) List<String> deliveryZones,
+    String? openingHoursLabel,
+    @Default(true) bool isOpen,
   }) = _SupplierProfile;
+
+  factory SupplierProfile.fromJson(Map<String, dynamic> json) =>
+      _$SupplierProfileFromJson(json);
 }

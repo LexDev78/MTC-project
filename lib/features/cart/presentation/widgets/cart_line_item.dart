@@ -1,171 +1,152 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
-import 'package:mtc_app/app/theme/app_shadows.dart';
-import 'package:mtc_app/app/theme/app_spacing.dart';
-import 'package:mtc_app/core/widgets/core_widgets.dart';
+import 'package:mtc_app/core/error/user_message.dart';
+import 'package:mtc_app/core/shop/shop.dart';
 import 'package:mtc_app/features/catalog/presentation/providers/catalog_providers.dart';
-import 'package:mtc_app/features/catalog/presentation/widgets/product_card.dart'
-    show ProductImage;
 
 import '../../domain/entities/cart_item.dart';
 import '../controllers/cart_controller.dart';
+import '../providers/cart_providers.dart';
 
+/// Un article du panier, en ligne du kit (« Review your order ») : la
+/// photo, la boutique, le nom, le prix — puis ce que MTC y ajoute dessous :
+/// la variante choisie, le stock quand il compte, la quantité et le retrait.
+///
+/// La boutique n'est pas décorative chez MTC : la livraison et les codes
+/// promo se règlent boutique par boutique (`place_order` découpe la commande
+/// en groupes fournisseur). Le client doit voir que deux articles viennent
+/// de deux endroits avant de découvrir deux frais de livraison.
 class CartLineItem extends ConsumerWidget {
   const CartLineItem({super.key, required this.item});
 
   final CartItem item;
 
+  Future<void> _agir(
+    BuildContext context,
+    Future<void> Function() action,
+    String repli,
+  ) async {
+    final messager = ScaffoldMessenger.of(context);
+    try {
+      await action();
+    } catch (erreur) {
+      messager.showSnackBar(
+        SnackBar(content: Text(messagePourUtilisateur(erreur, repli: repli))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    final brightness = Theme.of(context).brightness;
-    final controller = ref.read(cartControllerProvider.notifier);
-    final product = ref.watch(productDetailProvider(item.productId)).valueOrNull;
+    final theme = Theme.of(context);
+    final controleur = ref.read(cartControllerProvider.notifier);
+    final produit = ref
+        .watch(productDetailProvider(item.productId))
+        .valueOrNull;
+    final variante = produit?.variants.firstWhereOrNull(
+      (v) => v.id == item.variantId,
+    );
+    // Le stock de la variante quand la ligne en a une, celui du produit
+    // sinon. `null` tant que le produit n'est pas chargé : la quantité reste
+    // alors libre plutôt que bloquée sur une limite encore inconnue.
+    final stock = variante?.stockQuantity ?? produit?.stockQuantity;
+    final enRupture = stock != null && stock <= 0;
+    final stockBas = stock != null && stock > 0 && stock <= 5;
+    final quantite = item.quantity;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        boxShadow: AppShadows.soft(brightness),
+    return ShopProductListItem(
+      onTap: () => context.push(AppRoutes.productDetail(item.productId)),
+      data: ShopProductData(
+        imagePath:
+            variante?.imageUrls.firstOrNull ?? produit?.imageUrls.firstOrNull,
+        brand: produit?.supplierName ?? '',
+        title: item.productNameSnapshot,
+        priceFcfa: ref.watch(cartLineUnitPriceProvider(item.id)),
+        compareAtFcfa: ref.watch(cartLineCompareAtPriceProvider(item.id)),
       ),
-      child: Row(
+      footer: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            child: SizedBox(
-              width: 64,
-              height: 64,
-              child: ProductImage(
-                imageUrl: product == null || product.imageUrls.isEmpty
-                    ? null
-                    : product.imageUrls.first,
-                icon: Icons.inventory_2_outlined,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          if (item.variantNameSnapshot case final nom?)
+            Row(
               children: [
-                Text(
-                  item.productNameSnapshot,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 2),
-                CurrencyText(
-                  item.unitPriceFcfaSnapshot,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                Flexible(
+                  child: Text(
+                    nom,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Row(
-                  children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                      onTap: () =>
-                          context.push(AppRoutes.productDetail(item.productId)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.edit_outlined,
-                              size: 14,
-                              color: scheme.primary,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              'Modifier',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: scheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
+                const SizedBox(width: ShopSizes.padding / 2),
+                // Une autre taille, une autre couleur : c'est sur la fiche
+                // qu'on la choisit.
+                GestureDetector(
+                  onTap: () =>
+                      context.push(AppRoutes.productDetail(item.productId)),
+                  child: const Text(
+                    'Changer',
+                    style: TextStyle(
+                      color: ShopColors.primary,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              IconButton(
-                icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
-                visualDensity: VisualDensity.compact,
-                onPressed: () => controller.removeItem(item.id),
+          // Le stock ne s'affiche que quand il change quelque chose : un
+          // « 248 en stock » sous chaque article ne dit rien, un stock bas
+          // invite à ne pas attendre, une rupture explique pourquoi la
+          // quantité ne monte plus.
+          if (enRupture || stockBas)
+            Padding(
+              padding: const EdgeInsets.only(top: ShopSizes.padding / 4),
+              child: Text(
+                enRupture ? 'Rupture de stock' : 'Plus que $stock en stock',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: enRupture ? ShopColors.error : ShopColors.warning,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              _QuantityStepper(
-                quantity: item.quantity,
-                onChanged: (value) => controller.updateQuantity(item.id, value),
+            ),
+          const SizedBox(height: ShopSizes.padding / 2),
+          Row(
+            children: [
+              ShopQuantityStepper(
+                label: null,
+                compact: true,
+                quantity: quantite,
+                onDecrement: quantite > 1
+                    ? () => _agir(
+                        context,
+                        () =>
+                            controleur.updateQuantity(item.id, quantite - 1),
+                        'La quantité n\'a pas pu être changée.',
+                      )
+                    : null,
+                onIncrement: stock == null || quantite < stock
+                    ? () => _agir(
+                        context,
+                        () =>
+                            controleur.updateQuantity(item.id, quantite + 1),
+                        'La quantité n\'a pas pu être changée.',
+                      )
+                    : null,
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Retirer du panier',
+                onPressed: () => _agir(
+                  context,
+                  () => controleur.removeItem(item.id),
+                  'L\'article n\'a pas pu être retiré.',
+                ),
+                icon: const ShopIcon(ShopIcons.delete, color: ShopColors.error),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuantityStepper extends StatelessWidget {
-  const _QuantityStepper({required this.quantity, required this.onChanged});
-
-  final int quantity;
-  final void Function(int quantity) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    const buttonConstraints = BoxConstraints.tightFor(width: 26, height: 26);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.remove_rounded, size: 14),
-            iconSize: 14,
-            padding: EdgeInsets.zero,
-            constraints: buttonConstraints,
-            onPressed: () => onChanged(quantity - 1),
-          ),
-          SizedBox(
-            width: 20,
-            child: Text(
-              '$quantity',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_rounded, size: 14),
-            iconSize: 14,
-            padding: EdgeInsets.zero,
-            constraints: buttonConstraints,
-            onPressed: () => onChanged(quantity + 1),
           ),
         ],
       ),

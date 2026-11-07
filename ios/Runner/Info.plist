@@ -49,5 +49,9 @@
 	<string>MTC a besoin d'accéder au microphone pour enregistrer des messages vocaux dans la messagerie.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MTC a besoin d'accéder à vos photos pour joindre une image à un message.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MTC utilise votre position pendant votre service pour vous proposer les courses les plus proches et permettre au client de suivre sa livraison.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>MTC a besoin de la caméra pour scanner les codes de retrait et de livraison.</string>
 </dict>
 </plist>

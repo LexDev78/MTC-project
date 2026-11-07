@@ -1,3 +1,6 @@
+@Tags(['integration'])
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,14 +13,20 @@ import 'package:mtc_app/features/ratings/presentation/controllers/review_control
 import 'package:mtc_app/features/ratings/presentation/providers/review_providers.dart';
 import 'package:mtc_app/features/suppliers/presentation/providers/supplier_providers.dart';
 
+import '../../support/supabase_test_harness.dart';
+
 void main() {
   late ProviderContainer container;
 
   setUp(() async {
+    await resetAndSeed();
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     container = ProviderContainer(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        supabaseClientProvider.overrideWithValue(createTestSupabaseClient()),
+      ],
     );
     addTearDown(container.dispose);
   });
@@ -41,16 +50,16 @@ void main() {
       final canReviewBefore = await container
           .read(reviewRepositoryProvider)
           .canReview(
-            orderId: 'order-awa-delivered',
-            supplierGroupId: 'group-awa-delivered-1',
+            orderId: DemoIds.orderAwaDelivered,
+            supplierGroupId: DemoIds.groupAwaDelivered1,
           );
       expect(canReviewBefore, isTrue);
 
       final success = await container
           .read(reviewControllerProvider.notifier)
           .submit(
-            orderId: 'order-awa-delivered',
-            supplierGroupId: 'group-awa-delivered-1',
+            orderId: DemoIds.orderAwaDelivered,
+            supplierGroupId: DemoIds.groupAwaDelivered1,
             supplierId: supplierId,
             stars: 5,
             comment: 'Excellent service, tissu magnifique !',
@@ -80,8 +89,8 @@ void main() {
       final canReviewAfter = await container
           .read(reviewRepositoryProvider)
           .canReview(
-            orderId: 'order-awa-delivered',
-            supplierGroupId: 'group-awa-delivered-1',
+            orderId: DemoIds.orderAwaDelivered,
+            supplierGroupId: DemoIds.groupAwaDelivered1,
           );
       expect(canReviewAfter, isFalse);
     },

@@ -15,6 +15,10 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
+Product _$ProductFromJson(Map<String, dynamic> json) {
+  return _Product.fromJson(json);
+}
+
 /// @nodoc
 mixin _$Product {
   String get id => throw _privateConstructorUsedError;
@@ -33,7 +37,12 @@ mixin _$Product {
   bool get allowsSelfDelivery => throw _privateConstructorUsedError;
   bool get allowsMtcDelivery => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
-  int? get mtcDeliveryFeeFcfa => throw _privateConstructorUsedError;
+
+  /// Shipping weight — feeds `computeHomeDeliveryFeeFcfa`
+  /// (features/orders/domain/delivery_pricing.dart) alongside distance and
+  /// category, so heavier items cost more to have MTC deliver. No longer
+  /// a flat per-product fee: that's computed per order, per destination.
+  double get weightKg => throw _privateConstructorUsedError;
 
   /// Denormalized from the supplier's verification status. Products from
   /// unverified/pending tiers suppliers are excluded from client-facing
@@ -52,6 +61,71 @@ mixin _$Product {
   /// since most of the seeded catalog is local artisanal/agricultural
   /// goods; imported categories (electronics, some materials) override it.
   ProductRegion get region => throw _privateConstructorUsedError;
+
+  /// Lifecycle within the supplier's own catalog management — see
+  /// `ProductStatus`'s doc comment. Defaults to `active` so every
+  /// pre-existing seeded product (created before this field existed)
+  /// stays visible without a data migration.
+  ProductStatus get status => throw _privateConstructorUsedError;
+
+  /// Below this stock level, the supplier's product list flags the item
+  /// as low — `null` means no threshold is set (no warning is ever
+  /// shown). A per-product setting rather than a platform-wide constant
+  /// since restock lead time varies a lot by category (e.g. imported
+  /// electronics vs. locally-milled rice).
+  int? get lowStockThreshold => throw _privateConstructorUsedError;
+
+  /// Prix barré saisi à la main, antérieur aux promotions (`0062`) : une
+  /// valeur décorative, sans date ni condition. Les remises réelles
+  /// passent par [promotions] ; celui-ci reste pour les produits qui le
+  /// portaient déjà.
+  int? get compareAtPriceFcfa => throw _privateConstructorUsedError;
+
+  /// Remises en vigueur ou programmées sur ce produit, telles que la base
+  /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+  /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+  /// promotion qui commence demain doit être visible du fournisseur, et
+  /// filtrer côté requête obligerait à redemander la liste à chaque
+  /// changement d'heure.
+  List<Promotion> get promotions => throw _privateConstructorUsedError;
+
+  /// Bumped by [ProductRepository.incrementViewCount] once per client
+  /// visit to the product's detail page — shown on the supplier
+  /// dashboard, not client-facing anywhere.
+  int get viewCount => throw _privateConstructorUsedError;
+
+  /// Trigger-maintained (`0018_product_variants.sql`) — the only
+  /// reliable "does this product have variants" signal, true even from
+  /// list queries (`watchProducts`/`watchMyProducts`) that don't embed
+  /// [characteristics]/[variants] below. Never infer this from
+  /// `characteristics.isEmpty`/`variants.isEmpty`: those are only
+  /// populated by `getById`'s nested select.
+  bool get hasVariants => throw _privateConstructorUsedError;
+
+  /// Trigger-maintained max variant price — `null` unless [hasVariants].
+  /// Paired with [priceFcfa] (trigger-maintained min variant price once
+  /// variants exist) to render "à partir de" range pricing without
+  /// fetching [variants].
+  int? get maxPriceFcfa => throw _privateConstructorUsedError;
+
+  /// Trigger-maintained count of this product's variants — `0` unless
+  /// [hasVariants]. Lets list views show "N variantes" without embedding
+  /// the full [variants] list.
+  int get variantCount => throw _privateConstructorUsedError;
+
+  /// This product's characteristics (couleur/stockage/...), each with its
+  /// own options — only populated via `getById`'s nested select (product
+  /// detail, cart line, checkout, favorites resolve, chat attachment,
+  /// stock-adjust sheet). Always empty from list queries.
+  List<ProductCharacteristic> get characteristics =>
+      throw _privateConstructorUsedError;
+
+  /// This product's purchasable variants — same nested-select-only
+  /// population as [characteristics].
+  List<ProductVariant> get variants => throw _privateConstructorUsedError;
+
+  /// Serializes this Product to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Product
   /// with the given fields replaced by the non-null parameter values.
@@ -81,11 +155,21 @@ abstract class $ProductCopyWith<$Res> {
     bool allowsSelfDelivery,
     bool allowsMtcDelivery,
     DateTime createdAt,
-    int? mtcDeliveryFeeFcfa,
+    double weightKg,
     bool isSupplierVerified,
     List<String> sizes,
     List<String> colors,
     ProductRegion region,
+    ProductStatus status,
+    int? lowStockThreshold,
+    int? compareAtPriceFcfa,
+    List<Promotion> promotions,
+    int viewCount,
+    bool hasVariants,
+    int? maxPriceFcfa,
+    int variantCount,
+    List<ProductCharacteristic> characteristics,
+    List<ProductVariant> variants,
   });
 }
 
@@ -120,11 +204,21 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
     Object? allowsSelfDelivery = null,
     Object? allowsMtcDelivery = null,
     Object? createdAt = null,
-    Object? mtcDeliveryFeeFcfa = freezed,
+    Object? weightKg = null,
     Object? isSupplierVerified = null,
     Object? sizes = null,
     Object? colors = null,
     Object? region = null,
+    Object? status = null,
+    Object? lowStockThreshold = freezed,
+    Object? compareAtPriceFcfa = freezed,
+    Object? promotions = null,
+    Object? viewCount = null,
+    Object? hasVariants = null,
+    Object? maxPriceFcfa = freezed,
+    Object? variantCount = null,
+    Object? characteristics = null,
+    Object? variants = null,
   }) {
     return _then(
       _value.copyWith(
@@ -192,10 +286,10 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
-            mtcDeliveryFeeFcfa: freezed == mtcDeliveryFeeFcfa
-                ? _value.mtcDeliveryFeeFcfa
-                : mtcDeliveryFeeFcfa // ignore: cast_nullable_to_non_nullable
-                      as int?,
+            weightKg: null == weightKg
+                ? _value.weightKg
+                : weightKg // ignore: cast_nullable_to_non_nullable
+                      as double,
             isSupplierVerified: null == isSupplierVerified
                 ? _value.isSupplierVerified
                 : isSupplierVerified // ignore: cast_nullable_to_non_nullable
@@ -212,6 +306,46 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
                 ? _value.region
                 : region // ignore: cast_nullable_to_non_nullable
                       as ProductRegion,
+            status: null == status
+                ? _value.status
+                : status // ignore: cast_nullable_to_non_nullable
+                      as ProductStatus,
+            lowStockThreshold: freezed == lowStockThreshold
+                ? _value.lowStockThreshold
+                : lowStockThreshold // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            compareAtPriceFcfa: freezed == compareAtPriceFcfa
+                ? _value.compareAtPriceFcfa
+                : compareAtPriceFcfa // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            promotions: null == promotions
+                ? _value.promotions
+                : promotions // ignore: cast_nullable_to_non_nullable
+                      as List<Promotion>,
+            viewCount: null == viewCount
+                ? _value.viewCount
+                : viewCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+            hasVariants: null == hasVariants
+                ? _value.hasVariants
+                : hasVariants // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            maxPriceFcfa: freezed == maxPriceFcfa
+                ? _value.maxPriceFcfa
+                : maxPriceFcfa // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            variantCount: null == variantCount
+                ? _value.variantCount
+                : variantCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+            characteristics: null == characteristics
+                ? _value.characteristics
+                : characteristics // ignore: cast_nullable_to_non_nullable
+                      as List<ProductCharacteristic>,
+            variants: null == variants
+                ? _value.variants
+                : variants // ignore: cast_nullable_to_non_nullable
+                      as List<ProductVariant>,
           )
           as $Val,
     );
@@ -243,11 +377,21 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
     bool allowsSelfDelivery,
     bool allowsMtcDelivery,
     DateTime createdAt,
-    int? mtcDeliveryFeeFcfa,
+    double weightKg,
     bool isSupplierVerified,
     List<String> sizes,
     List<String> colors,
     ProductRegion region,
+    ProductStatus status,
+    int? lowStockThreshold,
+    int? compareAtPriceFcfa,
+    List<Promotion> promotions,
+    int viewCount,
+    bool hasVariants,
+    int? maxPriceFcfa,
+    int variantCount,
+    List<ProductCharacteristic> characteristics,
+    List<ProductVariant> variants,
   });
 }
 
@@ -281,11 +425,21 @@ class __$$ProductImplCopyWithImpl<$Res>
     Object? allowsSelfDelivery = null,
     Object? allowsMtcDelivery = null,
     Object? createdAt = null,
-    Object? mtcDeliveryFeeFcfa = freezed,
+    Object? weightKg = null,
     Object? isSupplierVerified = null,
     Object? sizes = null,
     Object? colors = null,
     Object? region = null,
+    Object? status = null,
+    Object? lowStockThreshold = freezed,
+    Object? compareAtPriceFcfa = freezed,
+    Object? promotions = null,
+    Object? viewCount = null,
+    Object? hasVariants = null,
+    Object? maxPriceFcfa = freezed,
+    Object? variantCount = null,
+    Object? characteristics = null,
+    Object? variants = null,
   }) {
     return _then(
       _$ProductImpl(
@@ -353,10 +507,10 @@ class __$$ProductImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
-        mtcDeliveryFeeFcfa: freezed == mtcDeliveryFeeFcfa
-            ? _value.mtcDeliveryFeeFcfa
-            : mtcDeliveryFeeFcfa // ignore: cast_nullable_to_non_nullable
-                  as int?,
+        weightKg: null == weightKg
+            ? _value.weightKg
+            : weightKg // ignore: cast_nullable_to_non_nullable
+                  as double,
         isSupplierVerified: null == isSupplierVerified
             ? _value.isSupplierVerified
             : isSupplierVerified // ignore: cast_nullable_to_non_nullable
@@ -373,13 +527,53 @@ class __$$ProductImplCopyWithImpl<$Res>
             ? _value.region
             : region // ignore: cast_nullable_to_non_nullable
                   as ProductRegion,
+        status: null == status
+            ? _value.status
+            : status // ignore: cast_nullable_to_non_nullable
+                  as ProductStatus,
+        lowStockThreshold: freezed == lowStockThreshold
+            ? _value.lowStockThreshold
+            : lowStockThreshold // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        compareAtPriceFcfa: freezed == compareAtPriceFcfa
+            ? _value.compareAtPriceFcfa
+            : compareAtPriceFcfa // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        promotions: null == promotions
+            ? _value._promotions
+            : promotions // ignore: cast_nullable_to_non_nullable
+                  as List<Promotion>,
+        viewCount: null == viewCount
+            ? _value.viewCount
+            : viewCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+        hasVariants: null == hasVariants
+            ? _value.hasVariants
+            : hasVariants // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        maxPriceFcfa: freezed == maxPriceFcfa
+            ? _value.maxPriceFcfa
+            : maxPriceFcfa // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        variantCount: null == variantCount
+            ? _value.variantCount
+            : variantCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+        characteristics: null == characteristics
+            ? _value._characteristics
+            : characteristics // ignore: cast_nullable_to_non_nullable
+                  as List<ProductCharacteristic>,
+        variants: null == variants
+            ? _value._variants
+            : variants // ignore: cast_nullable_to_non_nullable
+                  as List<ProductVariant>,
       ),
     );
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ProductImpl implements _Product {
   const _$ProductImpl({
     required this.id,
@@ -398,14 +592,30 @@ class _$ProductImpl implements _Product {
     required this.allowsSelfDelivery,
     required this.allowsMtcDelivery,
     required this.createdAt,
-    this.mtcDeliveryFeeFcfa,
+    required this.weightKg,
     this.isSupplierVerified = true,
     final List<String> sizes = const [],
     final List<String> colors = const [],
     this.region = ProductRegion.mali,
+    this.status = ProductStatus.active,
+    this.lowStockThreshold,
+    this.compareAtPriceFcfa,
+    final List<Promotion> promotions = const [],
+    this.viewCount = 0,
+    this.hasVariants = false,
+    this.maxPriceFcfa,
+    this.variantCount = 0,
+    final List<ProductCharacteristic> characteristics = const [],
+    final List<ProductVariant> variants = const [],
   }) : _imageUrls = imageUrls,
        _sizes = sizes,
-       _colors = colors;
+       _colors = colors,
+       _promotions = promotions,
+       _characteristics = characteristics,
+       _variants = variants;
+
+  factory _$ProductImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ProductImplFromJson(json);
 
   @override
   final String id;
@@ -445,8 +655,13 @@ class _$ProductImpl implements _Product {
   final bool allowsMtcDelivery;
   @override
   final DateTime createdAt;
+
+  /// Shipping weight — feeds `computeHomeDeliveryFeeFcfa`
+  /// (features/orders/domain/delivery_pricing.dart) alongside distance and
+  /// category, so heavier items cost more to have MTC deliver. No longer
+  /// a flat per-product fee: that's computed per order, per destination.
   @override
-  final int? mtcDeliveryFeeFcfa;
+  final double weightKg;
 
   /// Denormalized from the supplier's verification status. Products from
   /// unverified/pending tiers suppliers are excluded from client-facing
@@ -490,9 +705,117 @@ class _$ProductImpl implements _Product {
   @JsonKey()
   final ProductRegion region;
 
+  /// Lifecycle within the supplier's own catalog management — see
+  /// `ProductStatus`'s doc comment. Defaults to `active` so every
+  /// pre-existing seeded product (created before this field existed)
+  /// stays visible without a data migration.
+  @override
+  @JsonKey()
+  final ProductStatus status;
+
+  /// Below this stock level, the supplier's product list flags the item
+  /// as low — `null` means no threshold is set (no warning is ever
+  /// shown). A per-product setting rather than a platform-wide constant
+  /// since restock lead time varies a lot by category (e.g. imported
+  /// electronics vs. locally-milled rice).
+  @override
+  final int? lowStockThreshold;
+
+  /// Prix barré saisi à la main, antérieur aux promotions (`0062`) : une
+  /// valeur décorative, sans date ni condition. Les remises réelles
+  /// passent par [promotions] ; celui-ci reste pour les produits qui le
+  /// portaient déjà.
+  @override
+  final int? compareAtPriceFcfa;
+
+  /// Remises en vigueur ou programmées sur ce produit, telles que la base
+  /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+  /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+  /// promotion qui commence demain doit être visible du fournisseur, et
+  /// filtrer côté requête obligerait à redemander la liste à chaque
+  /// changement d'heure.
+  final List<Promotion> _promotions;
+
+  /// Remises en vigueur ou programmées sur ce produit, telles que la base
+  /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+  /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+  /// promotion qui commence demain doit être visible du fournisseur, et
+  /// filtrer côté requête obligerait à redemander la liste à chaque
+  /// changement d'heure.
+  @override
+  @JsonKey()
+  List<Promotion> get promotions {
+    if (_promotions is EqualUnmodifiableListView) return _promotions;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_promotions);
+  }
+
+  /// Bumped by [ProductRepository.incrementViewCount] once per client
+  /// visit to the product's detail page — shown on the supplier
+  /// dashboard, not client-facing anywhere.
+  @override
+  @JsonKey()
+  final int viewCount;
+
+  /// Trigger-maintained (`0018_product_variants.sql`) — the only
+  /// reliable "does this product have variants" signal, true even from
+  /// list queries (`watchProducts`/`watchMyProducts`) that don't embed
+  /// [characteristics]/[variants] below. Never infer this from
+  /// `characteristics.isEmpty`/`variants.isEmpty`: those are only
+  /// populated by `getById`'s nested select.
+  @override
+  @JsonKey()
+  final bool hasVariants;
+
+  /// Trigger-maintained max variant price — `null` unless [hasVariants].
+  /// Paired with [priceFcfa] (trigger-maintained min variant price once
+  /// variants exist) to render "à partir de" range pricing without
+  /// fetching [variants].
+  @override
+  final int? maxPriceFcfa;
+
+  /// Trigger-maintained count of this product's variants — `0` unless
+  /// [hasVariants]. Lets list views show "N variantes" without embedding
+  /// the full [variants] list.
+  @override
+  @JsonKey()
+  final int variantCount;
+
+  /// This product's characteristics (couleur/stockage/...), each with its
+  /// own options — only populated via `getById`'s nested select (product
+  /// detail, cart line, checkout, favorites resolve, chat attachment,
+  /// stock-adjust sheet). Always empty from list queries.
+  final List<ProductCharacteristic> _characteristics;
+
+  /// This product's characteristics (couleur/stockage/...), each with its
+  /// own options — only populated via `getById`'s nested select (product
+  /// detail, cart line, checkout, favorites resolve, chat attachment,
+  /// stock-adjust sheet). Always empty from list queries.
+  @override
+  @JsonKey()
+  List<ProductCharacteristic> get characteristics {
+    if (_characteristics is EqualUnmodifiableListView) return _characteristics;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_characteristics);
+  }
+
+  /// This product's purchasable variants — same nested-select-only
+  /// population as [characteristics].
+  final List<ProductVariant> _variants;
+
+  /// This product's purchasable variants — same nested-select-only
+  /// population as [characteristics].
+  @override
+  @JsonKey()
+  List<ProductVariant> get variants {
+    if (_variants is EqualUnmodifiableListView) return _variants;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_variants);
+  }
+
   @override
   String toString() {
-    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, mtcDeliveryFeeFcfa: $mtcDeliveryFeeFcfa, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region)';
+    return 'Product(id: $id, supplierId: $supplierId, supplierName: $supplierName, supplierType: $supplierType, name: $name, description: $description, category: $category, priceFcfa: $priceFcfa, stockQuantity: $stockQuantity, imageUrls: $imageUrls, city: $city, ratingAverage: $ratingAverage, ratingCount: $ratingCount, allowsSelfDelivery: $allowsSelfDelivery, allowsMtcDelivery: $allowsMtcDelivery, createdAt: $createdAt, weightKg: $weightKg, isSupplierVerified: $isSupplierVerified, sizes: $sizes, colors: $colors, region: $region, status: $status, lowStockThreshold: $lowStockThreshold, compareAtPriceFcfa: $compareAtPriceFcfa, promotions: $promotions, viewCount: $viewCount, hasVariants: $hasVariants, maxPriceFcfa: $maxPriceFcfa, variantCount: $variantCount, characteristics: $characteristics, variants: $variants)';
   }
 
   @override
@@ -531,15 +854,38 @@ class _$ProductImpl implements _Product {
                 other.allowsMtcDelivery == allowsMtcDelivery) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
-            (identical(other.mtcDeliveryFeeFcfa, mtcDeliveryFeeFcfa) ||
-                other.mtcDeliveryFeeFcfa == mtcDeliveryFeeFcfa) &&
+            (identical(other.weightKg, weightKg) ||
+                other.weightKg == weightKg) &&
             (identical(other.isSupplierVerified, isSupplierVerified) ||
                 other.isSupplierVerified == isSupplierVerified) &&
             const DeepCollectionEquality().equals(other._sizes, _sizes) &&
             const DeepCollectionEquality().equals(other._colors, _colors) &&
-            (identical(other.region, region) || other.region == region));
+            (identical(other.region, region) || other.region == region) &&
+            (identical(other.status, status) || other.status == status) &&
+            (identical(other.lowStockThreshold, lowStockThreshold) ||
+                other.lowStockThreshold == lowStockThreshold) &&
+            (identical(other.compareAtPriceFcfa, compareAtPriceFcfa) ||
+                other.compareAtPriceFcfa == compareAtPriceFcfa) &&
+            const DeepCollectionEquality().equals(
+              other._promotions,
+              _promotions,
+            ) &&
+            (identical(other.viewCount, viewCount) ||
+                other.viewCount == viewCount) &&
+            (identical(other.hasVariants, hasVariants) ||
+                other.hasVariants == hasVariants) &&
+            (identical(other.maxPriceFcfa, maxPriceFcfa) ||
+                other.maxPriceFcfa == maxPriceFcfa) &&
+            (identical(other.variantCount, variantCount) ||
+                other.variantCount == variantCount) &&
+            const DeepCollectionEquality().equals(
+              other._characteristics,
+              _characteristics,
+            ) &&
+            const DeepCollectionEquality().equals(other._variants, _variants));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hashAll([
     runtimeType,
@@ -559,11 +905,21 @@ class _$ProductImpl implements _Product {
     allowsSelfDelivery,
     allowsMtcDelivery,
     createdAt,
-    mtcDeliveryFeeFcfa,
+    weightKg,
     isSupplierVerified,
     const DeepCollectionEquality().hash(_sizes),
     const DeepCollectionEquality().hash(_colors),
     region,
+    status,
+    lowStockThreshold,
+    compareAtPriceFcfa,
+    const DeepCollectionEquality().hash(_promotions),
+    viewCount,
+    hasVariants,
+    maxPriceFcfa,
+    variantCount,
+    const DeepCollectionEquality().hash(_characteristics),
+    const DeepCollectionEquality().hash(_variants),
   ]);
 
   /// Create a copy of Product
@@ -573,6 +929,11 @@ class _$ProductImpl implements _Product {
   @pragma('vm:prefer-inline')
   _$$ProductImplCopyWith<_$ProductImpl> get copyWith =>
       __$$ProductImplCopyWithImpl<_$ProductImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ProductImplToJson(this);
+  }
 }
 
 abstract class _Product implements Product {
@@ -593,12 +954,24 @@ abstract class _Product implements Product {
     required final bool allowsSelfDelivery,
     required final bool allowsMtcDelivery,
     required final DateTime createdAt,
-    final int? mtcDeliveryFeeFcfa,
+    required final double weightKg,
     final bool isSupplierVerified,
     final List<String> sizes,
     final List<String> colors,
     final ProductRegion region,
+    final ProductStatus status,
+    final int? lowStockThreshold,
+    final int? compareAtPriceFcfa,
+    final List<Promotion> promotions,
+    final int viewCount,
+    final bool hasVariants,
+    final int? maxPriceFcfa,
+    final int variantCount,
+    final List<ProductCharacteristic> characteristics,
+    final List<ProductVariant> variants,
   }) = _$ProductImpl;
+
+  factory _Product.fromJson(Map<String, dynamic> json) = _$ProductImpl.fromJson;
 
   @override
   String get id;
@@ -632,8 +1005,13 @@ abstract class _Product implements Product {
   bool get allowsMtcDelivery;
   @override
   DateTime get createdAt;
+
+  /// Shipping weight — feeds `computeHomeDeliveryFeeFcfa`
+  /// (features/orders/domain/delivery_pricing.dart) alongside distance and
+  /// category, so heavier items cost more to have MTC deliver. No longer
+  /// a flat per-product fee: that's computed per order, per destination.
   @override
-  int? get mtcDeliveryFeeFcfa;
+  double get weightKg;
 
   /// Denormalized from the supplier's verification status. Products from
   /// unverified/pending tiers suppliers are excluded from client-facing
@@ -656,6 +1034,77 @@ abstract class _Product implements Product {
   /// goods; imported categories (electronics, some materials) override it.
   @override
   ProductRegion get region;
+
+  /// Lifecycle within the supplier's own catalog management — see
+  /// `ProductStatus`'s doc comment. Defaults to `active` so every
+  /// pre-existing seeded product (created before this field existed)
+  /// stays visible without a data migration.
+  @override
+  ProductStatus get status;
+
+  /// Below this stock level, the supplier's product list flags the item
+  /// as low — `null` means no threshold is set (no warning is ever
+  /// shown). A per-product setting rather than a platform-wide constant
+  /// since restock lead time varies a lot by category (e.g. imported
+  /// electronics vs. locally-milled rice).
+  @override
+  int? get lowStockThreshold;
+
+  /// Prix barré saisi à la main, antérieur aux promotions (`0062`) : une
+  /// valeur décorative, sans date ni condition. Les remises réelles
+  /// passent par [promotions] ; celui-ci reste pour les produits qui le
+  /// portaient déjà.
+  @override
+  int? get compareAtPriceFcfa;
+
+  /// Remises en vigueur ou programmées sur ce produit, telles que la base
+  /// les porte — **toutes**, y compris inactives ou expirées. Le tri est
+  /// fait au calcul (`promotion_pricing.dart`) et non à la lecture : une
+  /// promotion qui commence demain doit être visible du fournisseur, et
+  /// filtrer côté requête obligerait à redemander la liste à chaque
+  /// changement d'heure.
+  @override
+  List<Promotion> get promotions;
+
+  /// Bumped by [ProductRepository.incrementViewCount] once per client
+  /// visit to the product's detail page — shown on the supplier
+  /// dashboard, not client-facing anywhere.
+  @override
+  int get viewCount;
+
+  /// Trigger-maintained (`0018_product_variants.sql`) — the only
+  /// reliable "does this product have variants" signal, true even from
+  /// list queries (`watchProducts`/`watchMyProducts`) that don't embed
+  /// [characteristics]/[variants] below. Never infer this from
+  /// `characteristics.isEmpty`/`variants.isEmpty`: those are only
+  /// populated by `getById`'s nested select.
+  @override
+  bool get hasVariants;
+
+  /// Trigger-maintained max variant price — `null` unless [hasVariants].
+  /// Paired with [priceFcfa] (trigger-maintained min variant price once
+  /// variants exist) to render "à partir de" range pricing without
+  /// fetching [variants].
+  @override
+  int? get maxPriceFcfa;
+
+  /// Trigger-maintained count of this product's variants — `0` unless
+  /// [hasVariants]. Lets list views show "N variantes" without embedding
+  /// the full [variants] list.
+  @override
+  int get variantCount;
+
+  /// This product's characteristics (couleur/stockage/...), each with its
+  /// own options — only populated via `getById`'s nested select (product
+  /// detail, cart line, checkout, favorites resolve, chat attachment,
+  /// stock-adjust sheet). Always empty from list queries.
+  @override
+  List<ProductCharacteristic> get characteristics;
+
+  /// This product's purchasable variants — same nested-select-only
+  /// population as [characteristics].
+  @override
+  List<ProductVariant> get variants;
 
   /// Create a copy of Product
   /// with the given fields replaced by the non-null parameter values.

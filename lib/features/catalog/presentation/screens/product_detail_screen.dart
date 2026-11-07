@@ -1,635 +1,292 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mtc_app/app/router/app_routes.dart';
-import 'package:mtc_app/app/theme/app_shadows.dart';
-import 'package:mtc_app/app/theme/app_spacing.dart';
-import 'package:mtc_app/core/widgets/core_widgets.dart';
-import 'package:mtc_app/features/cart/presentation/controllers/cart_controller.dart';
-import 'package:mtc_app/features/chat/presentation/controllers/chat_controller.dart';
-import 'package:mtc_app/features/comments/presentation/widgets/product_comments_section.dart';
-import 'package:mtc_app/features/favorites/presentation/widgets/favorite_toggle_button.dart';
+import 'package:mtc_app/core/error/user_message.dart';
+import 'package:mtc_app/core/shop/shop.dart';
+import 'package:mtc_app/features/chat/presentation/open_shop_conversation.dart';
+import 'package:mtc_app/features/chat/presentation/screens/chat_thread_screen.dart'
+    show ChatProductAttachment;
+import 'package:mtc_app/features/comments/presentation/providers/comment_providers.dart';
+import 'package:mtc_app/features/comments/presentation/widgets/product_comments_modal.dart';
+import 'package:mtc_app/features/favorites/presentation/widgets/bookmark_button.dart';
+import 'package:mtc_app/features/ratings/presentation/providers/review_providers.dart';
+import 'package:mtc_app/features/recommendations/presentation/providers/recommendation_providers.dart';
 
 import '../../domain/entities/product.dart';
+import '../../domain/entities/product_variant.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/product_selection.dart';
 import '../widgets/fullscreen_image_viewer.dart';
-import '../widgets/product_card.dart'
-    show ProductCard, ProductCategoryIcon, ProductImage;
+import '../widgets/product_buy_sheet.dart';
+import '../widgets/product_info_sheets.dart';
+import '../widgets/shop_product_data.dart';
+import '../widgets/variant_video_player.dart';
 
-/// The quantity picked on the detail page, isolated per product so
-/// backgrounding one product's screen never leaks its quantity into
-/// another's — shared between the inline stepper (next to the price) and
-/// the bottom action bar so both stay in sync without threading state
-/// through the widget tree.
-final _selectedQuantityProvider = StateProvider.autoDispose.family<int, String>(
-  (ref, productId) => 1,
-);
-
-/// Starts (or resumes) the conversation with this product's supplier and
-/// opens it with the product queued as a pending attachment — see
-/// [ChatThreadScreen.initialProduct] — so the client's next message carries
-/// the product's name/price/photo automatically.
-Future<void> _contactSupplierAboutProduct(
+/// Ouvre (ou reprend) la conversation avec le fournisseur, l'article — et
+/// la variante choisie — en pièce jointe en attente
+/// (`ChatThreadScreen.initialAttachment`) : le prochain message porte le
+/// nom, le prix et la photo exacts.
+Future<void> _contacterLaBoutique(
   BuildContext context,
   WidgetRef ref,
   Product product,
-) async {
-  final conversationId = await ref
-      .read(chatControllerProvider.notifier)
-      .startConversationWithSupplier(
-        supplierId: product.supplierId,
-        supplierName: product.supplierName,
-      );
-  if (!context.mounted || conversationId == null) return;
-  unawaited(
-    context.push(AppRoutes.chatThread(conversationId), extra: product),
-  );
-}
+  ProductVariant? variante,
+) => openShopConversation(
+  context,
+  ref,
+  supplierId: product.supplierId,
+  supplierName: product.supplierName,
+  attachment: ChatProductAttachment(product: product, variant: variante),
+);
 
-class ProductDetailScreen extends ConsumerWidget {
+/// La fiche produit du client, d'après `ProductDetailsScreen` du kit :
+/// la galerie, la marque et le nom, la disponibilité et la note, puis les
+/// rubriques (détails, livraison, boutique, questions), le résumé des avis
+/// et « Vous aimerez aussi ». Le prix et l'achat sont dans la barre du bas,
+/// qui ouvre la feuille d'achat.
+class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.productId});
 
   final String productId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final productAsync = ref.watch(productDetailProvider(productId));
-    final loadedProduct = productAsync.valueOrNull;
+  ConsumerState<ProductDetailScreen> createState() =>
+      _ProductDetailScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        actions: loadedProduct == null
-            ? null
-            : [
-                IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  tooltip: 'Poser une question sur ce produit',
-                  onPressed: () => _contactSupplierAboutProduct(
-                    context,
-                    ref,
-                    loadedProduct,
-                  ),
-                ),
-                FavoriteToggleButton(productId: loadedProduct.id),
-                const SizedBox(width: AppSpacing.xs),
-              ],
+class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Une fois par visite, pas à chaque reconstruction, et sans attendre le
+    // produit : le compteur n'en a pas besoin. Sans attendre non plus le
+    // résultat — un compteur raté ne doit ni bloquer ni casser la fiche.
+    unawaited(
+      ref.read(productRepositoryProvider).incrementViewCount(widget.productId),
+    );
+    // Le compteur ci-dessus dit combien de fois le produit a été vu ; cette
+    // trace dit *par qui*, pour le fil « Pour vous » (`0081`).
+    unawaited(
+      ref
+          .read(recommendationRepositoryProvider)
+          .logProductView(widget.productId),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final produit = ref.watch(productDetailProvider(widget.productId));
+
+    return produit.when(
+      data: (product) => _Fiche(product: product),
+      loading: () => const _FicheEnChargement(),
+      error: (erreur, _) => Scaffold(
+        appBar: AppBar(),
+        body: IllustratedMessage(
+          illustration: ShopIllustration.serverError,
+          title: 'Ce produit n\'a pas pu être chargé',
+          message: messagePourUtilisateur(erreur),
+          action: OutlinedButton(
+            onPressed: () =>
+                ref.invalidate(productDetailProvider(widget.productId)),
+            child: const Text('Réessayer'),
+          ),
+        ),
       ),
-      body: AsyncValueWidget(
-        value: productAsync,
-        data: (product) => _ProductDetailContent(product: product),
-      ),
-      bottomNavigationBar:
-          loadedProduct != null && loadedProduct.stockQuantity > 0
-          ? _AddToCartBar(product: loadedProduct)
-          : null,
     );
   }
 }
 
-/// Owns the selected-photo state shared between the hero image and the
-/// thumbnail strip beneath it, so tapping a thumbnail swipes the hero and
-/// swiping the hero updates the selected thumbnail. Also drives an idle
-/// auto-scroll (like [PromoHeroBanner]'s carousel) so a user who just
-/// stares at the screen still sees every photo cycle through.
-class _ProductDetailContent extends ConsumerStatefulWidget {
-  const _ProductDetailContent({required this.product});
+class _Fiche extends ConsumerStatefulWidget {
+  const _Fiche({required this.product});
 
   final Product product;
 
   @override
-  ConsumerState<_ProductDetailContent> createState() =>
-      _ProductDetailContentState();
+  ConsumerState<_Fiche> createState() => _FicheState();
 }
 
-class _ProductDetailContentState
-    extends ConsumerState<_ProductDetailContent> {
-  late final PageController _pageController;
-  Timer? _idleAutoScrollTimer;
-  int _selectedIndex = 0;
-  late String? _selectedSize = widget.product.sizes.isEmpty
-      ? null
-      : widget.product.sizes.first;
-  late String? _selectedColor = widget.product.colors.isEmpty
-      ? null
-      : widget.product.colors.first;
-
+class _FicheState extends ConsumerState<_Fiche> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-    if (widget.product.imageUrls.length > 1) {
-      _startIdleAutoScroll();
+    final parDefaut = defaultVariantOf(widget.product);
+    if (parDefaut != null) {
+      // Riverpod interdit d'écrire un provider pendant la construction de
+      // l'arbre : juste après cette image, comme le conseille son message.
+      Future(() {
+        if (!mounted) return;
+        final id = widget.product.id;
+        ref.read(productVariantIdProvider(id).notifier).state = parDefaut.id;
+        ref.read(productPicksProvider(id).notifier).state = derivePicks(
+          parDefaut,
+          const {},
+        );
+      });
     }
   }
 
-  @override
-  void dispose() {
-    _idleAutoScrollTimer?.cancel();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _startIdleAutoScroll() {
-    _idleAutoScrollTimer?.cancel();
-    _idleAutoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_pageController.hasClients) return;
-      final count = widget.product.imageUrls.length;
-      final next = (_selectedIndex + 1) % count;
-      _pageController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOutCubic,
-      );
-    });
-  }
-
-  /// Any user-driven photo change (swipe or thumbnail tap) resets the idle
-  /// clock, so auto-scroll only kicks in after real inactivity rather than
-  /// fighting a page the user is actively browsing.
-  void _onUserSelectedImage(int index) {
-    setState(() => _selectedIndex = index);
-    if (widget.product.imageUrls.length > 1) _startIdleAutoScroll();
-  }
-
-  void _selectImage(int index) {
-    _onUserSelectedImage(index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
-  }
-
-  void _openFullscreen() {
-    final images = widget.product.imageUrls;
-    if (images.isEmpty) return;
-    _idleAutoScrollTimer?.cancel();
-    showFullscreenImageViewer(
-      context,
-      images: images,
-      initialIndex: _selectedIndex,
-    ).whenComplete(() {
-      if (mounted && widget.product.imageUrls.length > 1) {
-        _startIdleAutoScroll();
-      }
-    });
+  void _pleinEcran(List<String> photos, int depuis) {
+    if (photos.isEmpty) return;
+    showFullscreenImageViewer(context, images: photos, initialIndex: depuis);
   }
 
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
-    final scheme = Theme.of(context).colorScheme;
-    final images = product.imageUrls;
+    final id = product.id;
 
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        GestureDetector(
-          onTap: images.isEmpty ? null : _openFullscreen,
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                images.length <= 1
-                    ? ProductImage(
-                        imageUrl: images.isEmpty ? null : images.first,
-                        icon: product.category.icon,
-                      )
-                    : PageView.builder(
-                        controller: _pageController,
-                        itemCount: images.length,
-                        onPageChanged: _onUserSelectedImage,
-                        itemBuilder: (context, index) => ProductImage(
-                          imageUrl: images[index],
-                          icon: product.category.icon,
-                        ),
-                      ),
-                if (images.isNotEmpty)
-                  Positioned(
-                    bottom: AppSpacing.sm,
-                    right: AppSpacing.sm,
-                    child: IgnorePointer(
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.fullscreen_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (images.length > 1) ...[
-                _ThumbnailStrip(
-                  images: images,
-                  selectedIndex: _selectedIndex,
-                  onSelected: _selectImage,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              Text(
-                product.name,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Row(
-                children: [
-                  Expanded(
-                    child: CurrencyText(
-                      product.priceFcfa,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (product.stockQuantity > 0)
-                    _InlineQuantityStepper(product: product),
-                ],
-              ),
-              if (product.colors.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.md),
-                _VariantSelector(
-                  label: 'Couleur',
-                  options: product.colors,
-                  selected: _selectedColor,
-                  onSelected: (value) =>
-                      setState(() => _selectedColor = value),
-                ),
-              ],
-              if (product.sizes.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.md),
-                _VariantSelector(
-                  label: 'Taille',
-                  options: product.sizes,
-                  selected: _selectedSize,
-                  onSelected: (value) => setState(() => _selectedSize = value),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.md),
-              _SupplierTile(product: product),
-              const Divider(height: AppSpacing.xl),
-              Text(
-                'Description',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                product.description,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              _StockAndDelivery(product: product),
-              const Divider(height: AppSpacing.xl),
-              ProductCommentsSection(productId: product.id),
-            ],
-          ),
-        ),
-        _SimilarProducts(product: product),
-        const SizedBox(height: AppSpacing.lg),
-      ],
-    );
-  }
-}
-
-/// Compact +/- stepper sat next to the price, sharing
-/// [_selectedQuantityProvider] with the bottom action bar.
-class _InlineQuantityStepper extends ConsumerWidget {
-  const _InlineQuantityStepper({required this.product});
-
-  final Product product;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final quantity = ref.watch(_selectedQuantityProvider(product.id));
-    final scheme = Theme.of(context).colorScheme;
-
-    const buttonConstraints = BoxConstraints.tightFor(width: 30, height: 30);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.remove_rounded, size: 16),
-            iconSize: 16,
-            padding: EdgeInsets.zero,
-            constraints: buttonConstraints,
-            onPressed: quantity > 1
-                ? () => ref
-                      .read(_selectedQuantityProvider(product.id).notifier)
-                      .state--
-                : null,
-          ),
-          SizedBox(
-            width: 24,
-            child: Text(
-              '$quantity',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_rounded, size: 16),
-            iconSize: 16,
-            padding: EdgeInsets.zero,
-            constraints: buttonConstraints,
-            onPressed: quantity < product.stockQuantity
-                ? () => ref
-                      .read(_selectedQuantityProvider(product.id).notifier)
-                      .state++
-                : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A row of selectable chips for one variant axis (color or size) — purely
-/// a browsing/comparison aid for now; the cart doesn't track per-variant
-/// selection yet, so this doesn't change price or stock.
-class _VariantSelector extends StatelessWidget {
-  const _VariantSelector({
-    required this.label,
-    required this.options,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final String label;
-  final List<String> options;
-  final String? selected;
-  final void Function(String value) onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: [
-            for (final option in options)
-              ChoiceChip(
-                label: Text(option),
-                selected: option == selected,
-                selectedColor: scheme.primary,
-                labelStyle: TextStyle(
-                  color: option == selected ? scheme.onPrimary : scheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-                onSelected: (_) => onSelected(option),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// "Voir aussi" — other products in the same category from the same side of
-/// the catalog (tiers/principal), so browsing a product naturally surfaces
-/// alternatives without a full search round-trip.
-class _SimilarProducts extends ConsumerWidget {
-  const _SimilarProducts({required this.product});
-
-  final Product product;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final similarAsync = ref.watch(similarProductsProvider(product));
-
-    return similarAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (products) {
-        if (products.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Text(
-                'Voir aussi',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            SizedBox(
-              height: 270,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                itemCount: products.length,
-                separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-                itemBuilder: (context, index) => SizedBox(
-                  width: 150,
-                  child: ProductCard(product: products[index]),
-                ),
-              ),
-            ),
-          ],
+    ref.listen(productVariantIdProvider(id), (avant, apres) {
+      if (avant == apres) return;
+      // Une quantité choisie sur le stock de l'ancienne variante peut
+      // dépasser celui de la nouvelle : on repart de 1 plutôt que de la
+      // rogner sans le dire.
+      ref.read(productQuantityProvider(id).notifier).state = 1;
+      final variante = product.variants.firstWhereOrNull((v) => v.id == apres);
+      if (variante != null) {
+        ref.read(productPicksProvider(id).notifier).state = derivePicks(
+          variante,
+          ref.read(productPicksProvider(id)),
         );
-      },
+      }
+    });
+
+    final variantId = ref.watch(productVariantIdProvider(id));
+    final picks = ref.watch(productPicksProvider(id));
+    final variante = product.variants.firstWhereOrNull(
+      (v) => v.id == variantId,
     );
-  }
-}
+    final aEnvoyer = variante == null
+        ? null
+        : resolveVariantForPurchase(variante, picks, product.characteristics);
+    // Les photos de la variante choisie quand elle en a, celles du produit
+    // sinon.
+    final photos = variante != null && variante.imageUrls.isNotEmpty
+        ? variante.imageUrls
+        : product.imageUrls;
+    final prix = product.unitPricing(basePriceFcfa: variante?.priceFcfa);
+    final resume = ref.watch(productReviewSummaryProvider(id)).valueOrNull;
+    final enStock = product.stockQuantity > 0;
 
-class _ThumbnailStrip extends StatelessWidget {
-  const _ThumbnailStrip({
-    required this.images,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final List<String> images;
-  final int selectedIndex;
-  final void Function(int index) onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return SizedBox(
-      height: 64,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: images.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, index) {
-          final selected = index == selectedIndex;
-          return InkWell(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            onTap: () => onSelected(index),
-            child: Container(
-              width: 64,
-              height: 64,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                border: Border.all(
-                  color: selected ? scheme.primary : scheme.outlineVariant,
-                  width: selected ? 2 : 1,
+    return Scaffold(
+      bottomNavigationBar: enStock
+          ? CartButton(
+              priceFcfa: prix.priceFcfa,
+              title: 'Acheter',
+              onPressed: () => showProductBuySheet(context, product),
+            )
+          : NoticeCard(
+              icon: ShopIcons.chat,
+              text: 'En rupture de stock. Demandez à la boutique quand il '
+                  'revient.',
+              trailing: const ShopIcon(ShopIcons.miniRight),
+              onTap: () =>
+                  _contacterLaBoutique(context, ref, product, aEnvoyer),
+            ),
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              floating: true,
+              actions: [
+                BookmarkButton(productId: id),
+                const SizedBox(width: ShopSizes.padding / 2),
+              ],
+            ),
+            SliverToBoxAdapter(
+              // Une autre variante, une autre série de photos : la galerie
+              // repart de la première.
+              child: KeyedSubtree(
+                key: ValueKey(variantId),
+                child: ShopProductGallery(
+                  images: photos,
+                  onTap: (index) => _pleinEcran(photos, index),
+                  overlay: _Pastilles(
+                    percent: prix.percent,
+                    videoPath: variante?.videoPath,
+                  ),
                 ),
               ),
-              child: Image.asset(images[index], fit: BoxFit.cover),
             ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Dual-action bottom bar — a quick "Acheter" that adds the selected
-/// quantity straight to the cart and jumps to checkout, and the regular
-/// "Ajouter au panier" that just adds it. Both read the same
-/// [_selectedQuantityProvider] the inline stepper next to the price writes
-/// to, so there's a single source of truth for "how many".
-class _AddToCartBar extends ConsumerWidget {
-  const _AddToCartBar({required this.product});
-
-  final Product product;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    final brightness = Theme.of(context).brightness;
-    final quantity = ref.watch(_selectedQuantityProvider(product.id));
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.md,
-        AppSpacing.lg,
-        AppSpacing.lg,
-      ),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        boxShadow: AppShadows.bar(brightness),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () async {
-                  await ref
-                      .read(cartControllerProvider.notifier)
-                      .addProduct(product, quantity: quantity);
-                  if (context.mounted) {
-                    unawaited(context.push(AppRoutes.clientCheckout));
-                  }
-                },
-                child: const Text('Acheter'),
+            SliverToBoxAdapter(
+              child: ShopProductInfo(
+                brand: product.supplierName,
+                title: product.name,
+                availability: AvailabilityTag(
+                  isAvailable: enStock,
+                  label: enStock ? 'En stock' : 'Rupture de stock',
+                ),
+                rating: resume?.ratingAverage ?? 0,
+                reviewCount: resume?.reviewCount ?? 0,
+                description: product.description,
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              flex: 2,
-              child: MtcPrimaryButton(
-                label: 'Ajouter au panier',
-                icon: Icons.add_shopping_cart_rounded,
-                onPressed: () async {
-                  await ref
-                      .read(cartControllerProvider.notifier)
-                      .addProduct(product, quantity: quantity);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ajouté au panier')),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SupplierTile extends StatelessWidget {
-  const _SupplierTile({required this.product});
-
-  final Product product;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      onTap: () => context.push(AppRoutes.supplierProfile(product.supplierId)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: scheme.primaryContainer,
-              child: Icon(
-                Icons.storefront_rounded,
-                color: scheme.onPrimaryContainer,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
+            SliverToBoxAdapter(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    product.supplierName,
-                    style: Theme.of(context).textTheme.titleSmall,
+                  ChevronListTile(
+                    title: 'Détails du produit',
+                    icon: ShopIcons.product,
+                    fontSize: 16,
+                    dividerAbove: true,
+                    showDivider: false,
+                    onTap: () => showProductDetailsSheet(context, product),
                   ),
-                  Text(
-                    product.city,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
+                  ChevronListTile(
+                    title: 'Livraison',
+                    icon: ShopIcons.delivery,
+                    fontSize: 16,
+                    dividerAbove: true,
+                    showDivider: false,
+                    onTap: () => showDeliveryMethodsSheet(context, product),
+                  ),
+                  ChevronListTile(
+                    title: product.supplierName,
+                    icon: ShopIcons.stores,
+                    fontSize: 16,
+                    trailingText: 'Boutique',
+                    dividerAbove: true,
+                    showDivider: false,
+                    onTap: () => context.push(
+                      AppRoutes.supplierProfile(product.supplierId),
                     ),
                   ),
+                  ChevronListTile(
+                    title: 'Poser une question à la boutique',
+                    icon: ShopIcons.chat,
+                    fontSize: 16,
+                    dividerAbove: true,
+                    showDivider: false,
+                    onTap: () =>
+                        _contacterLaBoutique(context, ref, product, aEnvoyer),
+                  ),
+                  _LigneCommentaires(productId: id),
                 ],
               ),
             ),
-            MtcRatingStars(
-              rating: product.ratingAverage,
-              ratingCount: product.ratingCount,
+            SliverToBoxAdapter(child: _ResumeDesAvis(productId: id)),
+            SliverToBoxAdapter(
+              child: ChevronListTile(
+                title: 'Avis',
+                icon: ShopIcons.chat,
+                fontSize: 16,
+                trailingText: (resume?.reviewCount ?? 0) > 0
+                    ? '${resume!.reviewCount}'
+                    : null,
+                dividerAbove: true,
+                onTap: () => context.push(AppRoutes.productReviews(id)),
+              ),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded),
+            SliverToBoxAdapter(child: _Similaires(product: product)),
+            const SliverToBoxAdapter(
+              child: SizedBox(height: ShopSizes.padding),
+            ),
           ],
         ),
       ),
@@ -637,82 +294,176 @@ class _SupplierTile extends StatelessWidget {
   }
 }
 
-class _StockAndDelivery extends StatelessWidget {
-  const _StockAndDelivery({required this.product});
+/// En haut à gauche de la galerie : la remise en cours pour une unité, et
+/// la vidéo de la variante choisie, qui reste là où l'on regarde les
+/// photos plutôt que d'être une page de plus du carrousel.
+class _Pastilles extends StatelessWidget {
+  const _Pastilles({required this.percent, required this.videoPath});
 
-  final Product product;
+  final int? percent;
+  final String? videoPath;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final brightness = Theme.of(context).brightness;
-    final inStock = product.stockQuantity > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        boxShadow: AppShadows.soft(brightness),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                inStock
-                    ? Icons.check_circle_outline_rounded
-                    : Icons.cancel_outlined,
-                size: 18,
-                color: inStock ? scheme.primary : scheme.error,
+    final video = videoPath;
+    if (percent == null && video == null) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (percent != null) DiscountBadge(percent!),
+        if (percent != null && video != null)
+          const SizedBox(width: ShopSizes.padding / 2),
+        if (video != null)
+          Material(
+            color: Colors.black.withValues(alpha: 0.55),
+            shape: const StadiumBorder(),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: () => showVariantVideo(context, video),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: ShopSizes.padding * 0.75,
+                  vertical: 6,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Vidéo',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                inStock
-                    ? '${product.stockQuantity} en stock'
-                    : 'Rupture de stock',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          if (product.allowsSelfDelivery)
-            const _DeliveryRow(
-              icon: Icons.storefront_outlined,
-              label: 'Livraison par le fournisseur',
-            ),
-          if (product.allowsMtcDelivery)
-            _DeliveryRow(
-              icon: Icons.local_shipping_outlined,
-              label: product.mtcDeliveryFeeFcfa != null
-                  ? 'Livraison MTC (+${product.mtcDeliveryFeeFcfa} FCFA)'
-                  : 'Livraison MTC',
-            ),
+      ],
+    );
+  }
+}
+
+/// Les questions publiques sur l'article, avec leur nombre : une raison
+/// de toucher la ligne avant même d'y lire une réponse.
+class _LigneCommentaires extends ConsumerWidget {
+  const _LigneCommentaires({required this.productId});
+
+  final String productId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final nombre =
+        ref.watch(productCommentsProvider(productId)).valueOrNull?.length ?? 0;
+    return ChevronListTile(
+      title: 'Commentaires',
+      icon: ShopIcons.faq,
+      fontSize: 16,
+      trailingText: nombre > 0 ? '$nombre' : null,
+      dividerAbove: true,
+      onTap: () => showProductCommentsModal(context, productId: productId),
+    );
+  }
+}
+
+/// Le résumé des avis (`ReviewCard` du kit) : la moyenne et la répartition
+/// par note, comptées en base sur tous les avis du produit.
+class _ResumeDesAvis extends ConsumerWidget {
+  const _ResumeDesAvis({required this.productId});
+
+  final String productId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resume = ref
+        .watch(productReviewSummaryProvider(productId))
+        .valueOrNull;
+    // Une fiche reste lisible quand ses avis ne chargent pas : rien plutôt
+    // qu'une erreur à la place du produit.
+    if (resume == null) return const SizedBox(height: ShopSizes.padding);
+    if (resume.reviewCount == 0) {
+      return const Padding(
+        padding: EdgeInsets.all(ShopSizes.padding),
+        child: Text(
+          'Aucun avis pour l\'instant. Les acheteurs de ce produit pourront '
+          'en laisser un après la livraison.',
+          style: TextStyle(height: 1.4),
+        ),
+      );
+    }
+    final repartition = ref
+        .watch(productRatingDistributionProvider(productId))
+        .valueOrNull;
+    return Padding(
+      padding: const EdgeInsets.all(ShopSizes.padding),
+      child: RatingSummaryCard(
+        rating: resume.ratingAverage,
+        reviewCount: resume.reviewCount,
+        countsByStar: [
+          for (var etoiles = 5; etoiles >= 1; etoiles--)
+            repartition?[etoiles] ?? 0,
         ],
       ),
     );
   }
 }
 
-class _DeliveryRow extends StatelessWidget {
-  const _DeliveryRow({required this.icon, required this.label});
+/// « Vous aimerez aussi » : la même catégorie, du même côté du catalogue.
+class _Similaires extends ConsumerWidget {
+  const _Similaires({required this.product});
 
-  final IconData icon;
-  final String label;
+  final Product product;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final similaires = ref.watch(similarProductsProvider(product));
+    if (similaires.hasError) return const SizedBox.shrink();
+    final liste = similaires.valueOrNull;
+    if (liste != null && liste.isEmpty) return const SizedBox.shrink();
+    return ProductCarouselSection(
+      title: 'Vous aimerez aussi',
+      products: liste?.map((p) => p.shopData()).toList(),
+      onTap: (index) =>
+          context.push(AppRoutes.productDetail(liste![index].id)),
+    );
+  }
+}
+
+/// La fiche pendant son chargement : les silhouettes de la galerie et des
+/// textes, à leur place.
+class _FicheEnChargement extends StatelessWidget {
+  const _FicheEnChargement();
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+    return Scaffold(
+      appBar: AppBar(),
+      body: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: ShopSizes.padding),
+        children: const [
+          AspectRatio(
+            aspectRatio: 1,
+            child: Skeleton(radius: ShopSizes.radius * 2),
           ),
+          SizedBox(height: ShopSizes.padding),
+          Skeleton(height: 12, width: 100),
+          SizedBox(height: ShopSizes.padding / 2),
+          Skeleton(height: 24, width: 240),
+          SizedBox(height: ShopSizes.padding),
+          Skeleton(height: 28, width: 120),
+          SizedBox(height: ShopSizes.padding),
+          Skeleton(height: 12),
+          SizedBox(height: ShopSizes.padding / 2),
+          Skeleton(height: 12),
         ],
       ),
     );

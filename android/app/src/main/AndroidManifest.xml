@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Position du livreur pendant son service : proposition des courses les
+         plus proches, et suivi de la livraison par le client. Uniquement
+         pendant l'usage de l'app — pas de localisation en arrière-plan, qui
+         demanderait une permission distincte et une justification auprès des
+         magasins d'applications. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Android 13+ (API 33) scoped media permission; image_picker falls back
          to the system photo picker (no permission needed) on 13+ but older
          OS versions still need this to read the gallery. -->
@@ -8,6 +15,13 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- Android 13+ (API 33) requires an explicit runtime grant before any
+         notification can be shown, push included. Requested from
+         `pushRegistrationProvider` via `FirebaseMessaging.requestPermission()`,
+         which raises the system dialog; without this line that call is a
+         silent no-op and pushes never surface. Older OS versions grant it
+         implicitly, so no `maxSdkVersion` counterpart is needed. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="mtc_app"
         android:name="${applicationName}"
